@@ -15,9 +15,9 @@ class Campaign extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'broker_id',
+        'network_id',
         'user_id',
-        'broker_campaign_id',
+        'network_campaign_id',
         'name',
         'description',
         'logo_url',

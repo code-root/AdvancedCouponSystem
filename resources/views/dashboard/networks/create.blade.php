@@ -1,7 +1,7 @@
 @extends('layouts.vertical', ['title' => 'Connect Network'])
 
 @section('css')
-    @vite(['node_modules/select2/dist/css/select2.min.css'])
+    @vite(['node_modules/select2/dist/css/select2.min.css', 'node_modules/sweetalert2/dist/sweetalert2.min.css'])
 @endsection
 
 @section('content')
@@ -69,45 +69,21 @@
                                 <small class="text-muted">Give this connection a memorable name</small>
                             </div>
 
-                            <!-- API Endpoint -->
-                            <div class="col-md-6 mb-3">
+                            <!-- API Endpoint (Auto-filled) -->
+                            <div class="col-md-12 mb-3">
                                 <label class="form-label">API Endpoint <span class="text-danger">*</span></label>
-                                <input type="url" class="form-control" name="api_endpoint" id="apiEndpoint" 
-                                       value="{{ old('api_endpoint') }}" placeholder="https://api.network.com" required>
-                                <small class="text-muted">Network's API URL</small>
+                                <input type="url" class="form-control bg-light" name="api_endpoint" id="apiEndpoint" 
+                                       value="{{ old('api_endpoint') }}" placeholder="Will be auto-filled" readonly>
+                                <small class="text-muted">Network's API URL (auto-configured)</small>
                             </div>
 
-                            <!-- Client ID -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Client ID <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="client_id" 
-                                       value="{{ old('client_id') }}" placeholder="Enter Client ID" required>
-                            </div>
-
-                            <!-- Client Secret -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Client Secret <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <input type="password" class="form-control" name="client_secret" id="clientSecret"
-                                           value="{{ old('client_secret') }}" placeholder="Enter Client Secret" required>
-                                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('clientSecret')">
-                                        <i class="ti ti-eye"></i>
-                                    </button>
+                            <!-- Dynamic Fields Container -->
+                            <div id="dynamicFieldsContainer" class="col-12">
+                                <!-- Fields will be loaded dynamically based on network selection -->
+                                <div class="alert alert-info">
+                                    <i class="ti ti-info-circle me-2"></i>
+                                    Please select a network above to see required fields
                                 </div>
-                            </div>
-
-                            <!-- Token (Optional) -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Access Token (Optional)</label>
-                                <input type="text" class="form-control" name="token" 
-                                       value="{{ old('token') }}" placeholder="Bearer token if available">
-                            </div>
-
-                            <!-- Contact ID (Optional) -->
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Contact ID (Optional)</label>
-                                <input type="text" class="form-control" name="contact_id" 
-                                       value="{{ old('contact_id') }}" placeholder="Your contact ID at network">
                             </div>
 
                             <!-- Status -->
@@ -240,7 +216,16 @@
 
 @section('scripts')
 <script>
-$(document).ready(function() {
+let currentNetworkConfig = null;
+
+// Wait for DOM and jQuery to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Make sure jQuery and other libraries are loaded
+    if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded!');
+        return;
+    }
+    
     // Initialize Select2
     $('#networkSelect').select2({
         placeholder: 'Choose a network...',
@@ -249,67 +234,256 @@ $(document).ready(function() {
 
     // Handle network selection
     $('#networkSelect').on('change', function() {
+        const networkId = $(this).val();
         const selectedOption = $(this).find('option:selected');
         
-        if (selectedOption.val()) {
-            // Update sidebar
-            $('#sidebarNetworkName').text(selectedOption.data('display'));
-            $('#sidebarNetworkCountry').text(selectedOption.data('country'));
-            $('#sidebarCommission').text(selectedOption.data('commission') + '%');
-            $('#sidebarCountryName').text(selectedOption.data('country'));
-            $('#sidebarApiUrl').text(selectedOption.data('api-url'));
-            
-            // Update API endpoint field
-            $('#apiEndpoint').val(selectedOption.data('api-url'));
-            
-            // Auto-generate connection name if empty
-            if (!$('#connectionName').val()) {
-                $('#connectionName').val(selectedOption.data('display') + ' - ' + new Date().toLocaleDateString());
-            }
-
-            // Show network info card
-            $('#networkInfoCard').fadeIn();
-            $('#sidebarDetails').fadeIn();
-
-            // Display features
-            const features = selectedOption.data('features');
-            if (features) {
-                const featuresArray = features.split(', ');
-                let featuresHTML = '';
-                featuresArray.forEach(feature => {
-                    featuresHTML += `<span class="badge bg-primary-subtle text-primary fs-11 p-1">${feature}</span> `;
-                });
-                $('#sidebarFeatures').html(featuresHTML);
-            }
+        if (networkId) {
+            loadNetworkConfig(networkId, selectedOption);
         } else {
-            $('#networkInfoCard').fadeOut();
-            $('#sidebarDetails').fadeOut();
+            resetForm();
         }
     });
 
-    // Form validation
+    // Form submission with connection test
     $('#networkForm').on('submit', function(e) {
-        const network = $('#networkSelect').val();
-        const connectionName = $('#connectionName').val();
-        const apiEndpoint = $('#apiEndpoint').val();
-        const clientId = $('input[name="client_id"]').val();
-        const clientSecret = $('input[name="client_secret"]').val();
-
-        if (!network || !connectionName || !apiEndpoint || !clientId || !clientSecret) {
-            e.preventDefault();
-            Swal.fire({
-                icon: 'error',
-                title: 'Missing Information',
-                text: 'Please fill in all required fields'
-            });
-            return false;
-        }
+        e.preventDefault();
+        testAndSubmit();
     });
 });
 
-function togglePassword(fieldId) {
+// Load network configuration
+function loadNetworkConfig(networkId, selectedOption) {
+    // Show loading
+    $('#dynamicFieldsContainer').html(`
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2 text-muted">Loading network configuration...</p>
+        </div>
+    `);
+
+    // Fetch network config
+    $.ajax({
+        url: `/networks/${networkId}/config`,
+        method: 'GET',
+        success: function(response) {
+            if (response.success) {
+                currentNetworkConfig = response.data;
+                renderDynamicFields(response.data);
+                updateSidebar(selectedOption, response.data);
+                
+                // Set API endpoint
+                $('#apiEndpoint').val(response.data.network_info.api_url);
+                
+                // Auto-generate connection name if empty
+                if (!$('#connectionName').val()) {
+                    $('#connectionName').val(response.data.network_info.display_name + ' - ' + new Date().toLocaleDateString());
+                }
+                
+                $('#networkInfoCard').fadeIn();
+            } else {
+                showError('Failed to load network configuration');
+            }
+        },
+        error: function() {
+            showError('Error loading network configuration');
+        }
+    });
+}
+
+// Render dynamic fields based on network requirements
+function renderDynamicFields(config) {
+    let fieldsHTML = '<div class="row">';
+    
+    config.required_fields.forEach(field => {
+        const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const isPassword = field.includes('secret') || field.includes('password') || field.includes('token');
+        
+        fieldsHTML += `
+            <div class="col-md-6 mb-3">
+                <label class="form-label">${fieldName} <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <input type="${isPassword ? 'password' : 'text'}" 
+                           class="form-control network-credential" 
+                           name="credentials[${field}]" 
+                           id="field_${field}"
+                           placeholder="Enter ${fieldName}" 
+                           required>
+                    ${isPassword ? `
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordField('field_${field}')">
+                            <i class="ti ti-eye"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    fieldsHTML += '</div>';
+    $('#dynamicFieldsContainer').html(fieldsHTML);
+}
+
+// Update sidebar with network info
+function updateSidebar(selectedOption, config) {
+    $('#sidebarNetworkName').text(config.network_info.display_name);
+    $('#sidebarApiUrl').text(config.network_info.api_url);
+    
+    // Display features
+    const features = selectedOption.data('features');
+    if (features) {
+        const featuresArray = features.split(', ');
+        let featuresHTML = '';
+        featuresArray.forEach(feature => {
+            featuresHTML += `<span class="badge bg-primary-subtle text-primary fs-11 p-1 me-1 mb-1">${feature}</span>`;
+        });
+        $('#sidebarFeatures').html(featuresHTML);
+    }
+    
+    $('#sidebarDetails').fadeIn();
+}
+
+// Test connection and submit
+function testAndSubmit() {
+    const networkId = $('#networkSelect').val();
+    const connectionName = $('#connectionName').val();
+    
+    if (!networkId || !connectionName) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Missing Information',
+            text: 'Please select a network and enter a connection name'
+        });
+        return;
+    }
+    
+    // Collect credentials
+    const credentials = {};
+    $('.network-credential').each(function() {
+        const name = $(this).attr('name').replace('credentials[', '').replace(']', '');
+        credentials[name] = $(this).val();
+    });
+    
+    // Add API endpoint
+    credentials.api_endpoint = $('#apiEndpoint').val();
+    
+    // Show testing modal
+    Swal.fire({
+        title: 'Testing Connection',
+        html: 'Please wait while we verify your credentials...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // Test connection
+    $.ajax({
+        url: '{{ route("networks.test-connection") }}',
+        method: 'POST',
+        data: {
+            _token: '{{ csrf_token() }}',
+            network_id: networkId,
+            credentials: credentials
+        },
+        success: function(response) {
+            if (response.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Connection Successful!',
+                    text: response.message,
+                    showCancelButton: true,
+                    confirmButtonText: 'Save Connection',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        submitForm();
+                    }
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Connection Failed',
+                    html: `<p>${response.message}</p>
+                           <small class="text-muted">Please check your credentials and try again.</small>`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Try Again',
+                    cancelButtonText: 'Save Anyway'
+                }).then((result) => {
+                    if (result.dismiss === Swal.DismissReason.cancel) {
+                        submitForm();
+                    }
+                });
+            }
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.message || 'An error occurred while testing the connection';
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMsg
+            });
+        }
+    });
+}
+
+// Submit form
+function submitForm() {
+    // Collect all form data
+    const formData = $('#networkForm').serialize();
+    
+    Swal.fire({
+        title: 'Saving Connection',
+        html: 'Please wait...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    $.ajax({
+        url: '{{ route("networks.store") }}',
+        method: 'POST',
+        data: formData,
+        success: function(response) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: 'Network connection created successfully',
+                timer: 2000
+            }).then(() => {
+                window.location.href = '{{ route("networks.index") }}';
+            });
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.message || 'Failed to create connection';
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: errorMsg
+            });
+        }
+    });
+}
+
+// Reset form
+function resetForm() {
+    $('#dynamicFieldsContainer').html(`
+        <div class="alert alert-info">
+            <i class="ti ti-info-circle me-2"></i>
+            Please select a network above to see required fields
+        </div>
+    `);
+    $('#apiEndpoint').val('');
+    $('#networkInfoCard').fadeOut();
+    currentNetworkConfig = null;
+}
+
+// Toggle password visibility
+function togglePasswordField(fieldId) {
     const field = document.getElementById(fieldId);
-    const icon = event.currentTarget.querySelector('i');
+    const button = event.currentTarget;
+    const icon = button.querySelector('i');
     
     if (field.type === 'password') {
         field.type = 'text';
@@ -320,6 +494,16 @@ function togglePassword(fieldId) {
         icon.classList.remove('ti-eye-off');
         icon.classList.add('ti-eye');
     }
+}
+
+// Show error message
+function showError(message) {
+    $('#dynamicFieldsContainer').html(`
+        <div class="alert alert-danger">
+            <i class="ti ti-alert-circle me-2"></i>
+            ${message}
+        </div>
+    `);
 }
 </script>
 @endsection

@@ -19,23 +19,33 @@ class DashboardController extends Controller
      */
     public function index()
     {
+        $userId = auth()->id();
+        
         $stats = [
-            'total_coupons' => Coupon::count(),
-            'active_coupons' => Coupon::where('is_active', true)->count(),
-            'total_campaigns' => Campaign::count(),
-            'active_campaigns' => Campaign::where('is_active', true)->count(),
-            'total_purchases' => Purchase::count(),
-            'total_revenue' => Purchase::where('status', 'completed')->sum('amount'),
-            'total_networks' => Network::count(),
-            'active_networks' => Network::where('is_active', true)->count(),
+            'total_coupons' => Coupon::whereHas('campaign', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })->count(),
+            'active_coupons' => Coupon::whereHas('campaign', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })->where('status', 'active')->count(),
+            'total_campaigns' => Campaign::where('user_id', $userId)->count(),
+            'active_campaigns' => Campaign::where('user_id', $userId)->where('status', 'active')->count(),
+            'total_purchases' => Purchase::where('user_id', $userId)->count(),
+            'total_revenue' => Purchase::where('user_id', $userId)->where('status', 'approved')->sum('revenue'),
+            'total_networks' => auth()->user()->networkConnections()->count(),
+            'active_networks' => auth()->user()->networkConnections()->where('is_connected', true)->count(),
         ];
 
-        $recent_purchases = Purchase::with(['user', 'coupon'])
+        $recent_purchases = Purchase::where('user_id', $userId)
+            ->with(['coupon', 'campaign', 'network'])
             ->latest()
             ->limit(10)
             ->get();
 
-        $recent_coupons = Coupon::with('campaign')
+        $recent_coupons = Coupon::whereHas('campaign', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })
+            ->with('campaign')
             ->latest()
             ->limit(10)
             ->get();

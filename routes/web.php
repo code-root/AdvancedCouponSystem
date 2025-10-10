@@ -64,7 +64,10 @@ Route::middleware(['auth'])->group(function () {
         Route::put('{network}', [NetworkController::class, 'update'])->name('update');
         Route::delete('{network}', [NetworkController::class, 'destroy'])->name('destroy');
         Route::post('{network}/connections', [NetworkController::class, 'createConnection'])->name('connections.create');
+        Route::post('{connection}/sync', [NetworkController::class, 'syncConnection'])->name('sync');
         Route::get('{network}/data', [NetworkController::class, 'getData'])->name('data');
+        Route::get('{network}/config', [NetworkController::class, 'getNetworkConfig'])->name('config');
+        Route::post('test-connection', [NetworkController::class, 'testConnection'])->name('test-connection');
     });
     
     // Campaign Management Routes

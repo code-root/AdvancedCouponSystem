@@ -10,12 +10,85 @@ use Illuminate\Support\Str;
 class CampaignController extends Controller
 {
     /**
-     * Display a listing of campaigns
+     * Display a listing of campaigns for authenticated user
      */
-    public function index()
+    public function index(Request $request)
     {
-        $campaigns = Campaign::with('network')->paginate(15);
-        return view('dashboard.campaigns.index', compact('campaigns'));
+        // For AJAX requests, return JSON
+        if ($request->ajax() || $request->expectsJson()) {
+            return $this->getCampaignsData($request);
+        }
+        
+        // For web requests, return view
+        $networks = auth()->user()->connectedNetworks;
+        $stats = $this->getCampaignStats();
+        
+        return view('dashboard.campaigns.index', compact('networks', 'stats'));
+    }
+    
+    /**
+     * Get campaigns data with filters (AJAX)
+     */
+    private function getCampaignsData(Request $request)
+    {
+        $query = Campaign::where('user_id', auth()->id())
+            ->with(['network', 'coupons']);
+        
+        // Filter by network
+        if ($request->network_id) {
+            $query->where('network_id', $request->network_id);
+        }
+        
+        // Filter by status
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+        
+        // Filter by campaign type
+        if ($request->campaign_type) {
+            $query->where('campaign_type', $request->campaign_type);
+        }
+        
+        // Filter by date range
+        if ($request->date_from) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        
+        if ($request->date_to) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+        
+        // Search
+        if ($request->search) {
+            $query->where(function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('network_campaign_id', 'like', '%' . $request->search . '%');
+            });
+        }
+        
+        $campaigns = $query->latest()->paginate($request->per_page ?? 15);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $campaigns
+        ]);
+    }
+    
+    /**
+     * Get campaign statistics
+     */
+    private function getCampaignStats()
+    {
+        $userId = auth()->id();
+        
+        return [
+            'total' => Campaign::where('user_id', $userId)->count(),
+            'active' => Campaign::where('user_id', $userId)->where('status', 'active')->count(),
+            'paused' => Campaign::where('user_id', $userId)->where('status', 'paused')->count(),
+            'inactive' => Campaign::where('user_id', $userId)->where('status', 'inactive')->count(),
+            'coupon_type' => Campaign::where('user_id', $userId)->where('campaign_type', 'coupon')->count(),
+            'link_type' => Campaign::where('user_id', $userId)->where('campaign_type', 'link')->count(),
+        ];
     }
 
     /**

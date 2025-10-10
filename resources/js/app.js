@@ -25,6 +25,9 @@ import Inputmask from 'inputmask';
 
 import Choices from 'choices.js';
 
+import Swal from 'sweetalert2';
+window.Swal = Swal;
+
 
 class App {
 

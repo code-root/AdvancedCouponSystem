@@ -15,7 +15,7 @@
                 <form action="javascript:void(0);">
                     <div class="row g-2 mb-0 align-items-center">
                         <div class="col-auto">
-                            <a href="{{ route('brokers.create') }}" class="btn btn-primary">
+                            <a href="{{ route('networks.create') }}" class="btn btn-primary">
                                 <i class="ti ti-plug-connected me-1"></i> Connect Network
                             </a>
                         </div>
@@ -203,7 +203,7 @@
                         <div class="text-center py-5">
                             <i class="ti ti-affiliate fs-48 text-muted"></i>
                             <p class="text-muted mt-3 mb-2">No brokers connected yet</p>
-                            <a href="{{ route('brokers.create') }}" class="btn btn-sm btn-primary">
+                            <a href="{{ route('networks.create') }}" class="btn btn-sm btn-primary">
                                 <i class="ti ti-plug-connected me-1"></i> Connect Your First Network
                             </a>
                         </div>
@@ -225,7 +225,7 @@
                 <h1><i class="ti ti-rocket text-white"></i></h1>
                 <h4 class="text-white">Get Started with Affiliate Marketing</h4>
                 <p class="text-white text-opacity-75">Connect your first broker and start earning commissions today!</p>
-                <a href="{{ route('brokers.create') }}" class="btn btn-sm rounded-pill btn-info">Connect Now</a>
+                <a href="{{ route('networks.create') }}" class="btn btn-sm rounded-pill btn-info">Connect Now</a>
             </div> <!-- end card-body-->
         </div> <!-- end card-->
 
@@ -236,7 +236,7 @@
                 </div>
                 
                 <div class="d-flex flex-column gap-2">
-                    <a href="{{ route('brokers.index') }}" class="btn btn-outline-primary btn-sm">
+                    <a href="{{ route('networks.index') }}" class="btn btn-outline-primary btn-sm">
                         <i class="ti ti-affiliate me-1"></i> Manage Networks
                     </a>
                     <a href="{{ route('campaigns.index') }}" class="btn btn-outline-success btn-sm">

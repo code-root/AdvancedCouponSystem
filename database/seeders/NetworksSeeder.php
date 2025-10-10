@@ -14,11 +14,11 @@ class NetworksSeeder extends Seeder
     {
         $networks = [
             [
-                'name' => 'Boostiny',
+                'name' => 'boostiny',
                 'display_name' => 'Boostiny Network',
                 'description' => 'Leading performance marketing network specializing in mobile apps and e-commerce.',
                 'logo_url' => '/images/networks/boostiny-logo.png',
-                'api_url' => 'https://api.boostiny.com/v1',
+                'api_url' => 'https://api.boostiny.com/v2',
                 'auth_url' => 'https://app.boostiny.com/oauth/authorize',
                 'callback_url' => 'https://yourdomain.com/callback/boostiny',
                 'client_id' => null,
@@ -34,7 +34,30 @@ class NetworksSeeder extends Seeder
                 'is_active' => true,
                 'is_connected' => false,
                 'last_sync' => null,
-                'supported_features' => ['campaigns', 'conversions', 'payouts', 'reports'],
+                'supported_features' => ['campaigns', 'link_performance', 'publisher_performance', 'reports'],
+            ],
+            [
+                'name' => 'digizag',
+                'display_name' => 'Digizag Network',
+                'description' => 'Performance marketing network powered by HasOffers platform.',
+                'logo_url' => '/images/networks/digizag-logo.png',
+                'api_url' => 'https://digizag.api.hasoffers.com/Apiv3/json?Target=Affiliate_Report&Method=getConversions&page=1&limit=2000000&fields[]=Stat.offer_id&fields[]=Stat.datetime&fields[]=Offer.name&fields[]=Stat.conversion_status&fields[]=Stat.payout&fields[]=Stat.ad_id&fields[]=Stat.affiliate_info1&fields[]=Stat.affiliate_info5&sort[Stat.datetime]=desc&filters[Stat.date][conditional]=BETWEEN&hour_offset=5&fields[]=Stat.conversion_sale_amount&',
+                'auth_url' => 'https://digizag.api.hasoffers.com',
+                'callback_url' => null,
+                'client_id' => null,
+                'client_secret' => null,
+                'contact_id' => null,
+                'agency_id' => null,
+                'credentials' => [],
+                'api_settings' => [
+                    'rate_limit' => 1000,
+                    'timeout' => 60,
+                    'retry_attempts' => 3,
+                ],
+                'is_active' => true,
+                'is_connected' => false,
+                'last_sync' => null,
+                'supported_features' => ['conversions', 'offers', 'stats', 'reports'],
             ],
             [
                 'name' => 'ClickDealer',
@@ -200,7 +223,10 @@ class NetworksSeeder extends Seeder
         ];
 
         foreach ($networks as $network) {
-            Network::create($network);
+            Network::updateOrCreate(
+                ['name' => $network['name']], // Find by name
+                $network // Update with all data
+            );
         }
     }
 }

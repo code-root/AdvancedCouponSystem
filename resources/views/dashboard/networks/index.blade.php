@@ -297,13 +297,11 @@
 function syncConnection(connectionId) {
     Swal.fire({
         title: 'Syncing Data...',
-        text: 'Fetching latest data from network',
+        html: '<p>Fetching latest data from network...</p><div class="spinner-border text-primary mt-3" role="status"></div>',
         icon: 'info',
         showConfirmButton: false,
         allowOutsideClick: false,
-        didOpen: () => {
-            Swal.showLoading();
-        }
+        allowEscapeKey: false
     });
 
     fetch(`/networks/${connectionId}/sync`, {
@@ -317,19 +315,36 @@ function syncConnection(connectionId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // Show success with details
+            const couponCount = data.data?.coupons?.purchases || 0;
+            const linkCount = data.data?.links?.purchases || 0;
+            const totalRecords = data.data?.total_records || 0;
+            
             Swal.fire({
                 icon: 'success',
-                title: 'Synced!',
-                text: data.message || 'Data synced successfully',
-                timer: 2000,
-                showConfirmButton: false
+                title: 'Sync Completed!',
+                html: `
+                    <div class="text-start">
+                        <p class="mb-2"><strong>✅ ${data.message}</strong></p>
+                        <hr>
+                        <p class="mb-1">📊 Coupon Purchases: <strong>${couponCount}</strong></p>
+                        <p class="mb-1">🔗 Link Purchases: <strong>${linkCount}</strong></p>
+                        <p class="mb-0">📅 Date Range: ${data.data?.date_range?.from} to ${data.data?.date_range?.to}</p>
+                    </div>
+                `,
+                confirmButtonText: 'OK',
+                timer: 3000,
+                timerProgressBar: true
+            }).then(() => {
+                // Reload page after closing
+                location.reload();
             });
-            setTimeout(() => location.reload(), 2000);
         } else {
             Swal.fire({
                 icon: 'error',
                 title: 'Sync Failed',
-                text: data.message || 'Failed to sync data'
+                text: data.message || 'Failed to sync data',
+                confirmButtonText: 'Close'
             });
         }
     })
@@ -337,7 +352,8 @@ function syncConnection(connectionId) {
         Swal.fire({
             icon: 'error',
             title: 'Error',
-            text: 'An error occurred while syncing'
+            text: 'An error occurred while syncing',
+            confirmButtonText: 'Close'
         });
     });
 }

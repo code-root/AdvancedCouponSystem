@@ -17,10 +17,10 @@ class Purchase extends Model
     protected $fillable = [
         'coupon_id',
         'campaign_id',
-        'broker_id',
+        'network_id',
         'user_id',
         'order_id',
-        'broker_order_id',
+        'network_order_id',
         'order_value',
         'commission',
         'revenue',

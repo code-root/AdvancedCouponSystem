@@ -6,16 +6,105 @@ use App\Models\Purchase;
 use App\Models\Coupon;
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Models\Campaign;
 
 class PurchaseController extends Controller
 {
     /**
      * Display a listing of purchases
      */
-    public function index()
+    public function index(Request $request)
     {
-        $purchases = Purchase::with(['user', 'coupon', 'campaign'])->latest()->paginate(15);
-        return view('dashboard.purchases.index', compact('purchases'));
+        // For AJAX requests
+        if ($request->ajax() || $request->expectsJson()) {
+            return $this->getPurchasesData($request);
+        }
+        
+        // For web requests
+        $networks = auth()->user()->connectedNetworks;
+        $campaigns = Campaign::where('user_id', auth()->id())->get();
+        $stats = $this->getPurchaseStats();
+        
+        return view('dashboard.purchases.index', compact('networks', 'campaigns', 'stats'));
+    }
+    
+    /**
+     * Get purchases data with filters (AJAX)
+     */
+    private function getPurchasesData(Request $request)
+    {
+        $query = Purchase::where('user_id', auth()->id())
+            ->with(['coupon', 'campaign', 'network']);
+        
+        // Filter by network
+        if ($request->network_id) {
+            $query->where('network_id', $request->network_id);
+        }
+        
+        // Filter by campaign
+        if ($request->campaign_id) {
+            $query->where('campaign_id', $request->campaign_id);
+        }
+        
+        // Filter by status
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+        
+        // Filter by customer type
+        if ($request->customer_type) {
+            $query->where('customer_type', $request->customer_type);
+        }
+        
+        // Filter by date range
+        if ($request->date_from) {
+            $query->whereDate('order_date', '>=', $request->date_from);
+        }
+        
+        if ($request->date_to) {
+            $query->whereDate('order_date', '<=', $request->date_to);
+        }
+        
+        // Filter by revenue range
+        if ($request->revenue_min) {
+            $query->where('revenue', '>=', $request->revenue_min);
+        }
+        
+        if ($request->revenue_max) {
+            $query->where('revenue', '<=', $request->revenue_max);
+        }
+        
+        // Search
+        if ($request->search) {
+            $query->where(function($q) use ($request) {
+                $q->where('order_id', 'like', '%' . $request->search . '%')
+                  ->orWhere('network_order_id', 'like', '%' . $request->search . '%');
+            });
+        }
+        
+        $purchases = $query->latest('order_date')->paginate($request->per_page ?? 15);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $purchases
+        ]);
+    }
+    
+    /**
+     * Get purchase statistics
+     */
+    private function getPurchaseStats()
+    {
+        $userId = auth()->id();
+        
+        return [
+            'total' => Purchase::where('user_id', $userId)->count(),
+            'approved' => Purchase::where('user_id', $userId)->where('status', 'approved')->count(),
+            'pending' => Purchase::where('user_id', $userId)->where('status', 'pending')->count(),
+            'rejected' => Purchase::where('user_id', $userId)->where('status', 'rejected')->count(),
+            'total_revenue' => Purchase::where('user_id', $userId)->where('status', 'approved')->sum('revenue'),
+            'total_commission' => Purchase::where('user_id', $userId)->where('status', 'approved')->sum('commission'),
+        ];
     }
 
     /**

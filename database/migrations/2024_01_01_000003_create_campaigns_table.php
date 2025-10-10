@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('campaigns', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('broker_id')->constrained()->onDelete('cascade');
+            $table->foreignId('network_id')->constrained('networks')->onDelete('cascade');
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
-            $table->string('broker_campaign_id'); // Campaign ID from broker
+            $table->string('network_campaign_id')->nullable(); // Campaign ID from network
             $table->string('name');
             $table->text('description')->nullable();
             $table->string('logo_url')->nullable();
@@ -26,8 +26,8 @@ return new class extends Migration
             $table->json('settings')->nullable(); // Store campaign-specific settings
             $table->timestamps();
             
-            // Ensure unique campaign per broker
-            $table->unique(['broker_id', 'broker_campaign_id']);
+            // Ensure unique campaign per network
+            $table->unique(['network_id', 'network_campaign_id']);
         });
     }
 

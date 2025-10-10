@@ -13,10 +13,91 @@ class CouponController extends Controller
     /**
      * Display a listing of coupons
      */
-    public function index()
+    public function index(Request $request)
     {
-        $coupons = Coupon::with('campaign')->paginate(15);
-        return view('dashboard.coupons.index', compact('coupons'));
+        // For AJAX requests
+        if ($request->ajax() || $request->expectsJson()) {
+            return $this->getCouponsData($request);
+        }
+        
+        // For web requests
+        $networks = auth()->user()->connectedNetworks;
+        $campaigns = Campaign::where('user_id', auth()->id())->get();
+        $stats = $this->getCouponStats();
+        
+        return view('dashboard.coupons.index', compact('networks', 'campaigns', 'stats'));
+    }
+    
+    /**
+     * Get coupons data with filters (AJAX)
+     */
+    private function getCouponsData(Request $request)
+    {
+        $query = Coupon::whereHas('campaign', function($q) {
+                $q->where('user_id', auth()->id());
+            })
+            ->with(['campaign.network']);
+        
+        // Filter by campaign
+        if ($request->campaign_id) {
+            $query->where('campaign_id', $request->campaign_id);
+        }
+        
+        // Filter by network
+        if ($request->network_id) {
+            $query->whereHas('campaign', function($q) use ($request) {
+                $q->where('network_id', $request->network_id);
+            });
+        }
+        
+        // Filter by status
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+        
+        // Filter by date range
+        if ($request->date_from) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        
+        if ($request->date_to) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+        
+        // Search
+        if ($request->search) {
+            $query->where('code', 'like', '%' . $request->search . '%');
+        }
+        
+        $coupons = $query->latest()->paginate($request->per_page ?? 15);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $coupons
+        ]);
+    }
+    
+    /**
+     * Get coupon statistics
+     */
+    private function getCouponStats()
+    {
+        $userId = auth()->id();
+        
+        return [
+            'total' => Coupon::whereHas('campaign', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })->count(),
+            'active' => Coupon::whereHas('campaign', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })->where('status', 'active')->count(),
+            'used' => Coupon::whereHas('campaign', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })->where('used_count', '>', 0)->count(),
+            'expired' => Coupon::whereHas('campaign', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })->where('expires_at', '<', now())->count(),
+        ];
     }
 
     /**

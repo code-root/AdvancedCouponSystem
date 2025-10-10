@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('countries', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('code', 2)->unique(); // ISO 3166-1 alpha-2
+            $table->string('code', 3)->unique(); // Support both ISO 3166-1 alpha-2 and alpha-3
             $table->string('code_3', 3)->nullable(); // ISO 3166-1 alpha-3
             $table->string('currency_code', 3)->nullable();
             $table->string('phone_code')->nullable();
