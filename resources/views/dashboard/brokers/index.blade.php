@@ -1,362 +1,360 @@
-@extends('dashboard.layouts.main')
+@extends('layouts.vertical', ['title' => 'Broker Integration'])
 
-@section('title', 'Broker Integration')
+@section('css')
+    @vite(['node_modules/select2/dist/css/select2.min.css', 'node_modules/sweetalert2/dist/sweetalert2.min.css'])
+@endsection
 
 @section('content')
-    <div class="pc-container">
-        <div class="pc-content">
-            <!-- [breadcrumb] start -->
-            <div class="page-header">
-                <div class="page-block">
-                    <div class="row align-items-center">
-                        <div class="col-md-12">
-                            <ul class="breadcrumb">
-                                <li class="breadcrumb-item">
-                                    <a href="{{ route('dashboard') }}" class="text-decoration-none">
-                                        <i class="ti ti-home me-1"></i>Dashboard
-                                    </a>
-                                </li>
-                                <li class="breadcrumb-item active" aria-current="page">Broker Integration</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    @include('layouts.partials.page-title', ['subtitle' => 'Affiliate', 'title' => 'Broker Integration'])
 
-            <!-- Add Broker Button -->
-            <div class="mb-3 text-end">
-                <a href="{{ route('brokers.create') }}" class="btn btn-primary fw-semibold">
-                    <i class="ti ti-plus me-1"></i> Connect New Broker
-                </a>
-            </div>
-
+    <div class="row">
+        <div class="col-12">
             @if(session('success'))
                 <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <i class="ti ti-check-circle me-2"></i>{{ session('success') }}
+                    <i class="ti ti-check me-2"></i>{{ session('success') }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @elseif(session('error'))
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <i class="ti ti-alert-circle me-2"></i>{{ session('error') }}
+                    <i class="ti ti-alert-triangle me-2"></i>{{ session('error') }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             @endif
+        </div>
+    </div>
 
-            <div class="row">
-                <!-- Brokers Table -->
-                <div class="col-sm-12">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-header bg-transparent border-0">
-                            <h5 class="mb-0 fw-bold">Available Brokers</h5>
+    <!-- Statistics Cards -->
+    <div class="row row-cols-xxl-4 row-cols-md-2 row-cols-1 text-center">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="text-muted fs-13 text-uppercase">Total Connections</h5>
+                    <div class="d-flex align-items-center justify-content-center gap-2 my-2 py-1">
+                        <div class="user-img fs-42 flex-shrink-0">
+                            <span class="avatar-title text-bg-primary rounded-circle fs-22">
+                                <i class="ti ti-affiliate"></i>
+                            </span>
                         </div>
-                        <div class="card-body">
-                            <!-- Statistics -->
-                            <div class="row mb-3">
-                                <div class="col-md-3">
-                                    <div class="text-center p-3 bg-primary-subtle rounded">
-                                        <h4 class="mb-1 text-primary">{{ $userConnections->total() }}</h4>
-                                        <p class="text-muted mb-0 fs-13">Total Connections</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="text-center p-3 bg-success-subtle rounded">
-                                        <h4 class="mb-1 text-success">{{ auth()->user()->getActiveBrokerConnectionsCount() }}</h4>
-                                        <p class="text-muted mb-0 fs-13">Active</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="text-center p-3 bg-info-subtle rounded">
-                                        <h4 class="mb-1 text-info">{{ $availableBrokers->count() }}</h4>
-                                        <p class="text-muted mb-0 fs-13">Available</p>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="text-center p-3 bg-warning-subtle rounded">
-                                        <h4 class="mb-1 text-warning">{{ \App\Models\Broker::where('is_active', true)->count() }}</h4>
-                                        <p class="text-muted mb-0 fs-13">Total Brokers</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover align-middle" id="brokersTable">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Broker</th>
-                                            <th>Connection Name</th>
-                                            <th>Status</th>
-                                            <th>Connected At</th>
-                                            <th>Last Sync</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse($userConnections as $connection)
-                                        <tr>
-                                            <td>
-                                                <div class="d-flex align-items-center">
-                                                    <div class="avatar-sm me-3">
-                                                        <div class="avatar-title bg-primary-subtle text-primary rounded-circle">
-                                                            <i class="ti ti-building-store"></i>
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <h6 class="mb-0 fs-14">{{ $connection->broker->display_name }}</h6>
-                                                        <small class="text-muted">{{ $connection->broker->name }}</small>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>{{ $connection->connection_name }}</td>
-                                            <td>
-                                                @if($connection->is_connected)
-                                                    <span class="badge bg-success-subtle text-success">
-                                                        <i class="ti ti-plug me-1"></i>Connected
-                                                    </span>
-                                                @else
-                                                    <span class="badge bg-danger-subtle text-danger">
-                                                        <i class="ti ti-plug-off me-1"></i>Disconnected
-                                                    </span>
-                                                @endif
-                                            </td>
-                                            <td>{{ $connection->connected_at ? $connection->connected_at->format('M d, Y') : '-' }}</td>
-                                            <td>{{ $connection->last_sync ? $connection->last_sync->diffForHumans() : 'Never' }}</td>
-                                            <td>
-                                                <div class="btn-group btn-group-sm">
-                                                    <button class="btn btn-outline-primary" onclick="syncConnection({{ $connection->id }})" title="Sync">
-                                                        <i class="ti ti-refresh"></i>
-                                                    </button>
-                                                    <a href="{{ route('brokers.show', $connection->broker_id) }}" class="btn btn-outline-info" title="View">
-                                                        <i class="ti ti-eye"></i>
-                                                    </a>
-                                                    <button class="btn btn-outline-warning" onclick="editConnection({{ $connection->id }})" title="Edit">
-                                                        <i class="ti ti-edit"></i>
-                                                    </button>
-                                                    <button class="btn btn-outline-danger" onclick="disconnectConnection({{ $connection->id }})" title="Disconnect">
-                                                        <i class="ti ti-plug-off"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        @empty
-                                        <tr>
-                                            <td colspan="6" class="text-center py-5">
-                                                <i class="ti ti-plug-off fs-48 text-muted mb-3"></i>
-                                                <p class="text-muted mb-3">You haven't connected any brokers yet.</p>
-                                                <a href="{{ route('brokers.create') }}" class="btn btn-primary">
-                                                    <i class="ti ti-plus me-1"></i> Connect Your First Broker
-                                                </a>
-                                            </td>
-                                        </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            @if($userConnections->hasPages())
-                                <div class="mt-3">
-                                    {{ $userConnections->links() }}
-                                </div>
-                            @endif
-                        </div>
+                        <h3 class="mb-0 fw-bold">{{ $userConnections->total() }}</h3>
                     </div>
+                    <p class="mb-0 text-muted">
+                        <span class="text-nowrap">Broker connections</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="text-muted fs-13 text-uppercase">Active</h5>
+                    <div class="d-flex align-items-center justify-content-center gap-2 my-2 py-1">
+                        <div class="user-img fs-42 flex-shrink-0">
+                            <span class="avatar-title text-bg-success rounded-circle fs-22">
+                                <i class="ti ti-plug"></i>
+                            </span>
+                        </div>
+                        <h3 class="mb-0 fw-bold">{{ auth()->user()->getActiveBrokerConnectionsCount() }}</h3>
+                    </div>
+                    <p class="mb-0 text-muted">
+                        <span class="text-nowrap">Connected now</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="text-muted fs-13 text-uppercase">Available</h5>
+                    <div class="d-flex align-items-center justify-content-center gap-2 my-2 py-1">
+                        <div class="user-img fs-42 flex-shrink-0">
+                            <span class="avatar-title text-bg-info rounded-circle fs-22">
+                                <i class="ti ti-building-store"></i>
+                            </span>
+                        </div>
+                        <h3 class="mb-0 fw-bold">{{ $availableBrokers->count() }}</h3>
+                    </div>
+                    <p class="mb-0 text-muted">
+                        <span class="text-nowrap">Brokers to connect</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="text-muted fs-13 text-uppercase">Total Brokers</h5>
+                    <div class="d-flex align-items-center justify-content-center gap-2 my-2 py-1">
+                        <div class="user-img fs-42 flex-shrink-0">
+                            <span class="avatar-title text-bg-warning rounded-circle fs-22">
+                                <i class="ti ti-list"></i>
+                            </span>
+                        </div>
+                        <h3 class="mb-0 fw-bold">{{ \App\Models\Broker::where('is_active', true)->count() }}</h3>
+                    </div>
+                    <p class="mb-0 text-muted">
+                        <span class="text-nowrap">In system</span>
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Connect Broker Modal -->
-    <div class="modal fade" id="connectionModal" tabindex="-1" aria-labelledby="connectionModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title fw-bold" id="connectionModalTitle">
-                        <i class="ti ti-plug me-2"></i>Connect Broker
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <!-- My Broker Connections -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header border-bottom border-light">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <h4 class="header-title mb-0">My Broker Connections</h4>
+                        <div class="d-flex gap-2">
+                            <div class="position-relative">
+                                <input type="text" class="form-control ps-4 form-control-sm" id="searchConnections" placeholder="Search connections">
+                                <i class="ti ti-search position-absolute top-50 translate-middle-y ms-2"></i>
+                            </div>
+                            <a href="{{ route('brokers.create') }}" class="btn btn-primary btn-sm">
+                                <i class="ti ti-plug-connected me-1"></i> Connect Broker
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <form id="connectionForm">
-                    <div class="modal-body">
-                        <div class="text-center mb-4">
-                            <div class="avatar-lg bg-primary-subtle rounded mx-auto mb-3">
-                                <div class="avatar-title bg-primary-subtle text-primary fs-40" id="modalBrokerIcon">
-                                    <i class="ti ti-plug"></i>
-                                </div>
-                            </div>
-                            <h5 id="modalBrokerName">Broker</h5>
-                            <p class="text-muted" id="modalBrokerDescription">Connect your broker account</p>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">API Key <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0">
-                                        <i class="ti ti-key text-muted"></i>
-                                    </span>
-                                    <input type="password" class="form-control border-start-0 border-0 bg-light" 
-                                           name="api_key" required placeholder="Enter your API Key">
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">API Secret <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0">
-                                        <i class="ti ti-lock text-muted"></i>
-                                    </span>
-                                    <input type="password" class="form-control border-start-0 border-0 bg-light" 
-                                           name="api_secret" required placeholder="Enter your API Secret">
-                                </div>
-                            </div>
-                            <div class="col-12 mb-3">
-                                <label class="form-label">API URL</label>
-                                <div class="input-group">
-                                    <span class="input-group-text bg-light border-end-0">
-                                        <i class="ti ti-world text-muted"></i>
-                                    </span>
-                                    <input type="url" class="form-control border-start-0 border-0 bg-light" 
-                                           name="api_url" placeholder="Enter API URL (optional)">
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="auto_sync" id="autoSync" checked>
-                                    <label class="form-check-label" for="autoSync">
-                                        Enable automatic data synchronization
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover text-nowrap mb-0">
+                        <thead class="bg-light-subtle">
+                            <tr>
+                                <th class="ps-3">Broker</th>
+                                <th>Connection Name</th>
+                                <th>Country</th>
+                                <th>Status</th>
+                                <th>Connected At</th>
+                                <th>Last Sync</th>
+                                <th class="text-center pe-3" style="width: 120px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($userConnections as $connection)
+                            <tr>
+                                <td class="ps-3">
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-md flex-shrink-0 me-3">
+                                            <span class="avatar-title bg-primary-subtle text-primary rounded-circle">
+                                                <i class="ti ti-building-store fs-18"></i>
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fs-14 fw-semibold">{{ $connection->broker->display_name }}</h6>
+                                            <small class="text-muted">{{ $connection->broker->name }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="fw-medium">{{ $connection->connection_name }}</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-1">
+                                        <img src="/images/flags/{{ strtolower($connection->broker->country) }}.svg" 
+                                             class="me-1" alt="{{ $connection->broker->country }}" height="16" 
+                                             onerror="this.style.display='none'">
+                                        <span>{{ $connection->broker->country }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if($connection->is_connected && $connection->status === 'active')
+                                        <span class="badge bg-success-subtle text-success p-1">
+                                            <i class="ti ti-plug"></i> Connected
+                                        </span>
+                                    @elseif($connection->status === 'pending')
+                                        <span class="badge bg-warning-subtle text-warning p-1">
+                                            <i class="ti ti-clock"></i> Pending
+                                        </span>
+                                    @else
+                                        <span class="badge bg-danger-subtle text-danger p-1">
+                                            <i class="ti ti-plug-off"></i> Disconnected
+                                        </span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ $connection->connected_at ? $connection->connected_at->format('M d, Y H:i') : '-' }}</span>
+                                </td>
+                                <td>
+                                    <span class="text-muted">{{ $connection->last_sync ? $connection->last_sync->diffForHumans() : 'Never' }}</span>
+                                </td>
+                                <td class="pe-3">
+                                    <div class="hstack gap-1 justify-content-end">
+                                        @if($connection->is_connected)
+                                        <button class="btn btn-soft-primary btn-icon btn-sm rounded-circle" onclick="syncConnection({{ $connection->id }})" title="Sync Data">
+                                            <i class="ti ti-refresh"></i>
+                                        </button>
+                                        @endif
+                                        <a href="{{ route('brokers.show', $connection->broker_id) }}" class="btn btn-soft-info btn-icon btn-sm rounded-circle" title="View Details">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                        <a href="{{ route('brokers.edit', $connection->id) }}" class="btn btn-soft-warning btn-icon btn-sm rounded-circle" title="Edit">
+                                            <i class="ti ti-edit fs-16"></i>
+                                        </a>
+                                        <button class="btn btn-soft-danger btn-icon btn-sm rounded-circle" onclick="disconnectBroker({{ $connection->id }})" title="Disconnect">
+                                            <i class="ti ti-plug-off"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="7" class="text-center py-5">
+                                    <div class="py-4">
+                                        <i class="ti ti-plug-off fs-64 text-muted mb-3"></i>
+                                        <h5 class="text-muted mb-3">No Broker Connections Found</h5>
+                                        <p class="text-muted mb-4">You haven't connected any brokers yet. Start connecting to manage your affiliate campaigns.</p>
+                                        <a href="{{ route('brokers.create') }}" class="btn btn-primary">
+                                            <i class="ti ti-plug-connected me-1"></i> Connect Your First Broker
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                @if($userConnections->hasPages())
+                <div class="card-footer">
+                    <div class="d-flex justify-content-end">
+                        {{ $userConnections->links() }}
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary fw-semibold">
-                            <i class="ti ti-plug me-1"></i> Connect Broker
-                        </button>
-                    </div>
-                </form>
+                </div>
+                @endif
             </div>
         </div>
     </div>
+
+    <!-- Available Brokers to Connect -->
+    @if($availableBrokers->count() > 0)
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header border-bottom border-dashed">
+                    <h4 class="header-title mb-0">Available Brokers to Connect</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xxl-4 g-3">
+                        @foreach($availableBrokers as $broker)
+                        <div class="col">
+                            <div class="card border h-100">
+                                <div class="card-body">
+                                    <div class="text-center mb-3">
+                                        <div class="avatar-lg bg-primary-subtle mx-auto mb-3">
+                                            <span class="avatar-title bg-primary-subtle text-primary rounded-circle fs-32">
+                                                <i class="ti ti-building-store"></i>
+                                            </span>
+                                        </div>
+                                        <h5 class="fw-semibold mb-1">{{ $broker->display_name }}</h5>
+                                        <p class="text-muted mb-2">{{ $broker->country }}</p>
+                                        <div class="flex-grow-1 d-inline-flex align-items-center fs-16 mb-2">
+                                            @for($i = 1; $i <= 5; $i++)
+                                                <span class="ti ti-star-filled text-warning"></span>
+                                            @endfor
+                                            <span class="ms-1 fs-14">4.8</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="border-top border-dashed pt-3 mt-3">
+                                        <div class="row text-center g-2">
+                                            <div class="col-6">
+                                                <p class="text-muted mb-1 fs-12">Commission</p>
+                                                <h6 class="mb-0">Up to {{ $broker->commission_rate }}%</h6>
+                                            </div>
+                                            <div class="col-6">
+                                                <p class="text-muted mb-1 fs-12">Products</p>
+                                                <h6 class="mb-0">{{ $broker->total_products ?? '1000+' }}</h6>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3 d-grid">
+                                        <a href="{{ route('brokers.create', ['broker' => $broker->id]) }}" class="btn btn-primary btn-sm">
+                                            <i class="ti ti-plug-connected me-1"></i> Connect Now
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
 @endsection
 
-@push('scripts')
+@section('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-let selectedBroker = '';
-
-const brokerInfo = {
-    boostiny: {
-        name: 'Boostiny',
-        icon: 'ti-bolt',
-        description: 'Affiliate Marketing Platform'
-    },
-    digizag: {
-        name: 'Digizag',
-        icon: 'ti-device-desktop',
-        description: 'Digital Marketing Network'
-    },
-    platformance: {
-        name: 'Platformance',
-        icon: 'ti-building',
-        description: 'Performance Marketing'
-    },
-    optimize: {
-        name: 'Optimize',
-        icon: 'ti-optimization',
-        description: 'Media Optimization'
-    },
-    marketeers: {
-        name: 'Marketeers',
-        icon: 'ti-chart-pie',
-        description: 'Marketing Analytics'
-    },
-    admitad: {
-        name: 'Admitad',
-        icon: 'ti-world',
-        description: 'Affiliate Network'
-    }
-};
-
-$(document).ready(function() {
-    // Initialize DataTable
-    $('#brokersTable').DataTable({
-        responsive: true,
-        pageLength: 10,
-        order: [[1, 'asc']],
-        columnDefs: [
-            { orderable: false, targets: [5] }
-        ]
-    });
-
-    // Handle connection form
-    $('#connectionForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        formData.append('broker', selectedBroker);
-        
-        dashboardUtils.showLoading('button[type="submit"]');
-        
-        fetch('{{ route("brokers.store") }}', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                dashboardUtils.showSuccess(data.message);
-                bootstrap.Modal.getInstance(document.getElementById('connectionModal')).hide();
-                setTimeout(() => {
-                    location.reload();
-                }, 1500);
-            } else {
-                dashboardUtils.showError(data.message);
-            }
-        })
-        .catch(error => {
-            dashboardUtils.showError('Connection failed. Please try again.');
-        })
-        .finally(() => {
-            dashboardUtils.hideLoading('button[type="submit"]', '<i class="ti ti-plug me-1"></i> Connect Broker');
-        });
-    });
-});
-
 function syncConnection(connectionId) {
     Swal.fire({
-        title: 'Syncing...',
+        title: 'Syncing Data...',
         text: 'Fetching latest data from broker',
         icon: 'info',
         showConfirmButton: false,
-        timer: 2000
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    fetch(`/brokers/${connectionId}/sync`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Synced!',
+                text: data.message || 'Data synced successfully',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Sync Failed',
+                text: data.message || 'Failed to sync data'
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'An error occurred while syncing'
+        });
     });
 }
 
-function editConnection(connectionId) {
-    // Implement edit connection functionality
-    Swal.fire({
-        title: 'Edit Connection',
-        text: 'This feature will be available soon',
-        icon: 'info'
-    });
-}
-
-function disconnectConnection(connectionId) {
+function disconnectBroker(connectionId) {
     Swal.fire({
         title: 'Disconnect Broker?',
         text: 'Are you sure you want to disconnect this broker?',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#dc3545',
+        confirmButtonColor: '#fa5c7c',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, disconnect',
+        confirmButtonText: 'Yes, disconnect!',
         cancelButtonText: 'Cancel'
     }).then((result) => {
         if (result.isConfirmed) {
-            // Implement disconnect logic
-            fetch(`/brokers/connections/${connectionId}`, {
+            fetch(`/brokers/${connectionId}`, {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -366,17 +364,42 @@ function disconnectConnection(connectionId) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    Swal.fire('Disconnected!', data.message, 'success');
-                    location.reload();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Disconnected!',
+                        text: data.message || 'Broker disconnected successfully',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    setTimeout(() => location.reload(), 2000);
                 } else {
-                    Swal.fire('Error!', data.message, 'error');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: data.message || 'Failed to disconnect broker'
+                    });
                 }
             })
             .catch(error => {
-                Swal.fire('Error!', 'Failed to disconnect broker', 'error');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'Failed to disconnect broker'
+                });
             });
         }
     });
 }
+
+// Search functionality
+document.getElementById('searchConnections')?.addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
 </script>
-@endpush
+@endsection

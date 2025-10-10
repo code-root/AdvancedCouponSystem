@@ -32,33 +32,63 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
     
     // Broker Routes
-    Route::apiResource('brokers', \App\Http\Controllers\BrokerController::class);
-    Route::post('brokers/{broker}/connections', [\App\Http\Controllers\BrokerController::class, 'createConnection']);
-    Route::get('brokers/{broker}/data', [\App\Http\Controllers\BrokerController::class, 'getData']);
+    Route::apiResource('brokers', \App\Http\Controllers\BrokerController::class)->names([
+        'index' => 'api.brokers.index',
+        'store' => 'api.brokers.store',
+        'show' => 'api.brokers.show',
+        'update' => 'api.brokers.update',
+        'destroy' => 'api.brokers.destroy',
+    ]);
+    Route::post('brokers/{broker}/connections', [\App\Http\Controllers\BrokerController::class, 'createConnection'])->name('api.brokers.connections.create');
+    Route::get('brokers/{broker}/data', [\App\Http\Controllers\BrokerController::class, 'getData'])->name('api.brokers.data');
     
     // Campaign Routes
-    Route::apiResource('campaigns', \App\Http\Controllers\CampaignController::class);
-    Route::post('campaigns/{campaign}/activate', [\App\Http\Controllers\CampaignController::class, 'activate']);
-    Route::post('campaigns/{campaign}/deactivate', [\App\Http\Controllers\CampaignController::class, 'deactivate']);
-    Route::get('campaigns/{campaign}/statistics', [\App\Http\Controllers\CampaignController::class, 'statistics']);
+    Route::apiResource('campaigns', \App\Http\Controllers\CampaignController::class)->names([
+        'index' => 'api.campaigns.index',
+        'store' => 'api.campaigns.store',
+        'show' => 'api.campaigns.show',
+        'update' => 'api.campaigns.update',
+        'destroy' => 'api.campaigns.destroy',
+    ]);
+    Route::post('campaigns/{campaign}/activate', [\App\Http\Controllers\CampaignController::class, 'activate'])->name('api.campaigns.activate');
+    Route::post('campaigns/{campaign}/deactivate', [\App\Http\Controllers\CampaignController::class, 'deactivate'])->name('api.campaigns.deactivate');
+    Route::get('campaigns/{campaign}/statistics', [\App\Http\Controllers\CampaignController::class, 'statistics'])->name('api.campaigns.statistics');
     
     // Coupon Routes
-    Route::apiResource('coupons', \App\Http\Controllers\CouponController::class);
-    Route::post('coupons/validate', [\App\Http\Controllers\CouponController::class, 'validate']);
-    Route::post('coupons/{coupon}/redeem', [\App\Http\Controllers\CouponController::class, 'redeem']);
-    Route::post('coupons/{coupon}/activate', [\App\Http\Controllers\CouponController::class, 'activate']);
-    Route::post('coupons/{coupon}/deactivate', [\App\Http\Controllers\CouponController::class, 'deactivate']);
-    Route::get('coupons/{coupon}/history', [\App\Http\Controllers\CouponController::class, 'history']);
+    Route::apiResource('coupons', \App\Http\Controllers\CouponController::class)->names([
+        'index' => 'api.coupons.index',
+        'store' => 'api.coupons.store',
+        'show' => 'api.coupons.show',
+        'update' => 'api.coupons.update',
+        'destroy' => 'api.coupons.destroy',
+    ]);
+    Route::post('coupons/validate', [\App\Http\Controllers\CouponController::class, 'validate'])->name('api.coupons.validate');
+    Route::post('coupons/{coupon}/redeem', [\App\Http\Controllers\CouponController::class, 'redeem'])->name('api.coupons.redeem');
+    Route::post('coupons/{coupon}/activate', [\App\Http\Controllers\CouponController::class, 'activate'])->name('api.coupons.activate');
+    Route::post('coupons/{coupon}/deactivate', [\App\Http\Controllers\CouponController::class, 'deactivate'])->name('api.coupons.deactivate');
+    Route::get('coupons/{coupon}/history', [\App\Http\Controllers\CouponController::class, 'history'])->name('api.coupons.history');
     
     // Purchase Routes
-    Route::apiResource('purchases', \App\Http\Controllers\PurchaseController::class);
-    Route::post('purchases/{purchase}/confirm', [\App\Http\Controllers\PurchaseController::class, 'confirm']);
-    Route::post('purchases/{purchase}/cancel', [\App\Http\Controllers\PurchaseController::class, 'cancel']);
-    Route::get('purchases/statistics', [\App\Http\Controllers\PurchaseController::class, 'statistics']);
+    Route::apiResource('purchases', \App\Http\Controllers\PurchaseController::class)->names([
+        'index' => 'api.purchases.index',
+        'store' => 'api.purchases.store',
+        'show' => 'api.purchases.show',
+        'update' => 'api.purchases.update',
+        'destroy' => 'api.purchases.destroy',
+    ]);
+    Route::post('purchases/{purchase}/confirm', [\App\Http\Controllers\PurchaseController::class, 'confirm'])->name('api.purchases.confirm');
+    Route::post('purchases/{purchase}/cancel', [\App\Http\Controllers\PurchaseController::class, 'cancel'])->name('api.purchases.cancel');
+    Route::get('purchases/statistics', [\App\Http\Controllers\PurchaseController::class, 'statistics'])->name('api.purchases.statistics');
     
     // Country Routes
-    Route::apiResource('countries', \App\Http\Controllers\CountryController::class);
-    Route::get('countries/{country}/brokers', [\App\Http\Controllers\CountryController::class, 'brokers']);
+    Route::apiResource('countries', \App\Http\Controllers\CountryController::class)->names([
+        'index' => 'api.countries.index',
+        'store' => 'api.countries.store',
+        'show' => 'api.countries.show',
+        'update' => 'api.countries.update',
+        'destroy' => 'api.countries.destroy',
+    ]);
+    Route::get('countries/{country}/brokers', [\App\Http\Controllers\CountryController::class, 'brokers'])->name('api.countries.brokers');
     
     // Dashboard & Statistics
     Route::prefix('dashboard')->group(function () {
