@@ -1,4 +1,4 @@
-@extends('layouts.dashboard')
+@extends('dashboard.layouts.main')
 
 @section('title', 'Broker Details')
 
@@ -233,7 +233,7 @@ $(document).ready(function() {
         
         dashboardUtils.showLoading('button[type="submit"]');
         
-        fetch('{{ route("brokers.connect.broker", $broker) }}', {
+        fetch('{{ route("brokers.update", $broker) }}', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content

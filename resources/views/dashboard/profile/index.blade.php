@@ -1,4 +1,4 @@
-@extends('layouts.dashboard')
+@extends('dashboard.layouts.main')
 
 @section('title', 'My Profile')
 
@@ -31,7 +31,7 @@
                         <p class="text-muted mb-0">Manage your personal information and account settings.</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <a href="{{ route('password.change') }}" class="btn btn-outline-warning">
+                        <a href="{{ route('dashboard.password.change') }}" class="btn btn-outline-warning">
                             <i class="ti ti-key me-1"></i> Change Password
                         </a>
                         <button class="btn btn-primary" onclick="saveProfile()">
@@ -282,7 +282,7 @@ function saveProfile() {
     
     dashboardUtils.showLoading('button[onclick="saveProfile()"]');
     
-    fetch('{{ route("profile.update") }}', {
+        fetch('{{ route("dashboard.profile.update") }}', {
         method: 'PUT',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content

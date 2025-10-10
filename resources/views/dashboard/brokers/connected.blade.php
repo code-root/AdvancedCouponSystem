@@ -1,4 +1,4 @@
-@extends('layouts.dashboard')
+@extends('dashboard.layouts.main')
 
 @section('title', 'Connected Brokers')
 
@@ -37,7 +37,7 @@
                         <button class="btn btn-outline-primary" onclick="refreshAllConnections()">
                             <i class="ti ti-refresh me-1"></i> Refresh All
                         </button>
-                        <a href="{{ route('brokers.connect') }}" class="btn btn-primary">
+                        <a href="{{ route('brokers.create') }}" class="btn btn-primary">
                             <i class="ti ti-plus me-1"></i> Connect New Broker
                         </a>
                     </div>

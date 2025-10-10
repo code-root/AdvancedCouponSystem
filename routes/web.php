@@ -50,6 +50,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('recent-activities', [DashboardController::class, 'recentActivities'])->name('activities');
         Route::get('profile', [DashboardController::class, 'profile'])->name('profile');
         Route::put('profile', [DashboardController::class, 'updateProfile'])->name('profile.update');
+        Route::get('change-password', function() { return view('dashboard.profile.change-password'); })->name('password.change');
         Route::put('password', [DashboardController::class, 'updatePassword'])->name('password.update');
     });
     

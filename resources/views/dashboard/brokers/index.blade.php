@@ -1,4 +1,4 @@
-@extends('layouts.dashboard')
+@extends('dashboard.layouts.main')
 
 @section('title', 'Broker Integration')
 
@@ -25,7 +25,7 @@
 
             <!-- Add Broker Button -->
             <div class="mb-3 text-end">
-                <a href="{{ route('brokers.connect') }}" class="btn btn-primary fw-semibold">
+                <a href="{{ route('brokers.create') }}" class="btn btn-primary fw-semibold">
                     <i class="ti ti-plus me-1"></i> Connect New Broker
                 </a>
             </div>
@@ -263,7 +263,7 @@ $(document).ready(function() {
         
         dashboardUtils.showLoading('button[type="submit"]');
         
-        fetch('{{ route("brokers.connect") }}', {
+        fetch('{{ route("brokers.store") }}', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content

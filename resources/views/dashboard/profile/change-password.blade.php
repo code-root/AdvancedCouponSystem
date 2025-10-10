@@ -1,4 +1,4 @@
-@extends('layouts.dashboard')
+@extends('dashboard.layouts.main')
 
 @section('title', 'Change Password')
 
@@ -17,7 +17,7 @@
                                     </a>
                                 </li>
                                 <li class="breadcrumb-item">
-                                    <a href="{{ route('profile') }}" class="text-decoration-none">My Profile</a>
+                                    <a href="{{ route('dashboard.profile') }}" class="text-decoration-none">My Profile</a>
                                 </li>
                                 <li class="breadcrumb-item active" aria-current="page">Change Password</li>
                             </ul>
@@ -33,7 +33,7 @@
                         <h4 class="mb-1 fw-bold">Change Password</h4>
                         <p class="text-muted mb-0">Update your password to keep your account secure.</p>
                     </div>
-                    <a href="{{ route('profile') }}" class="btn btn-outline-secondary">
+                    <a href="{{ route('dashboard.profile') }}" class="btn btn-outline-secondary">
                         <i class="ti ti-arrow-left me-1"></i> Back to Profile
                     </a>
                 </div>
@@ -218,7 +218,7 @@ $(document).ready(function() {
         
         dashboardUtils.showLoading('#submitBtn');
         
-        fetch('{{ route("password.change.update") }}', {
+        fetch('{{ route("dashboard.password.update") }}', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
