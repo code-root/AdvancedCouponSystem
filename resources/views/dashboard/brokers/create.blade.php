@@ -65,29 +65,57 @@
                             <h5 class="mb-0 fw-bold">Broker Information</h5>
                         </div>
                         <div class="card-body">
-                            <form action="{{ route('brokers.store') }}" method="POST">
+                            <form action="{{ route('brokers.store') }}" method="POST" id="brokerForm">
                                 @csrf
                                 <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Broker Name <span class="text-danger">*</span></label>
-                                        <div class="input-group">
-                                            <span class="input-group-text bg-light">
-                                                <i class="ti ti-building-store text-muted"></i>
-                                            </span>
-                                            <input type="text" class="form-control" name="name" 
-                                                   value="{{ old('name') }}" required>
+                                    <div class="col-12 mb-4">
+                                        <label class="form-label">Select Broker <span class="text-danger">*</span></label>
+                                        <select class="form-select form-select-lg" name="broker_id" id="brokerSelect" required>
+                                            <option value="">Choose a broker...</option>
+                                            @foreach($brokers as $broker)
+                                                <option value="{{ $broker->id }}" 
+                                                        data-name="{{ $broker->name }}"
+                                                        data-display="{{ $broker->display_name }}"
+                                                        data-description="{{ $broker->description }}"
+                                                        data-api-url="{{ $broker->api_url }}"
+                                                        {{ old('broker_id') == $broker->id ? 'selected' : '' }}>
+                                                    {{ $broker->display_name }} - {{ $broker->description }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
+                                    <!-- Broker Info Display -->
+                                    <div class="col-12 mb-3" id="brokerInfo" style="display: none;">
+                                        <div class="alert alert-info">
+                                            <h6 class="alert-heading mb-2" id="selectedBrokerName"></h6>
+                                            <p class="mb-0" id="selectedBrokerDesc"></p>
                                         </div>
                                     </div>
 
                                     <div class="col-md-6 mb-3">
-                                        <label class="form-label">Broker Code <span class="text-danger">*</span></label>
+                                        <label class="form-label">Connection Name <span class="text-danger">*</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text bg-light">
-                                                <i class="ti ti-barcode text-muted"></i>
+                                                <i class="ti ti-tag text-muted"></i>
                                             </span>
-                                            <input type="text" class="form-control" name="code" 
-                                                   value="{{ old('code') }}" required>
+                                            <input type="text" class="form-control" name="connection_name" 
+                                                   value="{{ old('connection_name') }}" 
+                                                   placeholder="e.g., My Boostiny Account" required>
                                         </div>
+                                        <small class="text-muted">Give this connection a memorable name</small>
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">API URL</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-light">
+                                                <i class="ti ti-world text-muted"></i>
+                                            </span>
+                                            <input type="url" class="form-control" name="api_endpoint" 
+                                                   id="apiUrlInput" value="{{ old('api_endpoint') }}" readonly>
+                                        </div>
+                                        <small class="text-muted">Auto-filled based on selected broker</small>
                                     </div>
 
                                     <div class="col-md-6 mb-3">
@@ -174,25 +202,48 @@
                             </h5>
                         </div>
                         <div class="card-body">
-                            <h6 class="fw-semibold mb-2">Broker Setup Guide</h6>
+                            <h6 class="fw-semibold mb-2">Connection Steps</h6>
                             <ul class="list-unstyled mb-0">
                                 <li class="mb-2">
                                     <i class="ti ti-check text-success me-2"></i>
-                                    Enter unique broker code
+                                    Select your broker
                                 </li>
                                 <li class="mb-2">
                                     <i class="ti ti-check text-success me-2"></i>
-                                    Configure API credentials
+                                    Enter API credentials
                                 </li>
                                 <li class="mb-2">
                                     <i class="ti ti-check text-success me-2"></i>
-                                    Select appropriate country
+                                    Give connection a name
                                 </li>
                                 <li class="mb-0">
                                     <i class="ti ti-check text-success me-2"></i>
-                                    Test connection after creation
+                                    Test & activate
                                 </li>
                             </ul>
+                        </div>
+                    </div>
+
+                    <!-- Selected Broker Info -->
+                    <div class="card border-0 shadow-sm mt-3" id="brokerDetailsCard" style="display: none;">
+                        <div class="card-header bg-transparent border-0">
+                            <h5 class="mb-0 fw-bold">
+                                <i class="ti ti-info-circle me-1"></i> Broker Details
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold">Name</label>
+                                <p class="mb-0" id="detailBrokerName">-</p>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold">API URL</label>
+                                <p class="mb-0 text-break" id="detailApiUrl">-</p>
+                            </div>
+                            <div class="mb-0">
+                                <label class="form-label fw-semibold">Features</label>
+                                <div id="detailFeatures">-</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -200,4 +251,61 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    // Handle broker selection
+    $('#brokerSelect').on('change', function() {
+        const selectedOption = $(this).find('option:selected');
+        
+        if (selectedOption.val()) {
+            const brokerName = selectedOption.data('display');
+            const brokerDesc = selectedOption.data('description');
+            const apiUrl = selectedOption.data('api-url');
+            
+            // Show broker info alert
+            $('#selectedBrokerName').text(brokerName);
+            $('#selectedBrokerDesc').text(brokerDesc);
+            $('#brokerInfo').slideDown();
+            
+            // Update API URL field
+            $('#apiUrlInput').val(apiUrl);
+            
+            // Show broker details card
+            $('#detailBrokerName').text(brokerName);
+            $('#detailApiUrl').text(apiUrl);
+            $('#brokerDetailsCard').slideDown();
+            
+            // Auto-fill connection name
+            if (!$('input[name="connection_name"]').val()) {
+                $('input[name="connection_name"]').val('My ' + brokerName + ' Account');
+            }
+        } else {
+            $('#brokerInfo').slideUp();
+            $('#brokerDetailsCard').slideUp();
+            $('#apiUrlInput').val('');
+        }
+    });
+    
+    // Trigger change if broker is pre-selected
+    if ($('#brokerSelect').val()) {
+        $('#brokerSelect').trigger('change');
+    }
+    
+    // Form validation
+    $('#brokerForm').on('submit', function(e) {
+        if (!$('#brokerSelect').val()) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Select Broker',
+                text: 'Please select a broker to connect',
+            });
+            return false;
+        }
+    });
+});
+</script>
+@endpush
 

@@ -10,40 +10,72 @@ use Illuminate\Http\Request;
 class BrokerController extends Controller
 {
     /**
-     * Display a listing of brokers
+     * Display a listing of user broker connections
      */
     public function index()
     {
-        $brokers = Broker::with('country')->paginate(15);
-        return view('dashboard.brokers.index', compact('brokers'));
+        // Get user's broker connections
+        $userConnections = auth()->user()->brokerConnections()
+            ->with('broker')
+            ->latest()
+            ->paginate(15);
+        
+        // Get available brokers (not yet connected)
+        $connectedBrokerIds = auth()->user()->brokerConnections()->pluck('broker_id');
+        $availableBrokers = Broker::where('is_active', true)
+            ->whereNotIn('id', $connectedBrokerIds)
+            ->get();
+        
+        return view('dashboard.brokers.index', compact('userConnections', 'availableBrokers'));
     }
 
     /**
-     * Show the form for creating a new broker
+     * Show the form for creating a new broker connection
      */
     public function create()
     {
-        return view('dashboard.brokers.create');
+        $brokers = Broker::where('is_active', true)->get();
+        return view('dashboard.brokers.create', compact('brokers'));
     }
 
     /**
-     * Store a newly created broker
+     * Store a newly created broker connection
      */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'unique:brokers'],
-            'country_id' => ['nullable', 'exists:countries,id'],
-            'api_url' => ['nullable', 'url'],
-            'api_key' => ['nullable', 'string'],
+            'broker_id' => ['required', 'exists:brokers,id'],
+            'connection_name' => ['required', 'string', 'max:255'],
+            'client_id' => ['required', 'string'],
+            'client_secret' => ['required', 'string'],
+            'token' => ['nullable', 'string'],
+            'contact_id' => ['nullable', 'string'],
+            'api_endpoint' => ['nullable', 'url'],
+            'notes' => ['nullable', 'string'],
             'is_active' => ['boolean'],
-            'description' => ['nullable', 'string'],
         ]);
 
-        $broker = Broker::create($validated);
+        // Create broker connection
+        $connection = BrokerConnection::create([
+            'user_id' => auth()->id(),
+            'broker_id' => $validated['broker_id'],
+            'connection_name' => $validated['connection_name'],
+            'client_id' => $validated['client_id'],
+            'client_secret' => $validated['client_secret'],
+            'token' => $validated['token'] ?? null,
+            'contact_id' => $validated['contact_id'] ?? null,
+            'api_endpoint' => $validated['api_endpoint'] ?? null,
+            'status' => 'connected',
+            'is_connected' => true,
+            'connected_at' => now(),
+            'credentials' => [
+                'client_id' => $validated['client_id'],
+                'client_secret' => $validated['client_secret'],
+                'notes' => $validated['notes'] ?? null,
+            ],
+        ]);
 
-        return redirect()->route('brokers.index')->with('success', 'Broker created successfully');
+        return redirect()->route('brokers.index')->with('success', 'Broker connected successfully!');
     }
 
     /**
