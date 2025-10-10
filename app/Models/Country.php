@@ -33,6 +33,14 @@ class Country extends Model
     ];
 
     /**
+     * Get the brokers for the country.
+     */
+    public function brokers()
+    {
+        return $this->hasMany(Broker::class);
+    }
+
+    /**
      * Get the purchases for the country.
      */
     public function purchases()

@@ -50,11 +50,27 @@ class Broker extends Model
     ];
 
     /**
+     * Get the country for the broker.
+     */
+    public function country()
+    {
+        return $this->belongsTo(Country::class);
+    }
+
+    /**
      * Get the broker connections for the broker.
      */
-    public function brokerConnections()
+    public function connections()
     {
         return $this->hasMany(BrokerConnection::class);
+    }
+
+    /**
+     * Get the broker data for the broker.
+     */
+    public function data()
+    {
+        return $this->hasMany(BrokerData::class);
     }
 
     /**
