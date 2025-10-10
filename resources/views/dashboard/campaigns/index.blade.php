@@ -110,7 +110,7 @@
                         <thead class="bg-light-subtle">
                             <tr>
                                 <th class="ps-3">Campaign Name</th>
-                                <th>Broker</th>
+                                <th>Network</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Budget</th>

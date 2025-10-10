@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\Broker;
+use App\Models\Network;
 use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Purchase;
@@ -26,8 +26,8 @@ class DashboardController extends Controller
             'active_campaigns' => Campaign::where('is_active', true)->count(),
             'total_purchases' => Purchase::count(),
             'total_revenue' => Purchase::where('status', 'completed')->sum('amount'),
-            'total_brokers' => Broker::count(),
-            'active_brokers' => Broker::where('is_active', true)->count(),
+            'total_networks' => Network::count(),
+            'active_networks' => Network::where('is_active', true)->count(),
         ];
 
         $recent_purchases = Purchase::with(['user', 'coupon'])
@@ -85,7 +85,7 @@ class DashboardController extends Controller
                 ->limit(10)
                 ->get(),
                 
-            'broker_stats' => Broker::withCount(['campaigns', 'purchases'])
+            'network_stats' => Network::withCount(['campaigns', 'purchases'])
                 ->get(),
         ];
 

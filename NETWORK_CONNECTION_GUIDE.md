@@ -1,12 +1,12 @@
-# Broker Connection System - دليل الاستخدام
+# Network Connection System - دليل الاستخدام
 
 ## نظرة عامة
 
-نظام ربط المستخدمين بالبروكرز (Brokers) يسمح لكل مستخدم بإنشاء اتصالات متعددة مع البروكرز المختلفة.
+نظام ربط المستخدمين بالبروكرز (Networks) يسمح لكل مستخدم بإنشاء اتصالات متعددة مع البروكرز المختلفة.
 
 ---
 
-## البروكرز المتاحة (17 Broker)
+## البروكرز المتاحة (17 Network)
 
 ### 1. **Boostiny**
 - API: `https://api.boostiny.com/`
@@ -81,7 +81,7 @@
 
 ### الخطوات:
 
-1. **اذهب إلى** `/brokers/create`
+1. **اذهب إلى** `/networks/create`
 
 2. **اختر البروكر** من القائمة المنسدلة
 
@@ -92,13 +92,13 @@
    - Token: رمز الوصول (اختياري)
    - Contact ID: معرف جهة الاتصال (اختياري)
 
-4. **اضغط "Connect Broker"**
+4. **اضغط "Connect Network"**
 
 ---
 
 ## هيكل قاعدة البيانات
 
-### جدول `brokers`
+### جدول `networks`
 ```sql
 - id
 - name (boostiny, admitad, etc.)
@@ -111,11 +111,11 @@
 - updated_at
 ```
 
-### جدول `broker_connections`
+### جدول `network_connections`
 ```sql
 - id
 - user_id (FK)
-- broker_id (FK)
+- network_id (FK)
 - connection_name
 - client_id
 - client_secret
@@ -136,7 +136,7 @@
 - created_at
 - updated_at
 
-UNIQUE KEY: (user_id, broker_id)
+UNIQUE KEY: (user_id, network_id)
 ```
 
 ---
@@ -145,35 +145,35 @@ UNIQUE KEY: (user_id, broker_id)
 
 ### User Model
 ```php
-// Get all broker connections
-$user->brokerConnections
+// Get all network connections
+$user->networkConnections
 
-// Get connected brokers
-$user->connectedBrokers
+// Get connected networks
+$user->connectedNetworks
 
-// Check if connected to broker
-$user->isConnectedToBroker($brokerId)
+// Check if connected to network
+$user->isConnectedToNetwork($networkId)
 
 // Get active connections count
-$user->getActiveBrokerConnectionsCount()
+$user->getActiveNetworkConnectionsCount()
 ```
 
-### Broker Model
+### Network Model
 ```php
 // Get all user connections
-$broker->brokerConnections
+$network->networkConnections
 
 // Get connected users
-$broker->connectedUsers
+$network->connectedUsers
 ```
 
-### BrokerConnection Model
+### NetworkConnection Model
 ```php
 // Get user
 $connection->user
 
-// Get broker
-$connection->broker
+// Get network
+$connection->network
 
 // Check if active
 $connection->isActive()
@@ -188,10 +188,10 @@ $connection->isConnected()
 
 ### Create Connection
 ```http
-POST /brokers
+POST /networks
 Content-Type: application/x-www-form-urlencoded
 
-broker_id=1
+network_id=1
 connection_name=My Boostiny Account
 client_id=your_client_id
 client_secret=your_client_secret
@@ -201,22 +201,22 @@ contact_id=optional_contact_id
 
 ### Get User Connections
 ```http
-GET /brokers
+GET /networks
 ```
 
 ### View Connection Details
 ```http
-GET /brokers/{broker_id}
+GET /networks/{network_id}
 ```
 
 ### Update Connection
 ```http
-PUT /brokers/{broker_id}
+PUT /networks/{network_id}
 ```
 
 ### Delete Connection
 ```http
-DELETE /brokers/connections/{connection_id}
+DELETE /networks/connections/{connection_id}
 ```
 
 ---
@@ -236,7 +236,7 @@ DELETE /brokers/connections/{connection_id}
 ✅ **أمان البيانات**
 - Client Secret مخزن بشكل آمن
 - Credentials مخزنة في JSON مشفر
-- Unique constraint على (user_id, broker_id)
+- Unique constraint على (user_id, network_id)
 
 ✅ **إدارة مرنة**
 - تفعيل/تعطيل الاتصال
@@ -249,17 +249,17 @@ DELETE /brokers/connections/{connection_id}
 ## مثال على الاستخدام
 
 ```php
-// Get current user's broker connections
-$myConnections = auth()->user()->brokerConnections;
+// Get current user's network connections
+$myConnections = auth()->user()->networkConnections;
 
 // Check if connected to Boostiny
-$broker = Broker::where('name', 'boostiny')->first();
-$isConnected = auth()->user()->isConnectedToBroker($broker->id);
+$network = Network::where('name', 'boostiny')->first();
+$isConnected = auth()->user()->isConnectedToNetwork($network->id);
 
 // Create new connection
-$connection = BrokerConnection::create([
+$connection = NetworkConnection::create([
     'user_id' => auth()->id(),
-    'broker_id' => $broker->id,
+    'network_id' => $network->id,
     'connection_name' => 'My Boostiny Account',
     'client_id' => 'your_client_id',
     'client_secret' => 'your_secret',
@@ -269,18 +269,18 @@ $connection = BrokerConnection::create([
 ]);
 
 // Get connection count
-$count = auth()->user()->getActiveBrokerConnectionsCount();
+$count = auth()->user()->getActiveNetworkConnectionsCount();
 ```
 
 ---
 
 ## الخطوات التالية
 
-1. ✅ إنشاء 17 Broker في قاعدة البيانات
-2. ✅ نظام ربط User ↔ Broker عبر BrokerConnection
+1. ✅ إنشاء 17 Network في قاعدة البيانات
+2. ✅ نظام ربط User ↔ Network عبر NetworkConnection
 3. ✅ صفحة Create مع Dropdown للبروكرز
 4. ⏳ صفحة لعرض اتصالات كل مستخدم
-5. ⏳ API لمزامنة البيانات من كل Broker
+5. ⏳ API لمزامنة البيانات من كل Network
 6. ⏳ Dashboard لعرض إحصائيات كل اتصال
 
 ---

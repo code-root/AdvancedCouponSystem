@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Broker;
+namespace App\Http\Controllers\Network;
 
 use App\Http\Controllers\Controller;
-use App\Models\Broker;
-use App\Models\BrokerConnection;
+use App\Models\Network;
+use App\Models\NetworkConnection;
 use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Purchase;
@@ -17,12 +17,12 @@ use Carbon\Carbon;
 
 class BoostinyController extends Controller
 {
-    protected $broker;
+    protected $network;
     protected $connection;
 
     public function __construct()
     {
-        $this->broker = Broker::where('name', 'boostiny')->first();
+        $this->network = Network::where('name', 'boostiny')->first();
     }
 
     /**
@@ -104,7 +104,7 @@ class BoostinyController extends Controller
             $params = [
                 'limit' => 20,
                 'page' => 1,
-                'dimensions' => ['campaign_brokers', 'traffic_source'],
+                'dimensions' => ['campaign_networks', 'traffic_source'],
                 'metrics' => ['orders', 'revenue', 'sales_amount_usd'],
                 'from' => $startDate,
                 'to' => $endDate,
@@ -152,7 +152,7 @@ class BoostinyController extends Controller
 
         // Delete existing data for date range
         Purchase::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+            ->where('network_id', $this->network->id)
             ->whereBetween('order_date', [$startDate, $endDate])
             ->delete();
 
@@ -160,9 +160,9 @@ class BoostinyController extends Controller
             try {
                 // Create or get campaign
                 $campaign = Campaign::firstOrCreate([
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
-                    'broker_campaign_id' => $item['campaign_id'],
+                    'network_campaign_id' => $item['campaign_id'],
                 ], [
                     'name' => $item['campaign_name'],
                     'campaign_type' => 'coupon',
@@ -188,10 +188,10 @@ class BoostinyController extends Controller
                 Purchase::create([
                     'coupon_id' => $coupon->id,
                     'campaign_id' => $campaign->id,
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
                     'order_id' => $item['order_id'] ?? null,
-                    'broker_order_id' => $item['broker_order_id'] ?? null,
+                    'network_order_id' => $item['network_order_id'] ?? null,
                     'order_value' => $item['sales_amount_usd'] ?? 0,
                     'commission' => $item['revenue'] ?? 0,
                     'revenue' => $item['revenue'] ?? 0,
@@ -223,11 +223,11 @@ class BoostinyController extends Controller
             try {
                 // Create campaign for link performance
                 $campaign = Campaign::firstOrCreate([
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
-                    'broker_campaign_id' => $item['campaign_id'],
+                    'network_campaign_id' => $item['campaign_id'],
                 ], [
-                    'name' => $item['campaign_brokers'],
+                    'name' => $item['campaign_networks'],
                     'campaign_type' => 'link',
                     'status' => 'active',
                 ]);
@@ -235,7 +235,7 @@ class BoostinyController extends Controller
                 // Create purchase record for link performance
                 Purchase::create([
                     'campaign_id' => $campaign->id,
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
                     'order_value' => $item['sales_amount_usd'] ?? 0,
                     'commission' => $item['revenue'] ?? 0,
@@ -263,8 +263,8 @@ class BoostinyController extends Controller
      */
     private function getConnection($user)
     {
-        return BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+        return NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $this->network->id)
             ->where('is_connected', true)
             ->first();
     }

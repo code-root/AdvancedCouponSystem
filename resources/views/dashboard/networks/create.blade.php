@@ -10,7 +10,7 @@
     <div class="row">
         <div class="col-12 mb-3">
             <div class="d-flex justify-content-end">
-                <a href="{{ route('brokers.index') }}" class="btn btn-secondary">
+                <a href="{{ route('networks.index') }}" class="btn btn-secondary">
                     <i class="ti ti-arrow-left me-1"></i> Back to Networks
                 </a>
             </div>
@@ -29,7 +29,7 @@
         </div>
     @endif
 
-    <form action="{{ route('brokers.store') }}" method="POST" id="brokerForm">
+    <form action="{{ route('networks.store') }}" method="POST" id="networkForm">
         @csrf
         
         <div class="row">
@@ -44,19 +44,18 @@
                             <!-- Select Network -->
                             <div class="col-12 mb-3">
                                 <label class="form-label">Select Network <span class="text-danger">*</span></label>
-                                <select class="form-select" name="network_id" id="brokerSelect" required>
-                                    <option value="">Choose a broker...</option>
-                                    @foreach($brokers as $broker)
-                                        <option value="{{ $broker->id }}" 
-                                                data-name="{{ $broker->name }}"
-                                                data-display="{{ $broker->display_name }}"
-                                                data-description="{{ $broker->description }}"
-                                                data-api-url="{{ $broker->api_url }}"
-                                                data-features="{{ implode(', ', $broker->features ?? []) }}"
-                                                data-commission="{{ $broker->commission_rate }}"
-                                                data-country="{{ $broker->country }}"
-                                                {{ old('network_id') == $broker->id ? 'selected' : '' }}>
-                                            {{ $broker->display_name }} - {{ $broker->country }}
+                                <select class="form-select" name="network_id" id="networkSelect" required>
+                                    <option value="">Choose a network...</option>
+                                    @foreach($networks as $network)
+                                        <option value="{{ $network->id }}" 
+                                                data-name="{{ $network->name }}"
+                                                data-display="{{ $network->display_name }}"
+                                                data-description="{{ $network->description }}"
+                                                data-api-url="{{ $network->api_url }}"
+                                                data-features="{{ implode(', ', $network->supported_features ?? []) }}"
+                                                data-logo="{{ $network->logo_url }}"
+                                                {{ old('network_id') == $network->id ? 'selected' : '' }}>
+                                            {{ $network->display_name }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -74,7 +73,7 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">API Endpoint <span class="text-danger">*</span></label>
                                 <input type="url" class="form-control" name="api_endpoint" id="apiEndpoint" 
-                                       value="{{ old('api_endpoint') }}" placeholder="https://api.broker.com" required>
+                                       value="{{ old('api_endpoint') }}" placeholder="https://api.network.com" required>
                                 <small class="text-muted">Network's API URL</small>
                             </div>
 
@@ -108,7 +107,7 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Contact ID (Optional)</label>
                                 <input type="text" class="form-control" name="contact_id" 
-                                       value="{{ old('contact_id') }}" placeholder="Your contact ID at broker">
+                                       value="{{ old('contact_id') }}" placeholder="Your contact ID at network">
                             </div>
 
                             <!-- Status -->
@@ -137,7 +136,7 @@
 
             <!-- Sidebar Info -->
             <div class="col-lg-4">
-                <div class="card bg-primary-subtle border-primary border-dashed" id="brokerInfoCard" style="display: none;">
+                <div class="card bg-primary-subtle border-primary border-dashed" id="networkInfoCard" style="display: none;">
                     <div class="card-body">
                         <div class="text-center mb-3">
                             <div class="avatar-lg bg-primary-subtle mx-auto mb-3">
@@ -194,7 +193,7 @@
                             </div>
                             <div>
                                 <h6 class="mb-1">Select Network</h6>
-                                <p class="text-muted fs-13 mb-0">Choose the broker you want to connect</p>
+                                <p class="text-muted fs-13 mb-0">Choose the network you want to connect</p>
                             </div>
                         </div>
 
@@ -229,7 +228,7 @@
         <div class="row">
             <div class="col-12">
                 <div class="d-flex justify-content-end gap-2">
-                    <a href="{{ route('brokers.index') }}" class="btn btn-light">Cancel</a>
+                    <a href="{{ route('networks.index') }}" class="btn btn-light">Cancel</a>
                     <button type="submit" class="btn btn-primary">
                         <i class="ti ti-plug-connected me-1"></i> Connect Network
                     </button>
@@ -243,13 +242,13 @@
 <script>
 $(document).ready(function() {
     // Initialize Select2
-    $('#brokerSelect').select2({
-        placeholder: 'Choose a broker...',
+    $('#networkSelect').select2({
+        placeholder: 'Choose a network...',
         allowClear: true
     });
 
-    // Handle broker selection
-    $('#brokerSelect').on('change', function() {
+    // Handle network selection
+    $('#networkSelect').on('change', function() {
         const selectedOption = $(this).find('option:selected');
         
         if (selectedOption.val()) {
@@ -268,8 +267,8 @@ $(document).ready(function() {
                 $('#connectionName').val(selectedOption.data('display') + ' - ' + new Date().toLocaleDateString());
             }
 
-            // Show broker info card
-            $('#brokerInfoCard').fadeIn();
+            // Show network info card
+            $('#networkInfoCard').fadeIn();
             $('#sidebarDetails').fadeIn();
 
             // Display features
@@ -283,20 +282,20 @@ $(document).ready(function() {
                 $('#sidebarFeatures').html(featuresHTML);
             }
         } else {
-            $('#brokerInfoCard').fadeOut();
+            $('#networkInfoCard').fadeOut();
             $('#sidebarDetails').fadeOut();
         }
     });
 
     // Form validation
-    $('#brokerForm').on('submit', function(e) {
-        const broker = $('#brokerSelect').val();
+    $('#networkForm').on('submit', function(e) {
+        const network = $('#networkSelect').val();
         const connectionName = $('#connectionName').val();
         const apiEndpoint = $('#apiEndpoint').val();
         const clientId = $('input[name="client_id"]').val();
         const clientSecret = $('input[name="client_secret"]').val();
 
-        if (!broker || !connectionName || !apiEndpoint || !clientId || !clientSecret) {
+        if (!network || !connectionName || !apiEndpoint || !clientId || !clientSecret) {
             e.preventDefault();
             Swal.fire({
                 icon: 'error',

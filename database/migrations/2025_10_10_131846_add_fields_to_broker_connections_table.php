@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('broker_connections', function (Blueprint $table) {
+        Schema::table('network_connections', function (Blueprint $table) {
             $table->string('client_id')->nullable()->after('connection_name');
             $table->string('client_secret')->nullable()->after('client_id');
             $table->text('token')->nullable()->after('client_secret');
@@ -26,7 +26,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('broker_connections', function (Blueprint $table) {
+        Schema::table('network_connections', function (Blueprint $table) {
             $table->dropColumn(['client_id', 'client_secret', 'token', 'contact_id', 'api_endpoint', 'status']);
         });
     }

@@ -17,7 +17,7 @@
                                     </a>
                                 </li>
                                 <li class="breadcrumb-item">
-                                    <a href="{{ route('brokers.index') }}" class="text-decoration-none">Networks</a>
+                                    <a href="{{ route('networks.index') }}" class="text-decoration-none">Networks</a>
                                 </li>
                                 <li class="breadcrumb-item active" aria-current="page">Connected Networks</li>
                             </ul>
@@ -31,13 +31,13 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h4 class="mb-1 fw-bold">Connected Networks</h4>
-                        <p class="text-muted mb-0">Manage your connected affiliate marketing brokers and monitor their status.</p>
+                        <p class="text-muted mb-0">Manage your connected affiliate marketing networks and monitor their status.</p>
                     </div>
                     <div class="d-flex gap-2">
                         <button class="btn btn-outline-primary" onclick="refreshAllConnections()">
                             <i class="ti ti-refresh me-1"></i> Refresh All
                         </button>
-                        <a href="{{ route('brokers.create') }}" class="btn btn-primary">
+                        <a href="{{ route('networks.create') }}" class="btn btn-primary">
                             <i class="ti ti-plus me-1"></i> Connect New Network
                         </a>
                     </div>
@@ -158,7 +158,7 @@
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-striped table-hover align-middle" id="brokersTable">
+                                <table class="table table-striped table-hover align-middle" id="networksTable">
                                     <thead class="table-light">
                                         <tr>
                                             <th>Network</th>
@@ -386,7 +386,7 @@ $(document).ready(function() {
     });
 
     // Initialize DataTable
-    $('#brokersTable').DataTable({
+    $('#networksTable').DataTable({
         responsive: true,
         pageLength: 10,
         order: [[1, 'asc']],
@@ -408,48 +408,48 @@ function syncAllData() {
     dashboardUtils.showSuccess('Syncing all data...');
 }
 
-function syncNetwork(broker) {
-    dashboardUtils.showSuccess(`Syncing ${broker} data...`);
+function syncNetwork(network) {
+    dashboardUtils.showSuccess(`Syncing ${network} data...`);
 }
 
-function viewNetworkData(broker) {
-    window.location.href = `/brokers/${broker}/data`;
+function viewNetworkData(network) {
+    window.location.href = `/networks/${network}/data`;
 }
 
-function editNetwork(broker) {
-    window.location.href = `/brokers/${broker}`;
+function editNetwork(network) {
+    window.location.href = `/networks/${network}`;
 }
 
-function disconnectNetwork(broker) {
+function disconnectNetwork(network) {
     dashboardUtils.showConfirm(
         'Disconnect Network',
-        `Are you sure you want to disconnect ${broker}?`,
+        `Are you sure you want to disconnect ${network}?`,
         () => {
-            dashboardUtils.showSuccess(`${broker} disconnected successfully!`);
+            dashboardUtils.showSuccess(`${network} disconnected successfully!`);
         }
     );
 }
 
-function completeConnection(broker) {
-    dashboardUtils.showSuccess(`Completing ${broker} connection...`);
+function completeConnection(network) {
+    dashboardUtils.showSuccess(`Completing ${network} connection...`);
 }
 
-function cancelConnection(broker) {
+function cancelConnection(network) {
     dashboardUtils.showConfirm(
         'Cancel Connection',
-        `Cancel ${broker} connection?`,
+        `Cancel ${network} connection?`,
         () => {
-            dashboardUtils.showSuccess(`${broker} connection cancelled!`);
+            dashboardUtils.showSuccess(`${network} connection cancelled!`);
         }
     );
 }
 
-function reconnectNetwork(broker) {
-    window.location.href = `/brokers/${broker}`;
+function reconnectNetwork(network) {
+    window.location.href = `/networks/${network}`;
 }
 
-function connectNetwork(broker) {
-    window.location.href = `/brokers/${broker}`;
+function connectNetwork(network) {
+    window.location.href = `/networks/${network}`;
 }
 </script>
 @endpush

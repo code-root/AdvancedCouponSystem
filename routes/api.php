@@ -31,16 +31,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
         return $request->user();
     });
     
-    // Broker Routes
-    Route::apiResource('brokers', \App\Http\Controllers\BrokerController::class)->names([
-        'index' => 'api.brokers.index',
-        'store' => 'api.brokers.store',
-        'show' => 'api.brokers.show',
-        'update' => 'api.brokers.update',
-        'destroy' => 'api.brokers.destroy',
+    // Network Routes
+    Route::apiResource('networks', \App\Http\Controllers\NetworkController::class)->names([
+        'index' => 'api.networks.index',
+        'store' => 'api.networks.store',
+        'show' => 'api.networks.show',
+        'update' => 'api.networks.update',
+        'destroy' => 'api.networks.destroy',
     ]);
-    Route::post('brokers/{broker}/connections', [\App\Http\Controllers\BrokerController::class, 'createConnection'])->name('api.brokers.connections.create');
-    Route::get('brokers/{broker}/data', [\App\Http\Controllers\BrokerController::class, 'getData'])->name('api.brokers.data');
+    Route::post('networks/{network}/connections', [\App\Http\Controllers\NetworkController::class, 'createConnection'])->name('api.networks.connections.create');
+    Route::get('networks/{network}/data', [\App\Http\Controllers\NetworkController::class, 'getData'])->name('api.networks.data');
     
     // Campaign Routes
     Route::apiResource('campaigns', \App\Http\Controllers\CampaignController::class)->names([

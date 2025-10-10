@@ -1,58 +1,58 @@
 <?php
 
-namespace App\Http\Controllers\Broker;
+namespace App\Http\Controllers\Network;
 
 use App\Http\Controllers\Controller;
-use App\Models\Broker;
-use App\Models\BrokerConnection;
+use App\Models\Network;
+use App\Models\NetworkConnection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class BrokerController extends Controller
+class NetworkController extends Controller
 {
     /**
-     * Get all available brokers.
+     * Get all available networks.
      */
     public function index()
     {
-        $brokers = Broker::where('is_active', true)
+        $networks = Network::where('is_active', true)
             ->orderBy('display_name')
             ->get();
 
         return response()->json([
             'success' => true,
-            'data' => $brokers,
+            'data' => $networks,
         ]);
     }
 
     /**
-     * Get broker details.
+     * Get network details.
      */
-    public function show(Broker $broker)
+    public function show(Network $network)
     {
         $user = Auth::user();
-        $connection = BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $broker->id)
+        $connection = NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $network->id)
             ->first();
 
         return response()->json([
             'success' => true,
             'data' => [
-                'broker' => $broker,
+                'network' => $network,
                 'connection' => $connection,
             ],
         ]);
     }
 
     /**
-     * Get user's connected brokers.
+     * Get user's connected networks.
      */
     public function connected()
     {
         $user = Auth::user();
-        $connections = BrokerConnection::with('broker')
+        $connections = NetworkConnection::with('network')
             ->where('user_id', $user->id)
             ->where('is_connected', true)
             ->get();
@@ -64,39 +64,39 @@ class BrokerController extends Controller
     }
 
     /**
-     * Connect to a broker.
+     * Connect to a network.
      */
-    public function connect(Request $request, Broker $broker)
+    public function connect(Request $request, Network $network)
     {
         $user = Auth::user();
         
         // Check if already connected
-        $existingConnection = BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $broker->id)
+        $existingConnection = NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $network->id)
             ->first();
 
         if ($existingConnection && $existingConnection->is_connected) {
             return response()->json([
                 'success' => false,
-                'message' => 'Already connected to this broker',
+                'message' => 'Already connected to this network',
             ], 400);
         }
 
         // Create or update connection
-        $connection = BrokerConnection::updateOrCreate(
+        $connection = NetworkConnection::updateOrCreate(
             [
                 'user_id' => $user->id,
-                'broker_id' => $broker->id,
+                'network_id' => $network->id,
             ],
             [
-                'connection_name' => $request->input('connection_name', $broker->display_name),
+                'connection_name' => $request->input('connection_name', $network->display_name),
                 'is_active' => true,
                 'is_connected' => false,
             ]
         );
 
-        // Generate auth URL based on broker type
-        $authUrl = $this->generateAuthUrl($broker, $connection);
+        // Generate auth URL based on network type
+        $authUrl = $this->generateAuthUrl($network, $connection);
 
         return response()->json([
             'success' => true,
@@ -109,14 +109,14 @@ class BrokerController extends Controller
     }
 
     /**
-     * Disconnect from a broker.
+     * Disconnect from a network.
      */
-    public function disconnect(Broker $broker)
+    public function disconnect(Network $network)
     {
         $user = Auth::user();
         
-        $connection = BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $broker->id)
+        $connection = NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $network->id)
             ->first();
 
         if (!$connection) {
@@ -142,14 +142,14 @@ class BrokerController extends Controller
     }
 
     /**
-     * Handle broker callback.
+     * Handle network callback.
      */
-    public function callback(Request $request, Broker $broker)
+    public function callback(Request $request, Network $network)
     {
         $user = Auth::user();
         
-        $connection = BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $broker->id)
+        $connection = NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $network->id)
             ->first();
 
         if (!$connection) {
@@ -160,8 +160,8 @@ class BrokerController extends Controller
         }
 
         try {
-            // Handle different broker types
-            $result = $this->handleBrokerCallback($broker, $connection, $request);
+            // Handle different network types
+            $result = $this->handleNetworkCallback($network, $connection, $request);
             
             if ($result['success']) {
                 $connection->update([
@@ -187,8 +187,8 @@ class BrokerController extends Controller
                 ], 400);
             }
         } catch (\Exception $e) {
-            Log::error('Broker callback error', [
-                'broker' => $broker->name,
+            Log::error('Network callback error', [
+                'network' => $network->name,
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
@@ -205,14 +205,14 @@ class BrokerController extends Controller
     }
 
     /**
-     * Sync data from broker.
+     * Sync data from network.
      */
-    public function sync(Request $request, Broker $broker)
+    public function sync(Request $request, Network $network)
     {
         $user = Auth::user();
         
-        $connection = BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $broker->id)
+        $connection = NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $network->id)
             ->where('is_connected', true)
             ->first();
 
@@ -227,7 +227,7 @@ class BrokerController extends Controller
             $startDate = $request->input('start_date', now()->startOfMonth()->format('Y-m-d'));
             $endDate = $request->input('end_date', now()->format('Y-m-d'));
 
-            $result = $this->syncBrokerData($broker, $connection, $startDate, $endDate);
+            $result = $this->syncNetworkData($network, $connection, $startDate, $endDate);
             
             if ($result['success']) {
                 $connection->updateLastSync();
@@ -244,8 +244,8 @@ class BrokerController extends Controller
                 ], 400);
             }
         } catch (\Exception $e) {
-            Log::error('Broker sync error', [
-                'broker' => $broker->name,
+            Log::error('Network sync error', [
+                'network' => $network->name,
                 'user_id' => $user->id,
                 'error' => $e->getMessage(),
             ]);
@@ -258,42 +258,42 @@ class BrokerController extends Controller
     }
 
     /**
-     * Generate authentication URL for broker.
+     * Generate authentication URL for network.
      */
-    private function generateAuthUrl(Broker $broker, BrokerConnection $connection): string
+    private function generateAuthUrl(Network $network, NetworkConnection $connection): string
     {
         $params = [
-            'client_id' => $broker->client_id,
-            'redirect_uri' => $broker->callback_url,
+            'client_id' => $network->client_id,
+            'redirect_uri' => $network->callback_url,
             'response_type' => 'code',
             'state' => $connection->id,
         ];
 
-        return $broker->auth_url . '?' . http_build_query($params);
+        return $network->auth_url . '?' . http_build_query($params);
     }
 
     /**
-     * Handle broker callback based on broker type.
+     * Handle network callback based on network type.
      */
-    private function handleBrokerCallback(Broker $broker, BrokerConnection $connection, Request $request): array
+    private function handleNetworkCallback(Network $network, NetworkConnection $connection, Request $request): array
     {
-        switch ($broker->name) {
+        switch ($network->name) {
             case 'admitad':
-                return $this->handleAdmitadCallback($broker, $connection, $request);
+                return $this->handleAdmitadCallback($network, $connection, $request);
             case 'boostiny':
-                return $this->handleBoostinyCallback($broker, $connection, $request);
+                return $this->handleBoostinyCallback($network, $connection, $request);
             case 'platformance':
-                return $this->handlePlatformanceCallback($broker, $connection, $request);
+                return $this->handlePlatformanceCallback($network, $connection, $request);
             case 'optimize':
-                return $this->handleOptimizeCallback($broker, $connection, $request);
+                return $this->handleOptimizeCallback($network, $connection, $request);
             case 'marketeers':
-                return $this->handleMarketeersCallback($broker, $connection, $request);
+                return $this->handleMarketeersCallback($network, $connection, $request);
             case 'digizag':
-                return $this->handleDigizagCallback($broker, $connection, $request);
+                return $this->handleDigizagCallback($network, $connection, $request);
             default:
                 return [
                     'success' => false,
-                    'message' => 'Unsupported broker type',
+                    'message' => 'Unsupported network type',
                 ];
         }
     }
@@ -301,7 +301,7 @@ class BrokerController extends Controller
     /**
      * Handle Admitad callback.
      */
-    private function handleAdmitadCallback(Broker $broker, BrokerConnection $connection, Request $request): array
+    private function handleAdmitadCallback(Network $network, NetworkConnection $connection, Request $request): array
     {
         $code = $request->input('code');
         
@@ -313,11 +313,11 @@ class BrokerController extends Controller
         }
 
         $response = Http::asForm()->post('https://api.admitad.com/token/', [
-            'client_id' => $broker->client_id,
-            'client_secret' => $broker->client_secret,
+            'client_id' => $network->client_id,
+            'client_secret' => $network->client_secret,
             'grant_type' => 'authorization_code',
             'code' => $code,
-            'redirect_uri' => $broker->callback_url,
+            'redirect_uri' => $network->callback_url,
         ]);
 
         if ($response->successful()) {
@@ -342,7 +342,7 @@ class BrokerController extends Controller
     /**
      * Handle Boostiny callback.
      */
-    private function handleBoostinyCallback(Broker $broker, BrokerConnection $connection, Request $request): array
+    private function handleBoostinyCallback(Network $network, NetworkConnection $connection, Request $request): array
     {
         // Boostiny uses API key authentication
         $apiKey = $request->input('api_key');
@@ -366,7 +366,7 @@ class BrokerController extends Controller
     /**
      * Handle Platformance callback.
      */
-    private function handlePlatformanceCallback(Broker $broker, BrokerConnection $connection, Request $request): array
+    private function handlePlatformanceCallback(Network $network, NetworkConnection $connection, Request $request): array
     {
         // Platformance uses cookie-based authentication
         $cookies = $request->input('cookies');
@@ -390,7 +390,7 @@ class BrokerController extends Controller
     /**
      * Handle Optimize callback.
      */
-    private function handleOptimizeCallback(Broker $broker, BrokerConnection $connection, Request $request): array
+    private function handleOptimizeCallback(Network $network, NetworkConnection $connection, Request $request): array
     {
         $apiKey = $request->input('api_key');
         $contactId = $request->input('contact_id');
@@ -419,7 +419,7 @@ class BrokerController extends Controller
     /**
      * Handle Marketeers callback.
      */
-    private function handleMarketeersCallback(Broker $broker, BrokerConnection $connection, Request $request): array
+    private function handleMarketeersCallback(Network $network, NetworkConnection $connection, Request $request): array
     {
         $sessionToken = $request->input('session_token');
         
@@ -442,7 +442,7 @@ class BrokerController extends Controller
     /**
      * Handle Digizag callback.
      */
-    private function handleDigizagCallback(Broker $broker, BrokerConnection $connection, Request $request): array
+    private function handleDigizagCallback(Network $network, NetworkConnection $connection, Request $request): array
     {
         $apiKey = $request->input('api_key');
         
@@ -463,27 +463,27 @@ class BrokerController extends Controller
     }
 
     /**
-     * Sync data from broker.
+     * Sync data from network.
      */
-    private function syncBrokerData(Broker $broker, BrokerConnection $connection, string $startDate, string $endDate): array
+    private function syncNetworkData(Network $network, NetworkConnection $connection, string $startDate, string $endDate): array
     {
-        switch ($broker->name) {
+        switch ($network->name) {
             case 'admitad':
-                return $this->syncAdmitadData($broker, $connection, $startDate, $endDate);
+                return $this->syncAdmitadData($network, $connection, $startDate, $endDate);
             case 'boostiny':
-                return $this->syncBoostinyData($broker, $connection, $startDate, $endDate);
+                return $this->syncBoostinyData($network, $connection, $startDate, $endDate);
             case 'platformance':
-                return $this->syncPlatformanceData($broker, $connection, $startDate, $endDate);
+                return $this->syncPlatformanceData($network, $connection, $startDate, $endDate);
             case 'optimize':
-                return $this->syncOptimizeData($broker, $connection, $startDate, $endDate);
+                return $this->syncOptimizeData($network, $connection, $startDate, $endDate);
             case 'marketeers':
-                return $this->syncMarketeersData($broker, $connection, $startDate, $endDate);
+                return $this->syncMarketeersData($network, $connection, $startDate, $endDate);
             case 'digizag':
-                return $this->syncDigizagData($broker, $connection, $startDate, $endDate);
+                return $this->syncDigizagData($network, $connection, $startDate, $endDate);
             default:
                 return [
                     'success' => false,
-                    'message' => 'Unsupported broker type',
+                    'message' => 'Unsupported network type',
                 ];
         }
     }
@@ -491,7 +491,7 @@ class BrokerController extends Controller
     /**
      * Sync Admitad data.
      */
-    private function syncAdmitadData(Broker $broker, BrokerConnection $connection, string $startDate, string $endDate): array
+    private function syncAdmitadData(Network $network, NetworkConnection $connection, string $startDate, string $endDate): array
     {
         // Implementation for Admitad data sync
         return [
@@ -504,7 +504,7 @@ class BrokerController extends Controller
     /**
      * Sync Boostiny data.
      */
-    private function syncBoostinyData(Broker $broker, BrokerConnection $connection, string $startDate, string $endDate): array
+    private function syncBoostinyData(Network $network, NetworkConnection $connection, string $startDate, string $endDate): array
     {
         // Implementation for Boostiny data sync
         return [
@@ -517,7 +517,7 @@ class BrokerController extends Controller
     /**
      * Sync Platformance data.
      */
-    private function syncPlatformanceData(Broker $broker, BrokerConnection $connection, string $startDate, string $endDate): array
+    private function syncPlatformanceData(Network $network, NetworkConnection $connection, string $startDate, string $endDate): array
     {
         // Implementation for Platformance data sync
         return [
@@ -530,7 +530,7 @@ class BrokerController extends Controller
     /**
      * Sync Optimize data.
      */
-    private function syncOptimizeData(Broker $broker, BrokerConnection $connection, string $startDate, string $endDate): array
+    private function syncOptimizeData(Network $network, NetworkConnection $connection, string $startDate, string $endDate): array
     {
         // Implementation for Optimize data sync
         return [
@@ -543,7 +543,7 @@ class BrokerController extends Controller
     /**
      * Sync Marketeers data.
      */
-    private function syncMarketeersData(Broker $broker, BrokerConnection $connection, string $startDate, string $endDate): array
+    private function syncMarketeersData(Network $network, NetworkConnection $connection, string $startDate, string $endDate): array
     {
         // Implementation for Marketeers data sync
         return [
@@ -556,7 +556,7 @@ class BrokerController extends Controller
     /**
      * Sync Digizag data.
      */
-    private function syncDigizagData(Broker $broker, BrokerConnection $connection, string $startDate, string $endDate): array
+    private function syncDigizagData(Network $network, NetworkConnection $connection, string $startDate, string $endDate): array
     {
         // Implementation for Digizag data sync
         return [

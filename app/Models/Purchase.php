@@ -68,11 +68,11 @@ class Purchase extends Model
     }
 
     /**
-     * Get the broker that owns the purchase.
+     * Get the network that owns the purchase.
      */
-    public function broker()
+    public function network()
     {
-        return $this->belongsTo(Broker::class);
+        return $this->belongsTo(Network::class);
     }
 
     /**

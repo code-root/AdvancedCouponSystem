@@ -38,11 +38,11 @@ class Campaign extends Model
     ];
 
     /**
-     * Get the broker that owns the campaign.
+     * Get the network that owns the campaign.
      */
-    public function broker()
+    public function network()
     {
-        return $this->belongsTo(Broker::class);
+        return $this->belongsTo(Network::class);
     }
 
     /**

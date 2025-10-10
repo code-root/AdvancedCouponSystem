@@ -17,7 +17,7 @@
                                     </a>
                                 </li>
                                 <li class="breadcrumb-item">
-                                    <a href="{{ route('brokers.index') }}" class="text-decoration-none">Networks</a>
+                                    <a href="{{ route('networks.index') }}" class="text-decoration-none">Networks</a>
                                 </li>
                                 <li class="breadcrumb-item active" aria-current="page">Connect Network</li>
                             </ul>
@@ -31,9 +31,9 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h4 class="mb-1 fw-bold">Connect New Network</h4>
-                        <p class="text-muted mb-0">Choose a broker to connect and start managing your affiliate campaigns.</p>
+                        <p class="text-muted mb-0">Choose a network to connect and start managing your affiliate campaigns.</p>
                     </div>
-                    <a href="{{ route('brokers.index') }}" class="btn btn-outline-secondary">
+                    <a href="{{ route('networks.index') }}" class="btn btn-outline-secondary">
                         <i class="ti ti-arrow-left me-1"></i> Back to Networks
                     </a>
                 </div>
@@ -53,42 +53,42 @@
 
             <div class="row">
                 <!-- Network Selection -->
-                @foreach(['boostiny', 'digizag', 'platformance', 'optimize', 'marketeers', 'admitad'] as $broker)
+                @foreach(['boostiny', 'digizag', 'platformance', 'optimize', 'marketeers', 'admitad'] as $network)
                 <div class="col-xl-4 col-md-6 mb-4">
-                    <div class="card border-0 shadow-sm h-100 broker-card" data-broker="{{ $broker }}">
+                    <div class="card border-0 shadow-sm h-100 network-card" data-network="{{ $network }}">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-3">
                                 <div class="avatar-sm bg-primary-subtle rounded">
                                     <div class="avatar-title bg-primary-subtle text-primary fs-22">
-                                        <i class="ti ti-{{ $broker === 'boostiny' ? 'bolt' : ($broker === 'digizag' ? 'device-desktop' : ($broker === 'platformance' ? 'building' : ($broker === 'optimize' ? 'optimization' : ($broker === 'marketeers' ? 'chart-pie' : 'world')))) }}"></i>
+                                        <i class="ti ti-{{ $network === 'boostiny' ? 'bolt' : ($network === 'digizag' ? 'device-desktop' : ($network === 'platformance' ? 'building' : ($network === 'optimize' ? 'optimization' : ($network === 'marketeers' ? 'chart-pie' : 'world')))) }}"></i>
                                     </div>
                                 </div>
                                 <div class="ms-3">
-                                    <h5 class="mb-1">{{ ucfirst($broker) }}</h5>
-                                    <p class="text-muted mb-0 fs-13">{{ $broker === 'boostiny' ? 'Affiliate Marketing Platform' : ($broker === 'digizag' ? 'Digital Marketing Network' : ($broker === 'platformance' ? 'Performance Marketing' : ($broker === 'optimize' ? 'Media Optimization' : ($broker === 'marketeers' ? 'Marketing Analytics' : 'Affiliate Network')))) }}</p>
+                                    <h5 class="mb-1">{{ ucfirst($network) }}</h5>
+                                    <p class="text-muted mb-0 fs-13">{{ $network === 'boostiny' ? 'Affiliate Marketing Platform' : ($network === 'digizag' ? 'Digital Marketing Network' : ($network === 'platformance' ? 'Performance Marketing' : ($network === 'optimize' ? 'Media Optimization' : ($network === 'marketeers' ? 'Marketing Analytics' : 'Affiliate Network')))) }}</p>
                                 </div>
                             </div>
                             
                             <div class="mb-3">
                                 <h6 class="fw-semibold">Features:</h6>
                                 <ul class="list-unstyled mb-0">
-                                    @if($broker === 'boostiny')
+                                    @if($network === 'boostiny')
                                         <li><i class="ti ti-check text-success me-1"></i> Campaign Management</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Real-time Analytics</li>
                                         <li><i class="ti ti-check text-success me-1"></i> API Integration</li>
-                                    @elseif($broker === 'digizag')
+                                    @elseif($network === 'digizag')
                                         <li><i class="ti ti-check text-success me-1"></i> Digital Network</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Publisher Tools</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Performance Tracking</li>
-                                    @elseif($broker === 'platformance')
+                                    @elseif($network === 'platformance')
                                         <li><i class="ti ti-check text-success me-1"></i> Advanced Analytics</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Conversion Tracking</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Multi-channel Support</li>
-                                    @elseif($broker === 'optimize')
+                                    @elseif($network === 'optimize')
                                         <li><i class="ti ti-check text-success me-1"></i> Media Optimization</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Targeting Tools</li>
                                         <li><i class="ti ti-check text-success me-1"></i> ROI Analytics</li>
-                                    @elseif($broker === 'marketeers')
+                                    @elseif($network === 'marketeers')
                                         <li><i class="ti ti-check text-success me-1"></i> Marketing Analytics</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Campaign Optimization</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Data Insights</li>
@@ -101,8 +101,8 @@
                             </div>
                             
                             <div class="d-grid">
-                                <button class="btn btn-primary" onclick="connectNetwork('{{ $broker }}')">
-                                    <i class="ti ti-plug me-1"></i> Connect {{ ucfirst($broker) }}
+                                <button class="btn btn-primary" onclick="connectNetwork('{{ $network }}')">
+                                    <i class="ti ti-plug me-1"></i> Connect {{ ucfirst($network) }}
                                 </button>
                             </div>
                         </div>
@@ -132,7 +132,7 @@
                                 </div>
                             </div>
                             <h5 id="modalNetworkName">Network</h5>
-                            <p class="text-muted" id="modalNetworkDescription">Connect your broker account</p>
+                            <p class="text-muted" id="modalNetworkDescription">Connect your network account</p>
                         </div>
                         
                         <div class="row">
@@ -192,7 +192,7 @@
 <script>
 let selectedNetwork = '';
 
-const brokerInfo = {
+const networkInfo = {
     boostiny: {
         name: 'Boostiny',
         icon: 'ti-bolt',
@@ -225,9 +225,9 @@ const brokerInfo = {
     }
 };
 
-function connectNetwork(broker) {
-    selectedNetwork = broker;
-    const info = brokerInfo[broker];
+function connectNetwork(network) {
+    selectedNetwork = network;
+    const info = networkInfo[network];
     
     document.getElementById('modalNetworkName').textContent = info.name;
     document.getElementById('modalNetworkDescription').textContent = info.description;
@@ -244,11 +244,11 @@ $(document).ready(function() {
         e.preventDefault();
         
         const formData = new FormData(this);
-        formData.append('broker', selectedNetwork);
+        formData.append('network', selectedNetwork);
         
         dashboardUtils.showLoading('button[type="submit"]');
         
-        fetch('{{ route("brokers.store") }}', {
+        fetch('{{ route("networks.store") }}', {
             method: 'POST',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
@@ -261,7 +261,7 @@ $(document).ready(function() {
                 dashboardUtils.showSuccess(data.message);
                 bootstrap.Modal.getInstance(document.getElementById('connectionModal')).hide();
                 setTimeout(() => {
-                    window.location.href = `{{ route('brokers.index') }}/${selectedNetwork}`;
+                    window.location.href = `{{ route('networks.index') }}/${selectedNetwork}`;
                 }, 1500);
             } else {
                 dashboardUtils.showError(data.message);
@@ -275,8 +275,8 @@ $(document).ready(function() {
         });
     });
     
-    // Add hover effects to broker cards
-    $('.broker-card').hover(
+    // Add hover effects to network cards
+    $('.network-card').hover(
         function() {
             $(this).addClass('shadow-lg');
         },

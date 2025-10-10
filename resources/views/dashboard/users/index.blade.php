@@ -33,7 +33,7 @@
                                 <th class="ps-3">User</th>
                                 <th>Email</th>
                                 <th>Role</th>
-                                <th>Brokers</th>
+                                <th>Networks</th>
                                 <th>Joined</th>
                                 <th>Status</th>
                                 <th class="text-center pe-3" style="width: 120px;">Action</th>
@@ -56,7 +56,7 @@
                                         <span class="badge bg-primary-subtle text-primary">{{ $role->name }}</span>
                                     @endforeach
                                 </td>
-                                <td>{{ $user->getActiveBrokerConnectionsCount() }}</td>
+                                <td>{{ $user->getActiveNetworkConnectionsCount() }}</td>
                                 <td>{{ $user->created_at->format('M d, Y') }}</td>
                                 <td>
                                     <span class="badge bg-success-subtle text-success p-1">Active</span>

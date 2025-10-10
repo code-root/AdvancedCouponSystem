@@ -125,7 +125,7 @@ class AuthController extends Controller
         $user = $request->user();
         
         // Load relationships
-        $user->load(['brokerConnections.broker', 'campaigns', 'purchases']);
+        $user->load(['networkConnections.network', 'campaigns', 'purchases']);
 
         return response()->json([
             'success' => true,
@@ -334,10 +334,10 @@ class AuthController extends Controller
         $user = $request->user();
 
         // Delete all user data
-        $user->brokerConnections()->delete();
+        $user->networkConnections()->delete();
         $user->campaigns()->delete();
         $user->purchases()->delete();
-        $user->brokerData()->delete();
+        $user->networkData()->delete();
 
         // Delete user
         $user->delete();

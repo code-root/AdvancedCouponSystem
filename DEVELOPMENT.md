@@ -52,16 +52,16 @@
 - `destroyUser()` - Delete user (Admin)
 - `assignRole()` - Assign role to user (Admin)
 
-#### 7. **BrokerController**
-- `index()` - List all brokers
-- `create()` - Create broker form
-- `store()` - Store new broker
-- `show()` - Show broker details
-- `edit()` - Edit broker form
-- `update()` - Update broker
-- `destroy()` - Delete broker
-- `createConnection()` - Create broker connection
-- `getData()` - Get broker data (JSON)
+#### 7. **NetworkController**
+- `index()` - List all networks
+- `create()` - Create network form
+- `store()` - Store new network
+- `show()` - Show network details
+- `edit()` - Edit network form
+- `update()` - Update network
+- `destroy()` - Delete network
+- `createConnection()` - Create network connection
+- `getData()` - Get network data (JSON)
 
 #### 8. **CampaignController**
 - `index()` - List all campaigns
@@ -114,14 +114,14 @@
 - `edit()` - Edit country form
 - `update()` - Update country
 - `destroy()` - Delete country
-- `brokers()` - Get country brokers (JSON)
+- `networks()` - Get country networks (JSON)
 
 #### 12. **ReportController**
 - `index()` - Reports index page
 - `coupons()` - Coupons report
 - `purchases()` - Purchases report
 - `campaigns()` - Campaigns report
-- `brokers()` - Brokers report
+- `networks()` - Networks report
 - `revenue()` - Revenue report
 - `export()` - Export report
 - `download()` - Download exported file
@@ -137,17 +137,17 @@
   - `roles()` - belongsToMany Role (via Spatie Permission)
   - `permissions()` - via HasRoles trait
 
-### Broker Model
+### Network Model
 - **Relationships:**
   - `country()` - belongsTo Country
-  - `connections()` - hasMany BrokerConnection
-  - `data()` - hasMany BrokerData
+  - `connections()` - hasMany NetworkConnection
+  - `data()` - hasMany NetworkData
   - `campaigns()` - hasMany Campaign
   - `purchases()` - hasMany Purchase
 
 ### Campaign Model
 - **Relationships:**
-  - `broker()` - belongsTo Broker
+  - `network()` - belongsTo Network
   - `coupons()` - hasMany Coupon
   - `purchases()` - hasMany Purchase
 
@@ -164,7 +164,7 @@
 
 ### Country Model
 - **Relationships:**
-  - `brokers()` - hasMany Broker
+  - `networks()` - hasMany Network
 
 ---
 
@@ -195,14 +195,14 @@ GET  /dashboard/profile         - User profile
 PUT  /dashboard/profile         - Update profile
 PUT  /dashboard/password        - Update password
 
-// Brokers (auth required)
-GET  /brokers                   - List brokers
-GET  /brokers/create            - Create form
-POST /brokers                   - Store broker
-GET  /brokers/{id}              - Show broker
-GET  /brokers/{id}/edit         - Edit form
-PUT  /brokers/{id}              - Update broker
-DELETE /brokers/{id}            - Delete broker
+// Networks (auth required)
+GET  /networks                   - List networks
+GET  /networks/create            - Create form
+POST /networks                   - Store network
+GET  /networks/{id}              - Show network
+GET  /networks/{id}/edit         - Edit form
+PUT  /networks/{id}              - Update network
+DELETE /networks/{id}            - Delete network
 
 // Campaigns (auth required)
 GET  /campaigns                 - List campaigns
@@ -314,7 +314,7 @@ resources/views/
 │   ├── index.blade.php
 │   ├── profile.blade.php
 │   ├── settings.blade.php
-│   ├── brokers/
+│   ├── networks/
 │   ├── campaigns/
 │   ├── coupons/
 │   ├── purchases/

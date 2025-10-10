@@ -21,8 +21,8 @@
                         <h5 class="text-muted fs-13 text-uppercase mb-2">Account Statistics</h5>
                         <div class="row text-center">
                             <div class="col-4">
-                                <p class="text-muted mb-1">Brokers</p>
-                                <h4 class="mb-0">{{ auth()->user()->getActiveBrokerConnectionsCount() }}</h4>
+                                <p class="text-muted mb-1">Networks</p>
+                                <h4 class="mb-0">{{ auth()->user()->getActiveNetworkConnectionsCount() }}</h4>
                             </div>
                             <div class="col-4">
                                 <p class="text-muted mb-1">Campaigns</p>

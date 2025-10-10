@@ -114,7 +114,7 @@
                                 <input type="text" class="form-control ps-4 form-control-sm" id="searchConnections" placeholder="Search connections">
                                 <i class="ti ti-search position-absolute top-50 translate-middle-y ms-2"></i>
                             </div>
-                            <a href="{{ route('brokers.create') }}" class="btn btn-primary btn-sm">
+                            <a href="{{ route('networks.create') }}" class="btn btn-primary btn-sm">
                                 <i class="ti ti-plug-connected me-1"></i> Connect Network
                             </a>
                         </div>
@@ -145,8 +145,8 @@
                                             </span>
                                         </div>
                                         <div>
-                                            <h6 class="mb-0 fs-14 fw-semibold">{{ $connection->broker->display_name }}</h6>
-                                            <small class="text-muted">{{ $connection->broker->name }}</small>
+                                            <h6 class="mb-0 fs-14 fw-semibold">{{ $connection->network->display_name }}</h6>
+                                            <small class="text-muted">{{ $connection->network->name }}</small>
                                         </div>
                                     </div>
                                 </td>
@@ -155,10 +155,10 @@
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center gap-1">
-                                        <img src="/images/flags/{{ strtolower($connection->broker->country) }}.svg" 
-                                             class="me-1" alt="{{ $connection->broker->country }}" height="16" 
+                                        <img src="/images/flags/{{ strtolower($connection->network->country) }}.svg" 
+                                             class="me-1" alt="{{ $connection->network->country }}" height="16" 
                                              onerror="this.style.display='none'">
-                                        <span>{{ $connection->broker->country }}</span>
+                                        <span>{{ $connection->network->country }}</span>
                                     </div>
                                 </td>
                                 <td>
@@ -189,10 +189,10 @@
                                             <i class="ti ti-refresh"></i>
                                         </button>
                                         @endif
-                                        <a href="{{ route('brokers.show', $connection->network_id) }}" class="btn btn-soft-info btn-icon btn-sm rounded-circle" title="View Details">
+                                        <a href="{{ route('networks.show', $connection->network_id) }}" class="btn btn-soft-info btn-icon btn-sm rounded-circle" title="View Details">
                                             <i class="ti ti-eye"></i>
                                         </a>
-                                        <a href="{{ route('brokers.edit', $connection->id) }}" class="btn btn-soft-warning btn-icon btn-sm rounded-circle" title="Edit">
+                                        <a href="{{ route('networks.edit', $connection->id) }}" class="btn btn-soft-warning btn-icon btn-sm rounded-circle" title="Edit">
                                             <i class="ti ti-edit fs-16"></i>
                                         </a>
                                         <button class="btn btn-soft-danger btn-icon btn-sm rounded-circle" onclick="disconnectNetwork({{ $connection->id }})" title="Disconnect">
@@ -207,8 +207,8 @@
                                     <div class="py-4">
                                         <i class="ti ti-plug-off fs-64 text-muted mb-3"></i>
                                         <h5 class="text-muted mb-3">No Network Connections Found</h5>
-                                        <p class="text-muted mb-4">You haven't connected any brokers yet. Start connecting to manage your affiliate campaigns.</p>
-                                        <a href="{{ route('brokers.create') }}" class="btn btn-primary">
+                                        <p class="text-muted mb-4">You haven't connected any networks yet. Start connecting to manage your affiliate campaigns.</p>
+                                        <a href="{{ route('networks.create') }}" class="btn btn-primary">
                                             <i class="ti ti-plug-connected me-1"></i> Connect Your First Network
                                         </a>
                                     </div>
@@ -240,7 +240,7 @@
                 </div>
                 <div class="card-body">
                     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xxl-4 g-3">
-                        @foreach($availableNetworks as $broker)
+                        @foreach($availableNetworks as $network)
                         <div class="col">
                             <div class="card border h-100">
                                 <div class="card-body">
@@ -250,8 +250,8 @@
                                                 <i class="ti ti-building-store"></i>
                                             </span>
                                         </div>
-                                        <h5 class="fw-semibold mb-1">{{ $broker->display_name }}</h5>
-                                        <p class="text-muted mb-2">{{ $broker->country }}</p>
+                                        <h5 class="fw-semibold mb-1">{{ $network->display_name }}</h5>
+                                        <p class="text-muted mb-2">{{ $network->country }}</p>
                                         <div class="flex-grow-1 d-inline-flex align-items-center fs-16 mb-2">
                                             @for($i = 1; $i <= 5; $i++)
                                                 <span class="ti ti-star-filled text-warning"></span>
@@ -264,17 +264,17 @@
                                         <div class="row text-center g-2">
                                             <div class="col-6">
                                                 <p class="text-muted mb-1 fs-12">Commission</p>
-                                                <h6 class="mb-0">Up to {{ $broker->commission_rate }}%</h6>
+                                                <h6 class="mb-0">Up to {{ $network->commission_rate }}%</h6>
                                             </div>
                                             <div class="col-6">
                                                 <p class="text-muted mb-1 fs-12">Products</p>
-                                                <h6 class="mb-0">{{ $broker->total_products ?? '1000+' }}</h6>
+                                                <h6 class="mb-0">{{ $network->total_products ?? '1000+' }}</h6>
                                             </div>
                                         </div>
                                     </div>
 
                                     <div class="mt-3 d-grid">
-                                        <a href="{{ route('brokers.create', ['broker' => $broker->id]) }}" class="btn btn-primary btn-sm">
+                                        <a href="{{ route('networks.create', ['network' => $network->id]) }}" class="btn btn-primary btn-sm">
                                             <i class="ti ti-plug-connected me-1"></i> Connect Now
                                         </a>
                                     </div>
@@ -297,7 +297,7 @@
 function syncConnection(connectionId) {
     Swal.fire({
         title: 'Syncing Data...',
-        text: 'Fetching latest data from broker',
+        text: 'Fetching latest data from network',
         icon: 'info',
         showConfirmButton: false,
         allowOutsideClick: false,
@@ -306,7 +306,7 @@ function syncConnection(connectionId) {
         }
     });
 
-    fetch(`/brokers/${connectionId}/sync`, {
+    fetch(`/networks/${connectionId}/sync`, {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -345,7 +345,7 @@ function syncConnection(connectionId) {
 function disconnectNetwork(connectionId) {
     Swal.fire({
         title: 'Disconnect Network?',
-        text: 'Are you sure you want to disconnect this broker?',
+        text: 'Are you sure you want to disconnect this network?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#fa5c7c',
@@ -354,7 +354,7 @@ function disconnectNetwork(connectionId) {
         cancelButtonText: 'Cancel'
     }).then((result) => {
         if (result.isConfirmed) {
-            fetch(`/brokers/${connectionId}`, {
+            fetch(`/networks/${connectionId}`, {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -376,7 +376,7 @@ function disconnectNetwork(connectionId) {
                     Swal.fire({
                         icon: 'error',
                         title: 'Error!',
-                        text: data.message || 'Failed to disconnect broker'
+                        text: data.message || 'Failed to disconnect network'
                     });
                 }
             })
@@ -384,7 +384,7 @@ function disconnectNetwork(connectionId) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error!',
-                    text: 'Failed to disconnect broker'
+                    text: 'Failed to disconnect network'
                 });
             });
         }

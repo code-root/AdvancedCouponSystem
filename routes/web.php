@@ -6,7 +6,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\BrokerController;
+use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\PurchaseController;
@@ -54,17 +54,17 @@ Route::middleware(['auth'])->group(function () {
         Route::put('password', [DashboardController::class, 'updatePassword'])->name('password.update');
     });
     
-    // Broker Management Routes
-    Route::prefix('brokers')->name('brokers.')->group(function () {
-        Route::get('/', [BrokerController::class, 'index'])->name('index');
-        Route::get('create', [BrokerController::class, 'create'])->name('create');
-        Route::post('/', [BrokerController::class, 'store'])->name('store');
-        Route::get('{broker}', [BrokerController::class, 'show'])->name('show');
-        Route::get('{broker}/edit', [BrokerController::class, 'edit'])->name('edit');
-        Route::put('{broker}', [BrokerController::class, 'update'])->name('update');
-        Route::delete('{broker}', [BrokerController::class, 'destroy'])->name('destroy');
-        Route::post('{broker}/connections', [BrokerController::class, 'createConnection'])->name('connections.create');
-        Route::get('{broker}/data', [BrokerController::class, 'getData'])->name('data');
+    // Network Management Routes
+    Route::prefix('networks')->name('networks.')->group(function () {
+        Route::get('/', [NetworkController::class, 'index'])->name('index');
+        Route::get('create', [NetworkController::class, 'create'])->name('create');
+        Route::post('/', [NetworkController::class, 'store'])->name('store');
+        Route::get('{network}', [NetworkController::class, 'show'])->name('show');
+        Route::get('{network}/edit', [NetworkController::class, 'edit'])->name('edit');
+        Route::put('{network}', [NetworkController::class, 'update'])->name('update');
+        Route::delete('{network}', [NetworkController::class, 'destroy'])->name('destroy');
+        Route::post('{network}/connections', [NetworkController::class, 'createConnection'])->name('connections.create');
+        Route::get('{network}/data', [NetworkController::class, 'getData'])->name('data');
     });
     
     // Campaign Management Routes

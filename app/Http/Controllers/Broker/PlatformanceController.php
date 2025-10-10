@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Broker;
+namespace App\Http\Controllers\Network;
 
 use App\Http\Controllers\Controller;
-use App\Models\Broker;
-use App\Models\BrokerConnection;
+use App\Models\Network;
+use App\Models\NetworkConnection;
 use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Purchase;
@@ -19,11 +19,11 @@ use DOMXPath;
 
 class PlatformanceController extends Controller
 {
-    protected $broker;
+    protected $network;
 
     public function __construct()
     {
-        $this->broker = Broker::where('name', 'platformance')->first();
+        $this->network = Network::where('name', 'platformance')->first();
     }
 
     /**
@@ -128,7 +128,7 @@ class PlatformanceController extends Controller
     {
         // Delete existing data for date range
         Purchase::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+            ->where('network_id', $this->network->id)
             ->whereBetween('order_date', [$startDate, $endDate])
             ->delete();
 
@@ -144,9 +144,9 @@ class PlatformanceController extends Controller
 
                 // Create or get campaign
                 $campaign = Campaign::firstOrCreate([
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
-                    'broker_campaign_id' => $item['campaign_id'],
+                    'network_campaign_id' => $item['campaign_id'],
                 ], [
                     'name' => $item['campaign'],
                     'campaign_type' => 'coupon',
@@ -169,7 +169,7 @@ class PlatformanceController extends Controller
                 Purchase::create([
                     'coupon_id' => $coupon->id,
                     'campaign_id' => $campaign->id,
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
                     'order_value' => $saleAmount,
                     'commission' => $payout,
@@ -209,8 +209,8 @@ class PlatformanceController extends Controller
     {
         $user = Auth::user();
         
-        $connection = BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+        $connection = NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $this->network->id)
             ->first();
 
         if (!$connection) {
@@ -245,8 +245,8 @@ class PlatformanceController extends Controller
      */
     private function getConnection($user)
     {
-        return BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+        return NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $this->network->id)
             ->where('is_connected', true)
             ->first();
     }

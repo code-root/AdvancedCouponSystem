@@ -12,7 +12,7 @@ class CountryController extends Controller
      */
     public function index()
     {
-        $countries = Country::withCount('brokers')->paginate(15);
+        $countries = Country::withCount('networks')->paginate(15);
         return view('dashboard.countries.index', compact('countries'));
     }
 
@@ -48,11 +48,11 @@ class CountryController extends Controller
      */
     public function show(Country $country)
     {
-        $country->load('brokers');
+        $country->load('networks');
         
         $stats = [
-            'total_brokers' => $country->brokers()->count(),
-            'active_brokers' => $country->brokers()->where('is_active', true)->count(),
+            'total_networks' => $country->networks()->count(),
+            'active_networks' => $country->networks()->where('is_active', true)->count(),
         ];
 
         return view('dashboard.countries.show', compact('country', 'stats'));
@@ -95,12 +95,12 @@ class CountryController extends Controller
     }
 
     /**
-     * Get country brokers
+     * Get country networks
      */
-    public function brokers(Country $country)
+    public function networks(Country $country)
     {
-        $brokers = $country->brokers()->with('campaigns')->paginate(20);
-        return response()->json($brokers);
+        $networks = $country->networks()->with('campaigns')->paginate(20);
+        return response()->json($networks);
     }
 }
 

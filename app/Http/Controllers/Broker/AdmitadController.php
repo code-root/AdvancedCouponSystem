@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Broker;
+namespace App\Http\Controllers\Network;
 
 use App\Http\Controllers\Controller;
-use App\Models\Broker;
-use App\Models\BrokerConnection;
+use App\Models\Network;
+use App\Models\NetworkConnection;
 use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Purchase;
@@ -17,11 +17,11 @@ use Carbon\Carbon;
 
 class AdmitadController extends Controller
 {
-    protected $broker;
+    protected $network;
 
     public function __construct()
     {
-        $this->broker = Broker::where('name', 'admitad')->first();
+        $this->network = Network::where('name', 'admitad')->first();
     }
 
     /**
@@ -147,7 +147,7 @@ class AdmitadController extends Controller
 
         // Delete existing data for date range
         Purchase::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+            ->where('network_id', $this->network->id)
             ->whereBetween('order_date', [Carbon::createFromFormat('d.m.Y', $startDate)->format('Y-m-d'), Carbon::createFromFormat('d.m.Y', $endDate)->format('Y-m-d')])
             ->delete();
 
@@ -164,9 +164,9 @@ class AdmitadController extends Controller
 
                 // Create or get campaign
                 $campaign = Campaign::firstOrCreate([
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
-                    'broker_campaign_id' => $item['advcampaign_id'],
+                    'network_campaign_id' => $item['advcampaign_id'],
                 ], [
                     'name' => $item['advcampaign_name'],
                     'campaign_type' => $item['promocode'] ? 'coupon' : 'link',
@@ -187,10 +187,10 @@ class AdmitadController extends Controller
                     Purchase::create([
                         'coupon_id' => $coupon->id,
                         'campaign_id' => $campaign->id,
-                        'broker_id' => $this->broker->id,
+                        'network_id' => $this->network->id,
                         'user_id' => $user->id,
                         'order_id' => $item['action_id'],
-                        'broker_order_id' => $item['action_id'],
+                        'network_order_id' => $item['action_id'],
                         'order_value' => $sau,
                         'commission' => $revenue,
                         'revenue' => $revenue,
@@ -205,10 +205,10 @@ class AdmitadController extends Controller
                     // Create purchase record without coupon
                     Purchase::create([
                         'campaign_id' => $campaign->id,
-                        'broker_id' => $this->broker->id,
+                        'network_id' => $this->network->id,
                         'user_id' => $user->id,
                         'order_id' => $item['action_id'],
-                        'broker_order_id' => $item['action_id'],
+                        'network_order_id' => $item['action_id'],
                         'order_value' => $sau,
                         'commission' => $revenue,
                         'revenue' => $revenue,
@@ -243,9 +243,9 @@ class AdmitadController extends Controller
             try {
                 // Create or get campaign
                 $campaign = Campaign::firstOrCreate([
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
-                    'broker_campaign_id' => $item['campaign_id'],
+                    'network_campaign_id' => $item['campaign_id'],
                 ], [
                     'name' => $item['campaign_name'],
                     'campaign_type' => 'campaign',
@@ -253,8 +253,8 @@ class AdmitadController extends Controller
                 ]);
 
                 // Store statistics data
-                \App\Models\BrokerData::create([
-                    'broker_id' => $this->broker->id,
+                \App\Models\NetworkData::create([
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
                     'data_type' => 'statistics',
                     'data' => $item,
@@ -273,8 +273,8 @@ class AdmitadController extends Controller
      */
     private function getConnection($user)
     {
-        return BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+        return NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $this->network->id)
             ->where('is_connected', true)
             ->first();
     }

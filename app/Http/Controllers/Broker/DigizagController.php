@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Broker;
+namespace App\Http\Controllers\Network;
 
 use App\Http\Controllers\Controller;
-use App\Models\Broker;
-use App\Models\BrokerConnection;
+use App\Models\Network;
+use App\Models\NetworkConnection;
 use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Purchase;
@@ -17,11 +17,11 @@ use Carbon\Carbon;
 
 class DigizagController extends Controller
 {
-    protected $broker;
+    protected $network;
 
     public function __construct()
     {
-        $this->broker = Broker::where('name', 'digizag')->first();
+        $this->network = Network::where('name', 'digizag')->first();
     }
 
     /**
@@ -204,7 +204,7 @@ class DigizagController extends Controller
 
         // Delete existing data for date range
         Purchase::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+            ->where('network_id', $this->network->id)
             ->whereBetween('order_date', [$startDate, $endDate])
             ->delete();
 
@@ -212,9 +212,9 @@ class DigizagController extends Controller
             try {
                 // Create or get campaign
                 $campaign = Campaign::firstOrCreate([
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
-                    'broker_campaign_id' => $item['campaign_id'] ?? uniqid(),
+                    'network_campaign_id' => $item['campaign_id'] ?? uniqid(),
                 ], [
                     'name' => $item['campaign_name'] ?? 'Unknown Campaign',
                     'campaign_type' => $item['campaign_type'] ?? 'coupon',
@@ -238,8 +238,8 @@ class DigizagController extends Controller
                 }
 
                 // Store campaign metadata
-                \App\Models\BrokerData::create([
-                    'broker_id' => $this->broker->id,
+                \App\Models\NetworkData::create([
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
                     'data_type' => 'campaign',
                     'data' => $item,
@@ -269,16 +269,16 @@ class DigizagController extends Controller
                 }
 
                 // Get or create campaign
-                $campaign = Campaign::where('broker_id', $this->broker->id)
+                $campaign = Campaign::where('network_id', $this->network->id)
                     ->where('user_id', $user->id)
-                    ->where('broker_campaign_id', $item['campaign_id'])
+                    ->where('network_campaign_id', $item['campaign_id'])
                     ->first();
 
                 if (!$campaign) {
                     $campaign = Campaign::create([
-                        'broker_id' => $this->broker->id,
+                        'network_id' => $this->network->id,
                         'user_id' => $user->id,
-                        'broker_campaign_id' => $item['campaign_id'],
+                        'network_campaign_id' => $item['campaign_id'],
                         'name' => $item['campaign_name'] ?? 'Unknown Campaign',
                         'campaign_type' => 'performance',
                         'status' => 'active',
@@ -294,7 +294,7 @@ class DigizagController extends Controller
                 // Create purchase record
                 Purchase::create([
                     'campaign_id' => $campaign->id,
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
                     'order_value' => $item['revenue'] ?? 0,
                     'commission' => $item['commission'] ?? 0,
@@ -324,8 +324,8 @@ class DigizagController extends Controller
      */
     private function getConnection($user)
     {
-        return BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+        return NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $this->network->id)
             ->where('is_connected', true)
             ->first();
     }

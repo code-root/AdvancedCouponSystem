@@ -39,23 +39,23 @@
 
             <li class="side-nav-title mt-2">Affiliate Management</li>
 
-            <!-- Brokers Section -->
+            <!-- Networks Section -->
             <li class="side-nav-item">
-                <a data-bs-toggle="collapse" href="#sidebarBrokers" aria-expanded="false" aria-controls="sidebarBrokers" class="side-nav-link {{ request()->is('brokers*') ? 'active' : '' }}">
+                <a data-bs-toggle="collapse" href="#sidebarNetworks" aria-expanded="false" aria-controls="sidebarNetworks" class="side-nav-link {{ request()->is('networks*') ? 'active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-affiliate"></i></span>
-                    <span class="menu-text"> Brokers </span>
+                    <span class="menu-text"> Networks </span>
                     <span class="menu-arrow"></span>
                 </a>
-                <div class="collapse {{ request()->is('brokers*') ? 'show' : '' }}" id="sidebarBrokers">
+                <div class="collapse {{ request()->is('networks*') ? 'show' : '' }}" id="sidebarNetworks">
                     <ul class="sub-menu">
                         <li class="side-nav-item">
-                            <a href="{{ route('brokers.index') }}" class="side-nav-link {{ request()->routeIs('brokers.index') ? 'active' : '' }}">
-                                <span class="menu-text">All Brokers</span>
+                            <a href="{{ route('networks.index') }}" class="side-nav-link {{ request()->routeIs('networks.index') ? 'active' : '' }}">
+                                <span class="menu-text">All Networks</span>
                             </a>
                         </li>
                         <li class="side-nav-item">
-                            <a href="{{ route('brokers.create') }}" class="side-nav-link {{ request()->routeIs('brokers.create') ? 'active' : '' }}">
-                                <span class="menu-text">Connect Broker</span>
+                            <a href="{{ route('networks.create') }}" class="side-nav-link {{ request()->routeIs('networks.create') ? 'active' : '' }}">
+                                <span class="menu-text">Connect Network</span>
                             </a>
                         </li>
                     </ul>

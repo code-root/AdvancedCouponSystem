@@ -49,40 +49,40 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the broker connections for the user
+     * Get the network connections for the user
      */
-    public function brokerConnections()
+    public function networkConnections()
     {
-        return $this->hasMany(BrokerConnection::class);
+        return $this->hasMany(NetworkConnection::class);
     }
 
     /**
-     * Get the brokers connected to this user
+     * Get the networks connected to this user
      */
-    public function connectedBrokers()
+    public function connectedNetworks()
     {
-        return $this->belongsToMany(Broker::class, 'broker_connections')
+        return $this->belongsToMany(Network::class, 'network_connections')
             ->withPivot(['connection_name', 'status', 'is_connected', 'connected_at'])
             ->withTimestamps();
     }
 
     /**
-     * Check if user is connected to a specific broker
+     * Check if user is connected to a specific network
      */
-    public function isConnectedToBroker($brokerId): bool
+    public function isConnectedToNetwork($networkId): bool
     {
-        return $this->brokerConnections()
-            ->where('broker_id', $brokerId)
+        return $this->networkConnections()
+            ->where('network_id', $networkId)
             ->where('is_connected', true)
             ->exists();
     }
 
     /**
-     * Get user's active broker connections count
+     * Get user's active network connections count
      */
-    public function getActiveBrokerConnectionsCount(): int
+    public function getActiveNetworkConnectionsCount(): int
     {
-        return $this->brokerConnections()
+        return $this->networkConnections()
             ->where('is_connected', true)
             ->count();
     }

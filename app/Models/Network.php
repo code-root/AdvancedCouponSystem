@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Broker extends Model
+class Network extends Model
 {
     use HasFactory;
 
@@ -50,7 +50,7 @@ class Broker extends Model
     ];
 
     /**
-     * Get the country for the broker.
+     * Get the country for the network.
      */
     public function country()
     {
@@ -58,23 +58,23 @@ class Broker extends Model
     }
 
     /**
-     * Get the broker connections for the broker.
+     * Get the network connections for the network.
      */
     public function connections()
     {
-        return $this->hasMany(BrokerConnection::class);
+        return $this->hasMany(NetworkConnection::class);
     }
 
     /**
-     * Get the broker data for the broker.
+     * Get the network data for the network.
      */
     public function data()
     {
-        return $this->hasMany(BrokerData::class);
+        return $this->hasMany(NetworkData::class);
     }
 
     /**
-     * Get the campaigns for the broker.
+     * Get the campaigns for the network.
      */
     public function campaigns()
     {
@@ -82,7 +82,7 @@ class Broker extends Model
     }
 
     /**
-     * Get the purchases for the broker.
+     * Get the purchases for the network.
      */
     public function purchases()
     {
@@ -90,25 +90,25 @@ class Broker extends Model
     }
 
     /**
-     * Get the broker data for the broker.
+     * Get the network data for the network.
      */
-    public function brokerData()
+    public function networkData()
     {
-        return $this->hasMany(BrokerData::class);
+        return $this->hasMany(NetworkData::class);
     }
 
     /**
-     * Get users connected to this broker.
+     * Get users connected to this network.
      */
     public function connectedUsers()
     {
-        return $this->belongsToMany(User::class, 'broker_connections')
+        return $this->belongsToMany(User::class, 'network_connections')
             ->wherePivot('is_connected', true)
             ->withPivot(['connection_name', 'connected_at', 'last_sync']);
     }
 
     /**
-     * Check if broker supports a specific feature.
+     * Check if network supports a specific feature.
      */
     public function supportsFeature(string $feature): bool
     {
@@ -135,7 +135,7 @@ class Broker extends Model
     }
 
     /**
-     * Check if broker is active.
+     * Check if network is active.
      */
     public function isActive(): bool
     {
@@ -143,11 +143,10 @@ class Broker extends Model
     }
 
     /**
-     * Check if broker is connected.
+     * Check if network is connected.
      */
     public function isConnected(): bool
     {
         return $this->is_connected;
     }
 }
-

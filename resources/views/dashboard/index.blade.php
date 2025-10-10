@@ -16,7 +16,7 @@
                     <div class="row g-2 mb-0 align-items-center">
                         <div class="col-auto">
                             <a href="{{ route('brokers.create') }}" class="btn btn-primary">
-                                <i class="ti ti-plug-connected me-1"></i> Connect Broker
+                                <i class="ti ti-plug-connected me-1"></i> Connect Network
                             </a>
                         </div>
                         <!--end col-->
@@ -46,18 +46,18 @@
             <div class="col">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="text-muted fs-13 text-uppercase" title="Total Brokers">Connected Brokers</h5>
+                        <h5 class="text-muted fs-13 text-uppercase" title="Total Networks">Connected Networks</h5>
                         <div class="d-flex align-items-center justify-content-center gap-2 my-2 py-1">
                             <div class="user-img fs-42 flex-shrink-0">
                                 <span class="avatar-title text-bg-primary rounded-circle fs-22">
                                     <i class="ti ti-affiliate"></i>
                                 </span>
                             </div>
-                            <h3 class="mb-0 fw-bold">{{ auth()->user()->getActiveBrokerConnectionsCount() ?? 0 }}</h3>
+                            <h3 class="mb-0 fw-bold">{{ auth()->user()->getActiveNetworkConnectionsCount() ?? 0 }}</h3>
                         </div>
                         <p class="mb-0 text-muted">
                             <span class="text-success me-2"><i class="ti ti-caret-up-filled"></i>Active</span>
-                            <span class="text-nowrap">Broker connections</span>
+                            <span class="text-nowrap">Network connections</span>
                         </p>
                     </div>
                 </div>
@@ -186,7 +186,7 @@
             <div class="col-xxl-4">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center border-bottom border-dashed">
-                        <h4 class="header-title">Top Performing Brokers</h4>
+                        <h4 class="header-title">Top Performing Networks</h4>
                         <div class="dropdown">
                             <a href="#" class="dropdown-toggle drop-arrow-none card-drop p-0"
                                 data-bs-toggle="dropdown" aria-expanded="false">
@@ -204,7 +204,7 @@
                             <i class="ti ti-affiliate fs-48 text-muted"></i>
                             <p class="text-muted mt-3 mb-2">No brokers connected yet</p>
                             <a href="{{ route('brokers.create') }}" class="btn btn-sm btn-primary">
-                                <i class="ti ti-plug-connected me-1"></i> Connect Your First Broker
+                                <i class="ti ti-plug-connected me-1"></i> Connect Your First Network
                             </a>
                         </div>
                     </div>
@@ -237,7 +237,7 @@
                 
                 <div class="d-flex flex-column gap-2">
                     <a href="{{ route('brokers.index') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="ti ti-affiliate me-1"></i> Manage Brokers
+                        <i class="ti ti-affiliate me-1"></i> Manage Networks
                     </a>
                     <a href="{{ route('campaigns.index') }}" class="btn btn-outline-success btn-sm">
                         <i class="ti ti-speakerphone me-1"></i> View Campaigns

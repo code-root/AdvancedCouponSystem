@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Broker;
+namespace App\Http\Controllers\Network;
 
 use App\Http\Controllers\Controller;
-use App\Models\Broker;
-use App\Models\BrokerConnection;
+use App\Models\Network;
+use App\Models\NetworkConnection;
 use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Purchase;
@@ -18,11 +18,11 @@ use Carbon\Carbon;
 
 class MarketeersController extends Controller
 {
-    protected $broker;
+    protected $network;
 
     public function __construct()
     {
-        $this->broker = Broker::where('name', 'marketeers')->first();
+        $this->network = Network::where('name', 'marketeers')->first();
     }
 
     /**
@@ -199,7 +199,7 @@ class MarketeersController extends Controller
 
             // Delete existing data for date range
             Purchase::where('user_id', $user->id)
-                ->where('broker_id', $this->broker->id)
+                ->where('network_id', $this->network->id)
                 ->whereBetween('order_date', [$startDate, $endDate])
                 ->delete();
 
@@ -274,9 +274,9 @@ class MarketeersController extends Controller
 
                 // Create or get campaign
                 $campaign = Campaign::firstOrCreate([
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
-                    'broker_campaign_id' => $conversion['campaign']['id'] ?? uniqid(),
+                    'network_campaign_id' => $conversion['campaign']['id'] ?? uniqid(),
                 ], [
                     'name' => $campaignName,
                     'campaign_type' => 'coupon',
@@ -302,10 +302,10 @@ class MarketeersController extends Controller
                 Purchase::create([
                     'coupon_id' => $coupon->id,
                     'campaign_id' => $campaign->id,
-                    'broker_id' => $this->broker->id,
+                    'network_id' => $this->network->id,
                     'user_id' => $user->id,
                     'order_id' => $conversion['markteers_order_id'] ?? null,
-                    'broker_order_id' => $conversion['advertiser_order_id'] ?? null,
+                    'network_order_id' => $conversion['advertiser_order_id'] ?? null,
                     'order_value' => $orderAmountUsd,
                     'commission' => $payoutUsd,
                     'revenue' => $revenueUsd,
@@ -328,8 +328,8 @@ class MarketeersController extends Controller
      */
     private function getConnection($user)
     {
-        return BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+        return NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $this->network->id)
             ->where('is_connected', true)
             ->first();
     }

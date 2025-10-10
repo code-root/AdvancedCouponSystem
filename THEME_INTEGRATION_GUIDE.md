@@ -35,11 +35,11 @@ The **Osen Theme** by Coderthemes has been successfully integrated into the Adva
 - ✅ Profile management page
 - ✅ Password change page
 
-### 6. Broker Management ✅
-- ✅ Broker listing with modern cards
-- ✅ Broker connection creation
-- ✅ Broker details page
-- ✅ Broker editing interface
+### 6. Network Management ✅
+- ✅ Network listing with modern cards
+- ✅ Network connection creation
+- ✅ Network details page
+- ✅ Network editing interface
 
 ### 7. Other Module Pages ✅
 - ✅ Campaigns listing
@@ -105,7 +105,7 @@ resources/
     │   └── partials/           # Layout partials
     ├── auth/                   # Authentication pages
     ├── dashboard/              # Dashboard pages
-    │   ├── brokers/
+    │   ├── networks/
     │   ├── campaigns/
     │   ├── coupons/
     │   ├── purchases/

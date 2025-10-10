@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Coupon;
 use App\Models\Purchase;
 use App\Models\Campaign;
-use App\Models\Broker;
+use App\Models\Network;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -97,15 +97,15 @@ class ReportController extends Controller
      */
     public function campaigns(Request $request)
     {
-        $query = Campaign::with('broker')
+        $query = Campaign::with('network')
             ->withCount(['coupons', 'purchases'])
             ->withSum(['purchases' => function($q) {
                 $q->where('status', 'completed');
             }], 'final_amount');
 
         // Apply filters
-        if ($request->broker_id) {
-            $query->where('broker_id', $request->broker_id);
+        if ($request->network_id) {
+            $query->where('network_id', $request->network_id);
         }
 
         if ($request->status) {
@@ -133,32 +133,32 @@ class ReportController extends Controller
     }
 
     /**
-     * Generate brokers report
+     * Generate networks report
      */
-    public function brokers(Request $request)
+    public function networks(Request $request)
     {
-        $brokers = Broker::with('country')
+        $networks = Network::with('country')
             ->withCount(['campaigns', 'connections'])
             ->get();
 
-        foreach ($brokers as $broker) {
-            $broker->total_revenue = Purchase::whereHas('campaign', function($q) use ($broker) {
-                $q->where('broker_id', $broker->id);
+        foreach ($networks as $network) {
+            $network->total_revenue = Purchase::whereHas('campaign', function($q) use ($network) {
+                $q->where('network_id', $network->id);
             })->where('status', 'completed')->sum('final_amount');
 
-            $broker->total_purchases = Purchase::whereHas('campaign', function($q) use ($broker) {
-                $q->where('broker_id', $broker->id);
+            $network->total_purchases = Purchase::whereHas('campaign', function($q) use ($network) {
+                $q->where('network_id', $network->id);
             })->count();
         }
 
         $stats = [
-            'total_brokers' => $brokers->count(),
-            'active_brokers' => $brokers->where('is_active', true)->count(),
+            'total_networks' => $networks->count(),
+            'active_networks' => $networks->where('is_active', true)->count(),
             'total_campaigns' => Campaign::count(),
             'total_revenue' => Purchase::where('status', 'completed')->sum('final_amount'),
         ];
 
-        return view('dashboard.reports.brokers', compact('brokers', 'stats'));
+        return view('dashboard.reports.networks', compact('networks', 'stats'));
     }
 
     /**
@@ -291,11 +291,11 @@ class ReportController extends Controller
      */
     protected function getCampaignsExportData($request)
     {
-        $query = Campaign::with('broker')
+        $query = Campaign::with('network')
             ->withCount(['coupons', 'purchases']);
 
-        if ($request->broker_id) {
-            $query->where('broker_id', $request->broker_id);
+        if ($request->network_id) {
+            $query->where('network_id', $request->network_id);
         }
 
         return $query->get();

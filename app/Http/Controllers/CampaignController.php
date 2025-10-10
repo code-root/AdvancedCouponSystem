@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Campaign;
-use App\Models\Broker;
+use App\Models\Network;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -14,7 +14,7 @@ class CampaignController extends Controller
      */
     public function index()
     {
-        $campaigns = Campaign::with('broker')->paginate(15);
+        $campaigns = Campaign::with('network')->paginate(15);
         return view('dashboard.campaigns.index', compact('campaigns'));
     }
 
@@ -23,8 +23,8 @@ class CampaignController extends Controller
      */
     public function create()
     {
-        $brokers = Broker::where('is_active', true)->get();
-        return view('dashboard.campaigns.create', compact('brokers'));
+        $networks = Network::where('is_active', true)->get();
+        return view('dashboard.campaigns.create', compact('networks'));
     }
 
     /**
@@ -36,7 +36,7 @@ class CampaignController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'unique:campaigns'],
             'description' => ['nullable', 'string'],
-            'broker_id' => ['required', 'exists:brokers,id'],
+            'network_id' => ['required', 'exists:networks,id'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after:start_date'],
             'discount_type' => ['required', 'in:percentage,fixed'],
@@ -61,7 +61,7 @@ class CampaignController extends Controller
      */
     public function show(Campaign $campaign)
     {
-        $campaign->load(['broker', 'coupons']);
+        $campaign->load(['network', 'coupons']);
         
         $stats = [
             'total_coupons' => $campaign->coupons()->count(),
@@ -78,8 +78,8 @@ class CampaignController extends Controller
      */
     public function edit(Campaign $campaign)
     {
-        $brokers = Broker::where('is_active', true)->get();
-        return view('dashboard.campaigns.edit', compact('campaign', 'brokers'));
+        $networks = Network::where('is_active', true)->get();
+        return view('dashboard.campaigns.edit', compact('campaign', 'networks'));
     }
 
     /**
@@ -91,7 +91,7 @@ class CampaignController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'unique:campaigns,slug,' . $campaign->id],
             'description' => ['nullable', 'string'],
-            'broker_id' => ['required', 'exists:brokers,id'],
+            'network_id' => ['required', 'exists:networks,id'],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after:start_date'],
             'discount_type' => ['required', 'in:percentage,fixed'],
@@ -176,7 +176,7 @@ class CampaignController extends Controller
         $campaigns = Campaign::where('is_active', true)
             ->where('start_date', '<=', now())
             ->where('end_date', '>=', now())
-            ->with('broker')
+            ->with('network')
             ->get();
 
         return response()->json($campaigns);

@@ -11,10 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('broker_connections', function (Blueprint $table) {
+        Schema::create('network_connections', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('broker_id')->constrained()->onDelete('cascade');
+            $table->foreignId('network_id')->constrained()->onDelete('cascade');
             $table->string('connection_name')->nullable(); // User-defined name for the connection
             $table->text('access_token')->nullable();
             $table->text('refresh_token')->nullable();
@@ -28,8 +28,8 @@ return new class extends Migration
             $table->text('error_message')->nullable();
             $table->timestamps();
             
-            // Ensure one connection per user per broker
-            $table->unique(['user_id', 'broker_id']);
+            // Ensure one connection per user per network
+            $table->unique(['user_id', 'network_id']);
         });
     }
 
@@ -38,6 +38,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('broker_connections');
+        Schema::dropIfExists('network_connections');
     }
 };

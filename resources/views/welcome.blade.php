@@ -61,7 +61,7 @@
                             <div class="col">
                                 <div class="bg-white bg-opacity-10 rounded-3 p-4">
                                     <i class="ti ti-affiliate fs-48 mb-3"></i>
-                                    <h5 class="fw-semibold">Multiple Brokers</h5>
+                                    <h5 class="fw-semibold">Multiple Networks</h5>
                                     <p class="mb-0 text-white-75">Connect with top affiliate brokers worldwide</p>
                                 </div>
                             </div>

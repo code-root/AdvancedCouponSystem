@@ -32,7 +32,7 @@
                             <tr>
                                 <th class="ps-3">Country</th>
                                 <th>Code</th>
-                                <th>Active Brokers</th>
+                                <th>Active Networks</th>
                                 <th>Total Campaigns</th>
                                 <th>Status</th>
                                 <th class="text-center pe-3" style="width: 120px;">Action</th>

@@ -10,7 +10,7 @@
     <div class="row">
         <div class="col-12 mb-3">
             <div class="d-flex justify-content-end">
-                <a href="{{ route('brokers.index') }}" class="btn btn-secondary">
+                <a href="{{ route('networks.index') }}" class="btn btn-secondary">
                     <i class="ti ti-arrow-left me-1"></i> Back to Networks
                 </a>
             </div>
@@ -29,7 +29,7 @@
         </div>
     @endif
 
-    <form action="{{ route('brokers.update', $broker->id) }}" method="POST">
+    <form action="{{ route('networks.update', $network->id) }}" method="POST">
         @csrf
         @method('PUT')
         
@@ -44,42 +44,42 @@
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Display Name</label>
                                 <input type="text" class="form-control" name="display_name" 
-                                       value="{{ old('display_name', $broker->display_name) }}" required>
+                                       value="{{ old('display_name', $network->display_name) }}" required>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">System Name</label>
                                 <input type="text" class="form-control" name="name" 
-                                       value="{{ old('name', $broker->name) }}" required readonly>
+                                       value="{{ old('name', $network->name) }}" required readonly>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Commission Rate (%)</label>
                                 <input type="number" step="0.01" class="form-control" name="commission_rate" 
-                                       value="{{ old('commission_rate', $broker->commission_rate) }}" required>
+                                       value="{{ old('commission_rate', $network->commission_rate) }}" required>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Country</label>
                                 <input type="text" class="form-control" name="country" 
-                                       value="{{ old('country', $broker->country) }}" required>
+                                       value="{{ old('country', $network->country) }}" required>
                             </div>
 
                             <div class="col-12 mb-3">
                                 <label class="form-label">API URL</label>
                                 <input type="url" class="form-control" name="api_url" 
-                                       value="{{ old('api_url', $broker->api_url) }}" required>
+                                       value="{{ old('api_url', $network->api_url) }}" required>
                             </div>
 
                             <div class="col-12 mb-3">
                                 <label class="form-label">Description</label>
-                                <textarea class="form-control" name="description" rows="3">{{ old('description', $broker->description) }}</textarea>
+                                <textarea class="form-control" name="description" rows="3">{{ old('description', $network->description) }}</textarea>
                             </div>
 
                             <div class="col-12">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="is_active" id="isActive" 
-                                           value="1" {{ old('is_active', $broker->is_active) ? 'checked' : '' }}>
+                                           value="1" {{ old('is_active', $network->is_active) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="isActive">
                                         Active Network
                                     </label>
@@ -94,7 +94,7 @@
                 <div class="card bg-primary-subtle border-primary border-dashed">
                     <div class="card-body">
                         <h5 class="text-uppercase text-muted mb-3">Quick Info</h5>
-                        <p class="text-muted fs-13">Update the broker information carefully. Changes will affect all users connected to this broker.</p>
+                        <p class="text-muted fs-13">Update the network information carefully. Changes will affect all users connected to this network.</p>
                     </div>
                 </div>
             </div>
@@ -103,7 +103,7 @@
         <div class="row">
             <div class="col-12">
                 <div class="d-flex justify-content-end gap-2">
-                    <a href="{{ route('brokers.index') }}" class="btn btn-light">Cancel</a>
+                    <a href="{{ route('networks.index') }}" class="btn btn-light">Cancel</a>
                     <button type="submit" class="btn btn-primary">
                         <i class="ti ti-device-floppy me-1"></i> Update Network
                     </button>

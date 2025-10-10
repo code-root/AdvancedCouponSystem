@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Broker;
+namespace App\Http\Controllers\Network;
 
 use App\Http\Controllers\Controller;
-use App\Models\Broker;
-use App\Models\BrokerConnection;
+use App\Models\Network;
+use App\Models\NetworkConnection;
 use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Purchase;
@@ -18,11 +18,11 @@ use Carbon\Carbon;
 
 class OptimizeController extends Controller
 {
-    protected $broker;
+    protected $network;
 
     public function __construct()
     {
-        $this->broker = Broker::where('name', 'optimize')->first();
+        $this->network = Network::where('name', 'optimize')->first();
     }
 
     /**
@@ -54,7 +54,7 @@ class OptimizeController extends Controller
                 ], 400);
             }
 
-            $apiUrl = $this->broker->url_api . 'reporting/?contactId=' . $contactId . '&agencyId=' . $agencyId;
+            $apiUrl = $this->network->url_api . 'reporting/?contactId=' . $contactId . '&agencyId=' . $agencyId;
             
             $data = [
                 "measures" => [
@@ -145,7 +145,7 @@ class OptimizeController extends Controller
         DB::transaction(function () use ($responseData, $user, $startDate, $endDate) {
             // Delete existing data for date range
             Purchase::where('user_id', $user->id)
-                ->where('broker_id', $this->broker->id)
+                ->where('network_id', $this->network->id)
                 ->whereBetween('order_date', [
                     Carbon::createFromFormat('d/m/Y', $startDate)->format('Y-m-d'),
                     Carbon::createFromFormat('d/m/Y', $endDate)->format('Y-m-d')
@@ -190,9 +190,9 @@ class OptimizeController extends Controller
                     
                     // Create or get campaign
                     $campaign = Campaign::firstOrCreate([
-                        'broker_id' => $this->broker->id,
+                        'network_id' => $this->network->id,
                         'user_id' => $user->id,
-                        'broker_campaign_id' => $item["advertiserId"],
+                        'network_campaign_id' => $item["advertiserId"],
                     ], [
                         'name' => $item["advertiserName"],
                         'campaign_type' => 'coupon',
@@ -218,7 +218,7 @@ class OptimizeController extends Controller
                     Purchase::create([
                         'coupon_id' => $coupon?->id,
                         'campaign_id' => $campaign->id,
-                        'broker_id' => $this->broker->id,
+                        'network_id' => $this->network->id,
                         'user_id' => $user->id,
                         'order_value' => $item["originalOrderValue"] ?? 0,
                         'commission' => $revenue,
@@ -255,8 +255,8 @@ class OptimizeController extends Controller
      */
     private function getConnection($user)
     {
-        return BrokerConnection::where('user_id', $user->id)
-            ->where('broker_id', $this->broker->id)
+        return NetworkConnection::where('user_id', $user->id)
+            ->where('network_id', $this->network->id)
             ->where('is_connected', true)
             ->first();
     }
@@ -287,7 +287,7 @@ class OptimizeController extends Controller
                 ], 400);
             }
 
-            $apiUrl = $this->broker->url_api . 'reporting/?contactId=' . $contactId . '&agencyId=' . $agencyId;
+            $apiUrl = $this->network->url_api . 'reporting/?contactId=' . $contactId . '&agencyId=' . $agencyId;
             
             $testData = [
                 "measures" => ["clicks"],

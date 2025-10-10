@@ -1,4 +1,4 @@
-<!-- Topbar Start -->
+
 <header class="app-topbar">
     <div class="page-container topbar-menu">
         <div class="d-flex align-items-center gap-2">
@@ -59,7 +59,6 @@
                         <span class="position-absolute start-100 top-0 translate-middle badge rounded-pill bg-danger">3</span>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end dropdown-menu-lg">
-
                         <div class="dropdown-header card shadow-none rounded-0">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
@@ -98,7 +97,7 @@
                 <div class="dropdown">
                     <a class="topbar-link dropdown-toggle drop-arrow-none px-2" data-bs-toggle="dropdown" data-bs-offset="0,19" type="button" aria-haspopup="false" aria-expanded="false">
                         <span class="d-flex align-items-center">
-                            <img src="/images/users/avatar-1.jpg" alt="user-image" class="rounded-circle">
+                            <img src="/images/users/avatar-1.jpg" alt="user-image" class="rounded-circle" style="width: 32px; height: 32px; object-fit: cover;">
                             <span class="d-none d-md-block ms-1">
                                 <span class="fw-medium">{{ auth()->user()->name ?? 'User' }}</span>
                                 <i class="ti ti-chevron-down ms-1 fs-16 align-middle"></i>
@@ -157,15 +156,15 @@
                     <button type="button" class="btn-close float-end" data-bs-dismiss="modal" aria-label="Close"></button>
                     <div class="mb-3">
                         <label for="search-input" class="form-label">Search</label>
-                        <input type="text" class="form-control form-control-lg" id="search-input" placeholder="Search for brokers, campaigns, coupons...">
+                        <input type="text" class="form-control form-control-lg" id="search-input" placeholder="Search for networks, campaigns, coupons...">
                     </div>
                     
-                    <div class="mt-4">
-                        <h6 class="text-muted mb-2">Quick Links</h6>
-                        <div class="list-group">
-                            <a href="{{ route('brokers.index') }}" class="list-group-item list-group-item-action">
-                                <i class="ti ti-affiliate me-2"></i> Brokers
-                            </a>
+                          <div class="mt-4">
+                              <h6 class="text-muted mb-2">Quick Links</h6>
+                              <div class="list-group">
+                                  <a href="{{ route('networks.index') }}" class="list-group-item list-group-item-action">
+                                      <i class="ti ti-affiliate me-2"></i> Networks
+                                  </a>
                             <a href="{{ route('campaigns.index') }}" class="list-group-item list-group-item-action">
                                 <i class="ti ti-speakerphone me-2"></i> Campaigns
                             </a>
