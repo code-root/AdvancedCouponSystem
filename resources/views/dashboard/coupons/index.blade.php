@@ -23,7 +23,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Total</h5>
-                    <h3 class="mb-0 fw-bold">{{ $stats['total'] }}</h3>
+                    <h3 class="mb-0 fw-bold" id="stat-total">{{ $stats['total'] }}</h3>
                 </div>
             </div>
         </div>
@@ -31,7 +31,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Active</h5>
-                    <h3 class="mb-0 fw-bold text-success">{{ $stats['active'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-success" id="stat-active">{{ $stats['active'] }}</h3>
                 </div>
             </div>
         </div>
@@ -39,7 +39,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Used</h5>
-                    <h3 class="mb-0 fw-bold text-warning">{{ $stats['used'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-warning" id="stat-used">{{ $stats['used'] }}</h3>
                 </div>
             </div>
         </div>
@@ -47,7 +47,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Expired</h5>
-                    <h3 class="mb-0 fw-bold text-danger">{{ $stats['expired'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-danger" id="stat-expired">{{ $stats['expired'] }}</h3>
                 </div>
             </div>
         </div>
@@ -205,6 +205,7 @@ function loadCoupons(page = 1) {
         if (data.success) {
             renderCoupons(data.data.data);
             renderPagination(data.data);
+            updateStats(data.stats); // Update statistics
         }
     })
     .catch(error => showEmptyState('Error loading coupons'));
@@ -305,6 +306,14 @@ function getStatusBadge(status) {
         'expired': '<span class="badge bg-warning-subtle text-warning">Expired</span>'
     };
     return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+}
+
+// Update statistics
+function updateStats(stats) {
+    document.getElementById('stat-total').textContent = stats.total || 0;
+    document.getElementById('stat-active').textContent = stats.active || 0;
+    document.getElementById('stat-used').textContent = stats.used || 0;
+    document.getElementById('stat-expired').textContent = stats.expired || 0;
 }
 
 function applyFilters() {

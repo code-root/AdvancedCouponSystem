@@ -36,6 +36,37 @@ class PurchaseController extends Controller
         $query = Purchase::where('user_id', auth()->id())
             ->with(['coupon', 'campaign', 'network']);
         
+        // Apply filters
+        $this->applyPurchaseFilters($query, $request);
+        
+        // Clone query for stats (before pagination)
+        $statsQuery = clone $query;
+        
+        // Get filtered statistics
+        $filteredStats = [
+            'total' => $statsQuery->count(),
+            'approved' => (clone $statsQuery)->where('status', 'approved')->count(),
+            'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
+            'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),
+            'total_revenue' => (clone $statsQuery)->sum('revenue'),
+            'total_commission' => (clone $statsQuery)->sum('commission'),
+            'total_order_value' => (clone $statsQuery)->sum('order_value'),
+        ];
+        
+        $purchases = $query->latest('order_date')->paginate($request->per_page ?? 15);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $purchases,
+            'stats' => $filteredStats
+        ]);
+    }
+    
+    /**
+     * Apply filters to purchase query
+     */
+    private function applyPurchaseFilters($query, Request $request)
+    {
         // Filter by network
         if ($request->network_id) {
             $query->where('network_id', $request->network_id);
@@ -82,12 +113,7 @@ class PurchaseController extends Controller
             });
         }
         
-        $purchases = $query->latest('order_date')->paginate($request->per_page ?? 15);
-        
-        return response()->json([
-            'success' => true,
-            'data' => $purchases
-        ]);
+        return $query;
     }
     
     /**
@@ -102,8 +128,8 @@ class PurchaseController extends Controller
             'approved' => Purchase::where('user_id', $userId)->where('status', 'approved')->count(),
             'pending' => Purchase::where('user_id', $userId)->where('status', 'pending')->count(),
             'rejected' => Purchase::where('user_id', $userId)->where('status', 'rejected')->count(),
-            'total_revenue' => Purchase::where('user_id', $userId)->where('status', 'approved')->sum('revenue'),
-            'total_commission' => Purchase::where('user_id', $userId)->where('status', 'approved')->sum('commission'),
+            'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue'),
+            'total_commission' => Purchase::where('user_id', $userId)->sum('commission'),
         ];
     }
 

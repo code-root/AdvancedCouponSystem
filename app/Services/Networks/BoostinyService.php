@@ -305,10 +305,10 @@ class BoostinyService extends BaseNetworkService
     /**
      * Sync all data (coupons and links)
      */
-    public function syncData(array $credentials, string $startDate = null, string $endDate = null): array
+    public function syncData(array $credentials, array $config = []): array
     {
-        $startDate = $startDate ?? Carbon::now()->startOfMonth()->format('Y-m-d');
-        $endDate = $endDate ?? Carbon::now()->format('Y-m-d');
+        $startDate = $config['date_from'] ?? Carbon::now()->startOfMonth()->format('Y-m-d');
+        $endDate = $config['date_to'] ?? Carbon::now()->format('Y-m-d');
         
         $results = [
             'coupons' => $this->getDataCode($credentials, $startDate, $endDate),

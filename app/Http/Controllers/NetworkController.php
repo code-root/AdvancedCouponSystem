@@ -82,7 +82,7 @@ class NetworkController extends Controller
             
             foreach ($credentials as $key => $value) {
                 // Encrypt sensitive fields
-                if (in_array($key, ['client_secret', 'api_secret', 'password', 'token'])) {
+                if (in_array($key, ['client_secret', 'api_secret', 'password', 'token' ])) {
                     $encryptedCredentials[$key] = encrypt($value);
                 } else {
                     $encryptedCredentials[$key] = $value;
@@ -205,7 +205,7 @@ class NetworkController extends Controller
                 foreach ($newCredentials as $key => $value) {
                     if (!empty($value)) {
                         // Encrypt sensitive fields
-                        if (in_array($key, ['client_secret', 'api_secret', 'password', 'token'])) {
+                        if (in_array($key, ['client_secret', 'api_secret', 'password', 'token' ])) {
                             $existingCredentials[$key] = encrypt($value);
                         } else {
                             $existingCredentials[$key] = $value;
@@ -489,14 +489,26 @@ class NetworkController extends Controller
             // Get service instance
             $service = NetworkServiceFactory::create($network->name);
             
+            // Prepare sync config
+            $syncConfig = [
+                'date_from' => $startDate,
+                'date_to' => $endDate
+            ];
+            
             // Sync data based on network (coupons and/or links)
-            $syncResult = $service->syncData($decryptedCredentials, $startDate, $endDate);
+            $syncResult = $service->syncData($decryptedCredentials, $syncConfig);
             
             if (!$syncResult['success']) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Sync failed: ' . ($syncResult['message'] ?? 'Unknown error')
                 ], 400);
+            }
+            
+            // Update cookies if new ones were returned (e.g., after re-authentication)
+            if (isset($syncResult['new_cookies'])) {
+                $credentials['cookies'] = $syncResult['new_cookies'];
+                $connection->update(['credentials' => $credentials]);
             }
             
             // Process coupon data

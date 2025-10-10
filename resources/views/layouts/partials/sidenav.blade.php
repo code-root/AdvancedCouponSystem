@@ -184,7 +184,6 @@
                 </div>
             </li>
 
-            @can('view users')
             <li class="side-nav-title mt-2">Administration</li>
 
             <!-- Users Management -->
@@ -202,7 +201,6 @@
                     <span class="menu-text"> Settings </span>
                 </a>
             </li>
-            @endcan
 
         </ul>
         <!--- End Sidenav -->

@@ -31,6 +31,8 @@ class Purchase extends Model
         'status',
         'order_date',
         'purchase_date',
+        'created_by',
+        'updated_by',
         'last_updated',
         'metadata',
     ];

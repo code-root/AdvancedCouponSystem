@@ -10,47 +10,332 @@ use App\Models\Purchase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
     /**
      * Display dashboard main page
      */
-    public function index()
+    public function index(Request $request)
     {
-        $userId = auth()->id();
+        // For AJAX requests
+        if ($request->ajax() || $request->expectsJson()) {
+            return $this->getDashboardData($request);
+        }
         
+        /** @var User $user */
+        $user = Auth::user();
+        
+        // If sub-user, get parent's data
+        $targetUserId = $user->isSubUser() ? $user->parent_user_id : $user->id;
+        
+        // Get connected networks for filters
+        $networks = User::find($targetUserId)->connectedNetworks;
+        
+        // Get initial stats
+        $stats = $this->getInitialStats($targetUserId);
+        
+        return view('dashboard.index', compact('stats', 'networks'));
+    }
+    
+    /**
+     * Get dashboard data (AJAX)
+     */
+    private function getDashboardData(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        
+        // If sub-user, get parent's data
+        $userId = $user->isSubUser() ? $user->parent_user_id : $user->id;
+        
+        $dateRange = $this->getDateRange($request);
+        
+        // Main statistics
         $stats = [
+            // Overview stats
+            'total_revenue' => $this->getTotalRevenue($userId, $dateRange, $request->network_id),
+            'total_commission' => $this->getTotalCommission($userId, $dateRange, $request->network_id),
+            'total_purchases' => $this->getTotalPurchases($userId, $dateRange, $request->network_id),
+            'total_campaigns' => $this->getTotalCampaigns($userId, $request->network_id),
+            'total_coupons' => $this->getTotalCoupons($userId, $request->network_id),
+            'active_networks' => $user->networkConnections()->where('is_connected', true)->count(),
+            
+            // Comparison with previous period
+            'revenue_growth' => $this->getGrowthPercentage($userId, 'revenue', $dateRange, $request->network_id),
+            'purchases_growth' => $this->getGrowthPercentage($userId, 'purchases', $dateRange, $request->network_id),
+            
+            // Network comparison
+            'network_comparison' => $this->getNetworkComparison($userId, $dateRange),
+            
+            // Daily revenue trend
+            'daily_revenue' => $this->getDailyRevenue($userId, $dateRange, $request->network_id),
+            
+            // Top performers
+            'top_campaigns' => $this->getTopCampaigns($userId, $dateRange, $request->network_id),
+            'top_networks' => $this->getTopNetworks($userId, $dateRange),
+            
+            // Recent activities
+            'recent_purchases' => $this->getRecentPurchases($userId, $request->network_id),
+            
+            // Status breakdown
+            'purchase_status' => $this->getPurchaseStatusBreakdown($userId, $dateRange, $request->network_id),
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'stats' => $stats
+        ]);
+    }
+    
+    /**
+     * Get initial stats for page load
+     */
+    private function getInitialStats($userId)
+    {
+        $currentMonth = Carbon::now()->startOfMonth();
+        
+        return [
+            'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue'),
+            'total_commission' => Purchase::where('user_id', $userId)->sum('commission'),
+            'total_purchases' => Purchase::where('user_id', $userId)->count(),
+            'total_campaigns' => Campaign::where('user_id', $userId)->count(),
             'total_coupons' => Coupon::whereHas('campaign', function($q) use ($userId) {
                 $q->where('user_id', $userId);
             })->count(),
-            'active_coupons' => Coupon::whereHas('campaign', function($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })->where('status', 'active')->count(),
-            'total_campaigns' => Campaign::where('user_id', $userId)->count(),
-            'active_campaigns' => Campaign::where('user_id', $userId)->where('status', 'active')->count(),
-            'total_purchases' => Purchase::where('user_id', $userId)->count(),
-            'total_revenue' => Purchase::where('user_id', $userId)->where('status', 'approved')->sum('revenue'),
-            'total_networks' => auth()->user()->networkConnections()->count(),
-            'active_networks' => auth()->user()->networkConnections()->where('is_connected', true)->count(),
+            'active_networks' => User::find($userId)->networkConnections()->where('is_connected', true)->count(),
         ];
-
-        $recent_purchases = Purchase::where('user_id', $userId)
+    }
+    
+    /**
+     * Get date range from request
+     */
+    private function getDateRange(Request $request)
+    {
+        $from = $request->date_from ?? Carbon::now()->startOfMonth()->format('Y-m-d');
+        $to = $request->date_to ?? Carbon::now()->format('Y-m-d');
+        
+        return ['from' => $from, 'to' => $to];
+    }
+    
+    /**
+     * Get total revenue
+     */
+    private function getTotalRevenue($userId, $dateRange, $networkId = null)
+    {
+        $query = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']]);
+        
+        if ($networkId) {
+            $query->where('network_id', $networkId);
+        }
+        
+        return $query->sum('revenue');
+    }
+    
+    /**
+     * Get total commission
+     */
+    private function getTotalCommission($userId, $dateRange, $networkId = null)
+    {
+        $query = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']]);
+        
+        if ($networkId) {
+            $query->where('network_id', $networkId);
+        }
+        
+        return $query->sum('commission');
+    }
+    
+    /**
+     * Get total purchases
+     */
+    private function getTotalPurchases($userId, $dateRange, $networkId = null)
+    {
+        $query = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']]);
+        
+        if ($networkId) {
+            $query->where('network_id', $networkId);
+        }
+        
+        return $query->count();
+    }
+    
+    /**
+     * Get total campaigns
+     */
+    private function getTotalCampaigns($userId, $networkId = null)
+    {
+        $query = Campaign::where('user_id', $userId);
+        
+        if ($networkId) {
+            $query->where('network_id', $networkId);
+        }
+        
+        return $query->count();
+    }
+    
+    /**
+     * Get total coupons
+     */
+    private function getTotalCoupons($userId, $networkId = null)
+    {
+        $query = Coupon::whereHas('campaign', function($q) use ($userId, $networkId) {
+            $q->where('user_id', $userId);
+            if ($networkId) {
+                $q->where('network_id', $networkId);
+            }
+        });
+        
+        return $query->count();
+    }
+    
+    /**
+     * Get growth percentage compared to previous period
+     */
+    private function getGrowthPercentage($userId, $metric, $dateRange, $networkId = null)
+    {
+        $from = Carbon::parse($dateRange['from']);
+        $to = Carbon::parse($dateRange['to']);
+        $days = $from->diffInDays($to) + 1;
+        
+        $previousFrom = $from->copy()->subDays($days);
+        $previousTo = $from->copy()->subDay();
+        
+        $query = Purchase::where('user_id', $userId);
+        if ($networkId) {
+            $query->where('network_id', $networkId);
+        }
+        
+        if ($metric === 'revenue') {
+            $current = (clone $query)->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])->sum('revenue');
+            $previous = (clone $query)->whereBetween('order_date', [$previousFrom->format('Y-m-d'), $previousTo->format('Y-m-d')])->sum('revenue');
+        } else {
+            $current = (clone $query)->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])->count();
+            $previous = (clone $query)->whereBetween('order_date', [$previousFrom->format('Y-m-d'), $previousTo->format('Y-m-d')])->count();
+        }
+        
+        if ($previous == 0) {
+            return $current > 0 ? 100 : 0;
+        }
+        
+        return round((($current - $previous) / $previous) * 100, 2);
+    }
+    
+    /**
+     * Get network comparison
+     */
+    private function getNetworkComparison($userId, $dateRange)
+    {
+        return Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
+            ->select('network_id',
+                DB::raw('SUM(revenue) as total_revenue'),
+                DB::raw('SUM(commission) as total_commission'),
+                DB::raw('COUNT(*) as total_purchases'),
+                DB::raw('AVG(revenue) as avg_revenue'))
+            ->with('network:id,display_name')
+            ->groupBy('network_id')
+            ->orderByDesc('total_revenue')
+            ->get();
+    }
+    
+    /**
+     * Get daily revenue
+     */
+    private function getDailyRevenue($userId, $dateRange, $networkId = null)
+    {
+        $query = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
+            ->select(DB::raw('DATE(order_date) as date'),
+                DB::raw('SUM(revenue) as revenue'),
+                DB::raw('COUNT(*) as purchases'))
+            ->groupBy('date')
+            ->orderBy('date', 'asc');
+        
+        if ($networkId) {
+            $query->where('network_id', $networkId);
+        }
+        
+        return $query->get();
+    }
+    
+    /**
+     * Get top campaigns
+     */
+    private function getTopCampaigns($userId, $dateRange, $networkId = null)
+    {
+        $query = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
+            ->select('campaign_id',
+                DB::raw('SUM(revenue) as total_revenue'),
+                DB::raw('COUNT(*) as total_purchases'))
+            ->with('campaign:id,name,network_id')
+            ->groupBy('campaign_id');
+        
+        if ($networkId) {
+            $query->where('network_id', $networkId);
+        }
+        
+        return $query->orderByDesc('total_revenue')->limit(10)->get();
+    }
+    
+    /**
+     * Get top networks
+     */
+    private function getTopNetworks($userId, $dateRange)
+    {
+        return Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
+            ->select('network_id',
+                DB::raw('SUM(revenue) as total_revenue'),
+                DB::raw('SUM(commission) as total_commission'),
+                DB::raw('COUNT(*) as total_purchases'))
+            ->with('network:id,display_name')
+            ->groupBy('network_id')
+            ->orderByDesc('total_revenue')
+            ->limit(10)
+            ->get();
+    }
+    
+    /**
+     * Get recent purchases
+     */
+    private function getRecentPurchases($userId, $networkId = null)
+    {
+        $query = Purchase::where('user_id', $userId)
             ->with(['coupon', 'campaign', 'network'])
-            ->latest()
-            ->limit(10)
-            ->get();
-
-        $recent_coupons = Coupon::whereHas('campaign', function($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })
-            ->with('campaign')
-            ->latest()
-            ->limit(10)
-            ->get();
-
-        return view('dashboard.index', compact('stats', 'recent_purchases', 'recent_coupons'));
+            ->latest('order_date');
+        
+        if ($networkId) {
+            $query->where('network_id', $networkId);
+        }
+        
+        return $query->limit(10)->get();
+    }
+    
+    /**
+     * Get purchase status breakdown
+     */
+    private function getPurchaseStatusBreakdown($userId, $dateRange, $networkId = null)
+    {
+        $query = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
+            ->select('status',
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(revenue) as revenue'))
+            ->groupBy('status');
+        
+        if ($networkId) {
+            $query->where('network_id', $networkId);
+        }
+        
+        return $query->get();
     }
 
     /**
@@ -129,6 +414,7 @@ class DashboardController extends Controller
      */
     public function updateProfile(Request $request)
     {
+        /** @var User $user */
         $user = Auth::user();
 
         $validated = $request->validate([
@@ -151,7 +437,9 @@ class DashboardController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        Auth::user()->update([
+        /** @var User $user */
+        $user = Auth::user();
+        $user->update([
             'password' => Hash::make($validated['password']),
         ]);
 
@@ -194,11 +482,21 @@ class DashboardController extends Controller
     }
 
     /**
-     * Show users list (Admin only)
+     * Show users list (only users created by current user)
      */
     public function users()
     {
-        $users = User::with('roles')->paginate(20);
+        /** @var User $currentUser */
+        $currentUser = Auth::user();
+        
+        // Get users created by current user
+        $users = User::where('created_by', $currentUser->id)
+            ->withCount(['networkConnections', 'campaigns', 'purchases' => function($q) {
+                $q->where('status', 'approved');
+            }])
+            ->latest()
+            ->paginate(20);
+        
         return view('dashboard.users.index', compact('users'));
     }
 
@@ -211,7 +509,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * Store new user
+     * Store new user (sub-user inherits parent's parent_user_id)
      */
     public function storeUser(Request $request)
     {
@@ -219,18 +517,23 @@ class DashboardController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users'],
             'password' => ['required', 'confirmed', Password::defaults()],
-            'role' => ['required', 'exists:roles,name'],
         ]);
 
+        /** @var User $currentUser */
+        $currentUser = Auth::user();
+        
+        // Get the main parent user ID
+        $parentUserId = $currentUser->isSubUser() ? $currentUser->parent_user_id : $currentUser->id;
+        
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            'created_by' => $currentUser->id, // Who created this user
+            'parent_user_id' => $parentUserId, // Main parent account
         ]);
 
-        $user->assignRole($validated['role']);
-
-        return redirect()->route('users.index')->with('success', 'User created successfully');
+        return redirect()->route('users.index')->with('success', 'Sub-user created successfully');
     }
 
     /**
@@ -238,6 +541,14 @@ class DashboardController extends Controller
      */
     public function editUser(User $user)
     {
+        /** @var User $currentUser */
+        $currentUser = Auth::user();
+        
+        // Check if current user can edit this user
+        if ($user->created_by !== $currentUser->id && $user->id !== $currentUser->id) {
+            abort(403, 'Unauthorized action.');
+        }
+        
         return view('dashboard.users.edit', compact('user'));
     }
 
@@ -246,12 +557,32 @@ class DashboardController extends Controller
      */
     public function updateUser(Request $request, User $user)
     {
+        /** @var User $currentUser */
+        $currentUser = Auth::user();
+        
+        // Check if current user can update this user
+        if ($user->created_by !== $currentUser->id && $user->id !== $currentUser->id) {
+            return back()->with('error', 'You can only edit users you created or your own account');
+        }
+        
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email,' . $user->id],
+            'password' => ['nullable', 'confirmed', Password::defaults()],
         ]);
 
-        $user->update($validated);
+        // Update basic info
+        $user->update([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+        ]);
+        
+        // Update password if provided
+        if ($request->filled('password')) {
+            $user->update([
+                'password' => Hash::make($validated['password']),
+            ]);
+        }
 
         return redirect()->route('users.index')->with('success', 'User updated successfully');
     }
@@ -261,21 +592,20 @@ class DashboardController extends Controller
      */
     public function destroyUser(User $user)
     {
+        /** @var User $currentUser */
+        $currentUser = Auth::user();
+        
+        // Prevent deleting yourself
+        if ($user->id === $currentUser->id) {
+            return back()->with('error', 'You cannot delete your own account');
+        }
+        
+        // Prevent deleting users not created by you
+        if ($user->created_by !== $currentUser->id) {
+            return back()->with('error', 'You can only delete users you created');
+        }
+        
         $user->delete();
         return redirect()->route('users.index')->with('success', 'User deleted successfully');
-    }
-
-    /**
-     * Assign role to user
-     */
-    public function assignRole(Request $request, User $user)
-    {
-        $validated = $request->validate([
-            'role' => ['required', 'exists:roles,name'],
-        ]);
-
-        $user->syncRoles([$validated['role']]);
-
-        return back()->with('success', 'Role assigned successfully');
     }
 }

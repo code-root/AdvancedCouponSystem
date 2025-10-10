@@ -60,6 +60,8 @@ class NetworkServiceFactory
             'clickdealer' => ClickDealerService::class,
             'admitad' => AdmitadService::class,
             'digizag' => DigizagService::class,
+            'platformance' => PlatformanceService::class,
+            'optimisemedia' => OptimiseMediaService::class,
             // Add more networks as needed
         ];
     }

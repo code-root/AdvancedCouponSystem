@@ -53,6 +53,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('campaigns/{campaign}/activate', [\App\Http\Controllers\CampaignController::class, 'activate'])->name('api.campaigns.activate');
     Route::post('campaigns/{campaign}/deactivate', [\App\Http\Controllers\CampaignController::class, 'deactivate'])->name('api.campaigns.deactivate');
     Route::get('campaigns/{campaign}/statistics', [\App\Http\Controllers\CampaignController::class, 'statistics'])->name('api.campaigns.statistics');
+    Route::get('campaigns/{campaign}/coupon-stats', [\App\Http\Controllers\CampaignController::class, 'getCouponStats'])->name('api.campaigns.coupon-stats');
     
     // Coupon Routes
     Route::apiResource('coupons', \App\Http\Controllers\CouponController::class)->names([

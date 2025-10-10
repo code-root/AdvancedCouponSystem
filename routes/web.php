@@ -83,6 +83,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('{campaign}/deactivate', [CampaignController::class, 'deactivate'])->name('deactivate');
         Route::get('{campaign}/statistics', [CampaignController::class, 'statistics'])->name('statistics');
         Route::get('{campaign}/coupons', [CampaignController::class, 'coupons'])->name('coupons');
+        Route::get('{campaign}/coupon-stats', [CampaignController::class, 'getCouponStats'])->name('coupon-stats');
     });
     
     // Coupon Management Routes
@@ -99,6 +100,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('{coupon}/activate', [CouponController::class, 'activate'])->name('activate');
         Route::post('{coupon}/deactivate', [CouponController::class, 'deactivate'])->name('deactivate');
         Route::get('{coupon}/history', [CouponController::class, 'history'])->name('history');
+        Route::get('{coupon}/daily-stats', [CouponController::class, 'getDailyStats'])->name('daily-stats');
         Route::post('bulk-generate', [CouponController::class, 'bulkGenerate'])->name('bulk-generate');
         Route::post('export', [CouponController::class, 'export'])->name('export');
     });
@@ -106,16 +108,16 @@ Route::middleware(['auth'])->group(function () {
     // Purchase Management Routes
     Route::prefix('purchases')->name('purchases.')->group(function () {
         Route::get('/', [PurchaseController::class, 'index'])->name('index');
+        Route::get('statistics', [PurchaseController::class, 'statistics'])->name('statistics');
         Route::get('create', [PurchaseController::class, 'create'])->name('create');
         Route::post('/', [PurchaseController::class, 'store'])->name('store');
+        Route::post('export', [PurchaseController::class, 'export'])->name('export');
         Route::get('{purchase}', [PurchaseController::class, 'show'])->name('show');
         Route::get('{purchase}/edit', [PurchaseController::class, 'edit'])->name('edit');
         Route::put('{purchase}', [PurchaseController::class, 'update'])->name('update');
         Route::delete('{purchase}', [PurchaseController::class, 'destroy'])->name('destroy');
         Route::post('{purchase}/confirm', [PurchaseController::class, 'confirm'])->name('confirm');
         Route::post('{purchase}/cancel', [PurchaseController::class, 'cancel'])->name('cancel');
-        Route::get('statistics', [PurchaseController::class, 'statistics'])->name('statistics');
-        Route::post('export', [PurchaseController::class, 'export'])->name('export');
     });
     
     // Country Management Routes
@@ -136,28 +138,25 @@ Route::middleware(['auth'])->group(function () {
         Route::get('coupons', [ReportController::class, 'coupons'])->name('coupons');
         Route::get('purchases', [ReportController::class, 'purchases'])->name('purchases');
         Route::get('campaigns', [ReportController::class, 'campaigns'])->name('campaigns');
-        Route::get('brokers', [ReportController::class, 'brokers'])->name('brokers');
         Route::get('revenue', [ReportController::class, 'revenue'])->name('revenue');
-        Route::post('export/{type}', [ReportController::class, 'export'])->name('export');
-        Route::get('download/{file}', [ReportController::class, 'download'])->name('download');
+        Route::get('export/{type}', [ReportController::class, 'export'])->name('export');
     });
     
-    // Settings Routes (Admin Only)
-    Route::prefix('settings')->name('settings.')->middleware('role:admin')->group(function () {
+    // Settings Routes
+    Route::prefix('settings')->name('settings.')->group(function () {
         Route::get('/', [DashboardController::class, 'settings'])->name('index');
         Route::put('general', [DashboardController::class, 'updateGeneralSettings'])->name('general.update');
         Route::put('email', [DashboardController::class, 'updateEmailSettings'])->name('email.update');
         Route::put('notification', [DashboardController::class, 'updateNotificationSettings'])->name('notification.update');
     });
     
-    // User Management Routes (Admin Only)
-    Route::prefix('users')->name('users.')->middleware('role:admin')->group(function () {
+    // User Management Routes
+    Route::prefix('users')->name('users.')->group(function () {
         Route::get('/', [DashboardController::class, 'users'])->name('index');
         Route::get('create', [DashboardController::class, 'createUser'])->name('create');
         Route::post('/', [DashboardController::class, 'storeUser'])->name('store');
         Route::get('{user}/edit', [DashboardController::class, 'editUser'])->name('edit');
         Route::put('{user}', [DashboardController::class, 'updateUser'])->name('update');
         Route::delete('{user}', [DashboardController::class, 'destroyUser'])->name('destroy');
-        Route::post('{user}/roles', [DashboardController::class, 'assignRole'])->name('roles.assign');
     });
 });

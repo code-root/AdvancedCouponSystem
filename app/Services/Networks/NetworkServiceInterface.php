@@ -33,5 +33,14 @@ interface NetworkServiceInterface
      * @return array ['valid' => bool, 'errors' => array]
      */
     public function validateCredentials(array $credentials): array;
+    
+    /**
+     * Sync data from the network
+     * 
+     * @param array $credentials Network credentials
+     * @param array $config Configuration including date_from, date_to, etc.
+     * @return array ['success' => bool, 'message' => string, 'data' => array]
+     */
+    public function syncData(array $credentials, array $config = []): array;
 }
 

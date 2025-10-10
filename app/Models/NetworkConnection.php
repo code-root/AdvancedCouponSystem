@@ -31,6 +31,8 @@ class NetworkConnection extends Model
         'api_settings',
         'sync_settings',
         'error_log',
+        'created_by',
+        'updated_by',
     ];
 
     /**

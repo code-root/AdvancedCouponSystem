@@ -1,7 +1,7 @@
 @extends('layouts.vertical',['title' => 'Dashboard'])
 
 @section('css')
-    @vite(['node_modules/flatpickr/dist/flatpickr.min.css'])
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 @endsection
 
 @section('content')
@@ -9,260 +9,567 @@
     <div class="col-12">
         <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column">
             <div class="flex-grow-1">
-                <h4 class="fs-18 fw-semibold m-0">Welcome back, {{ auth()->user()->name }} 👋</h4>
+                <h4 class="fs-18 fw-semibold m-0">مرحباً, {{ auth()->user()->name }} 👋</h4>
+                <p class="text-muted mb-0">هذا نظرة عامة على أدائك</p>
             </div>
             <div class="mt-3 mt-sm-0">
-                <form action="javascript:void(0);">
-                    <div class="row g-2 mb-0 align-items-center">
-                        <div class="col-auto">
-                            <a href="{{ route('networks.create') }}" class="btn btn-primary">
-                                <i class="ti ti-plug-connected me-1"></i> Connect Network
-                            </a>
-                        </div>
-                        <!--end col-->
-                        <div class="col-sm-auto">
-                            <div class="input-group">
-                                <input type="text" class="form-control border-0 shadow"
-                                    data-provider="flatpickr" data-deafult-date="01 Jan to 31 Dec"
-                                    data-date-format="d M" data-range-date="true">
-                                <span class="input-group-text bg-primary border-primary text-white">
-                                    <i class="ti ti-calendar fs-15"></i>
-                                </span>
-                            </div>
-                        </div>
-                        <!--end col-->
+                <div class="row g-2 mb-0 align-items-center">
+                    <div class="col-auto">
+                        <select class="form-select" id="networkFilter" onchange="loadDashboard()">
+                            <option value="">All Networks</option>
+                            @foreach($networks as $network)
+                                <option value="{{ $network->id }}">{{ $network->display_name }}</option>
+                            @endforeach
+                        </select>
                     </div>
-                    <!--end row-->
-                </form>
+                    <div class="col-auto">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="dateRange"
+                                data-provider="flatpickr" 
+                                data-date-format="Y-m-d"
+                                data-range-date="true"
+                                placeholder="Select date range">
+                            <button class="btn btn-primary" onclick="loadDashboard()">
+                                <i class="ti ti-refresh"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <a href="{{ route('networks.create') }}" class="btn btn-success">
+                            <i class="ti ti-plug-connected me-1"></i> Connect Network
+                        </a>
+                    </div>
+                </div>
             </div>
-        </div><!-- end card header -->
-    </div>
-    <!--end col-->
-</div> <!-- end row-->
-
-<div class="row">
-    <div class="col">
-        <div class="row row-cols-xxl-4 row-cols-md-2 row-cols-1 text-center">
-            <div class="col">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="text-muted fs-13 text-uppercase" title="Total Networks">Connected Networks</h5>
-                        <div class="d-flex align-items-center justify-content-center gap-2 my-2 py-1">
-                            <div class="user-img fs-42 flex-shrink-0">
-                                <span class="avatar-title text-bg-primary rounded-circle fs-22">
-                                    <i class="ti ti-affiliate"></i>
-                                </span>
-                            </div>
-                            <h3 class="mb-0 fw-bold">{{ auth()->user()->getActiveNetworkConnectionsCount() ?? 0 }}</h3>
-                        </div>
-                        <p class="mb-0 text-muted">
-                            <span class="text-success me-2"><i class="ti ti-caret-up-filled"></i>Active</span>
-                            <span class="text-nowrap">Network connections</span>
-                        </p>
-                    </div>
-                </div>
-            </div><!-- end col -->
-
-            <div class="col">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="text-muted fs-13 text-uppercase" title="Total Campaigns">Active Campaigns</h5>
-                        <div class="d-flex align-items-center justify-content-center gap-2 my-2 py-1">
-                            <div class="user-img fs-42 flex-shrink-0">
-                                <span class="avatar-title text-bg-success rounded-circle fs-22">
-                                    <i class="ti ti-speakerphone"></i>
-                                </span>
-                            </div>
-                            <h3 class="mb-0 fw-bold">0</h3>
-                        </div>
-                        <p class="mb-0 text-muted">
-                            <span class="text-primary me-2"><i class="ti ti-minus"></i>Running</span>
-                            <span class="text-nowrap">Marketing campaigns</span>
-                        </p>
-                    </div>
-                </div>
-            </div><!-- end col -->
-
-            <div class="col">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="text-muted fs-13 text-uppercase" title="Total Coupons">Total Coupons</h5>
-                        <div class="d-flex align-items-center justify-content-center gap-2 my-2 py-1">
-                            <div class="user-img fs-42 flex-shrink-0">
-                                <span class="avatar-title text-bg-info rounded-circle fs-22">
-                                    <i class="ti ti-ticket"></i>
-                                </span>
-                            </div>
-                            <h3 class="mb-0 fw-bold">0</h3>
-                        </div>
-                        <p class="mb-0 text-muted">
-                            <span class="text-warning me-2"><i class="ti ti-point-filled"></i>Generated</span>
-                            <span class="text-nowrap">Coupon codes</span>
-                        </p>
-                    </div>
-                </div>
-            </div><!-- end col -->
-
-            <div class="col">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="text-muted fs-13 text-uppercase" title="Total Revenue">Total Revenue</h5>
-                        <div class="d-flex align-items-center justify-content-center gap-2 my-2 py-1">
-                            <div class="user-img fs-42 flex-shrink-0">
-                                <span class="avatar-title text-bg-warning rounded-circle fs-22">
-                                    <i class="ti ti-coin"></i>
-                                </span>
-                            </div>
-                            <h3 class="mb-0 fw-bold">$0.00</h3>
-                        </div>
-                        <p class="mb-0 text-muted">
-                            <span class="text-success me-2"><i class="ti ti-caret-up-filled"></i>0%</span>
-                            <span class="text-nowrap">Since last month</span>
-                        </p>
-                    </div>
-                </div>
-            </div><!-- end col -->
-        </div><!-- end row -->
-
-        <div class="row">
-            <div class="col-xxl-8">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h4 class="header-title">Revenue Overview</h4>
-                        <div class="dropdown">
-                            <a href="#" class="dropdown-toggle drop-arrow-none card-drop"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="ti ti-dots-vertical"></i>
-                            </a>
-                            <div class="dropdown-menu dropdown-menu-end">
-                                <a href="javascript:void(0);" class="dropdown-item">Sales Report</a>
-                                <a href="javascript:void(0);" class="dropdown-item">Export Report</a>
-                                <a href="javascript:void(0);" class="dropdown-item">Statistics</a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-light bg-opacity-50">
-                        <div class="row text-center">
-                            <div class="col-md-3 col-6">
-                                <p class="text-muted mt-3 mb-1">Total Sales</p>
-                                <h4 class="mb-3">
-                                    <span class="ti ti-square-rounded-arrow-down text-success me-1"></span>
-                                    <span>$0</span>
-                                </h4>
-                            </div>
-                            <div class="col-md-3 col-6">
-                                <p class="text-muted mt-3 mb-1">Commissions</p>
-                                <h4 class="mb-3">
-                                    <span class="ti ti-square-rounded-arrow-up text-danger me-1"></span>
-                                    <span>$0</span>
-                                </h4>
-                            </div>
-                            <div class="col-md-3 col-6">
-                                <p class="text-muted mt-3 mb-1">Active Coupons</p>
-                                <h4 class="mb-3">
-                                    <span class="ti ti-ticket me-1"></span>
-                                    <span>0</span>
-                                </h4>
-                            </div>
-                            <div class="col-md-3 col-6">
-                                <p class="text-muted mt-3 mb-1">Conversions</p>
-                                <h4 class="mb-3">
-                                    <span class="ti ti-chart-line me-1"></span>
-                                    <span>0%</span>
-                                </h4>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card-body pt-0">
-                        <div dir="ltr">
-                            <div id="revenue-chart" class="apex-charts" data-colors="#6ac75a,#465dff,#783bff,#f7577e"></div>
-                        </div>
-                    </div>
-                </div> <!-- end card-->
-            </div> <!-- end col-->
-
-            <div class="col-xxl-4">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center border-bottom border-dashed">
-                        <h4 class="header-title">Top Performing Networks</h4>
-                        <div class="dropdown">
-                            <a href="#" class="dropdown-toggle drop-arrow-none card-drop p-0"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="ti ti-dots-vertical"></i>
-                            </a>
-                            <div class="dropdown-menu dropdown-menu-end">
-                                <a href="javascript:void(0);" class="dropdown-item">View All</a>
-                                <a href="javascript:void(0);" class="dropdown-item">Export Report</a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card-body">
-                        <div class="text-center py-5">
-                            <i class="ti ti-affiliate fs-48 text-muted"></i>
-                            <p class="text-muted mt-3 mb-2">No brokers connected yet</p>
-                            <a href="{{ route('networks.create') }}" class="btn btn-sm btn-primary">
-                                <i class="ti ti-plug-connected me-1"></i> Connect Your First Network
-                            </a>
-                        </div>
-                    </div>
-                </div> <!-- end card-->
-            </div> <!-- end col-->
-        </div> <!-- end row-->
-
-    </div> <!-- end col-->
-
-    <div class="col-auto info-sidebar d-none d-xxl-block">
-        <div class="alert alert-primary d-flex align-items-center">
-            <i class="ti ti-help fs-24 me-1"></i> <b>Help line:</b> <span class="fw-medium ms-1">+(012) 123 456 78</span>
         </div>
+    </div>
+</div>
 
-        <div class="card bg-primary">
-            <div class="card-body"
-                style="background-image: url(/images/png/arrows.svg); background-size: contain; background-repeat: no-repeat; background-position: right bottom;">
-                <h1><i class="ti ti-rocket text-white"></i></h1>
-                <h4 class="text-white">Get Started with Affiliate Marketing</h4>
-                <p class="text-white text-opacity-75">Connect your first broker and start earning commissions today!</p>
-                <a href="{{ route('networks.create') }}" class="btn btn-sm rounded-pill btn-info">Connect Now</a>
-            </div> <!-- end card-body-->
-        </div> <!-- end card-->
-
+<!-- Main Statistics -->
+<div class="row row-cols-xxl-6 row-cols-md-3 row-cols-1 text-center">
+    <div class="col">
         <div class="card">
             <div class="card-body">
-                <div class="d-flex mb-3 justify-content-between align-items-center">
-                    <h4 class="header-title">Quick Actions:</h4>
-                </div>
-                
-                <div class="d-flex flex-column gap-2">
-                    <a href="{{ route('networks.index') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="ti ti-affiliate me-1"></i> Manage Networks
-                    </a>
-                    <a href="{{ route('campaigns.index') }}" class="btn btn-outline-success btn-sm">
-                        <i class="ti ti-speakerphone me-1"></i> View Campaigns
-                    </a>
-                    <a href="{{ route('coupons.index') }}" class="btn btn-outline-info btn-sm">
-                        <i class="ti ti-ticket me-1"></i> Generate Coupons
-                    </a>
-                    <a href="{{ route('reports.index') }}" class="btn btn-outline-warning btn-sm">
-                        <i class="ti ti-report me-1"></i> View Reports
-                    </a>
-                </div>
+                <h5 class="text-muted fs-13 text-uppercase">Total Revenue</h5>
+                <h3 class="mb-0 fw-bold text-primary" id="stat-revenue">${{ number_format($stats['total_revenue'] ?? 0, 2) }}</h3>
+                <p class="mb-0 text-muted mt-2">
+                    <span class="text-success" id="revenue-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
+                <h3 class="mb-0 fw-bold text-success" id="stat-commission">${{ number_format($stats['total_commission'] ?? 0, 2) }}</h3>
+                <p class="mb-0 text-muted mt-2">
+                    <span class="text-nowrap">Your earnings</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">Purchases</h5>
+                <h3 class="mb-0 fw-bold text-info" id="stat-purchases">{{ $stats['total_purchases'] ?? 0 }}</h3>
+                <p class="mb-0 text-muted mt-2">
+                    <span class="text-success" id="purchases-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">Campaigns</h5>
+                <h3 class="mb-0 fw-bold text-warning" id="stat-campaigns">{{ $stats['total_campaigns'] ?? 0 }}</h3>
+                <p class="mb-0 text-muted mt-2">
+                    <span class="text-nowrap">Active campaigns</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">Coupons</h5>
+                <h3 class="mb-0 fw-bold text-secondary" id="stat-coupons">{{ $stats['total_coupons'] ?? 0 }}</h3>
+                <p class="mb-0 text-muted mt-2">
+                    <span class="text-nowrap">Total coupons</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">Networks</h5>
+                <h3 class="mb-0 fw-bold" id="stat-networks">{{ $stats['active_networks'] ?? 0 }}</h3>
+                <p class="mb-0 text-muted mt-2">
+                    <span class="text-success"><i class="ti ti-check"></i> Connected</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
 
-                <div class="mt-4 pt-3 border-top border-dashed">
-                    <h4 class="header-title mb-3">Recent Activity:</h4>
-                    <div class="text-center py-4">
-                        <i class="ti ti-activity fs-48 text-muted"></i>
-                        <p class="text-muted mt-2 mb-0">No recent activity</p>
+<!-- Revenue Trend Chart -->
+<div class="row">
+    <div class="col-xl-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">Daily Revenue Trend</h4>
+            </div>
+            <div class="card-body">
+                <div id="revenueChart" style="min-height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-4">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">Purchase Status</h4>
+            </div>
+            <div class="card-body">
+                <div id="statusChart" style="min-height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Network Comparison -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="card-title">Network Performance Comparison</h4>
+            </div>
+            <div class="card-body">
+                <div id="networkComparisonChart" style="min-height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Performers -->
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header border-bottom">
+                <h4 class="card-title mb-0">Top Campaigns</h4>
+            </div>
+            <div class="card-body">
+                <div id="topCampaignsTable">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div> <!-- end card-->
-    </div> <!-- end col-->
-</div> <!-- end row-->
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header border-bottom">
+                <h4 class="card-title mb-0">Top Networks</h4>
+            </div>
+            <div class="card-body">
+                <div id="topNetworksTable">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Purchases -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header border-bottom">
+                <h4 class="card-title mb-0">Recent Purchases</h4>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Campaign</th>
+                                <th>Network</th>
+                                <th>Amount</th>
+                                <th>Revenue</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentPurchasesBody">
+                            <tr>
+                                <td colspan="7" class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
-    @vite(['resources/js/pages/dashboard-sales.js'])
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.min.js"></script>
+    
+<script>
+let filters = {};
+let revenueChart = null;
+let statusChart = null;
+let networkComparisonChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboard();
+});
+
+function loadDashboard() {
+    filters = {
+        network_id: document.getElementById('networkFilter').value,
+    };
+    
+    const dateRange = document.getElementById('dateRange').value;
+    if (dateRange) {
+        const dates = dateRange.split(' to ');
+        filters.date_from = dates[0];
+        filters.date_to = dates[1] || dates[0];
+    }
+    
+    const params = new URLSearchParams(filters);
+    
+    fetch(`{{ route('dashboard') }}?${params}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateStats(data.stats);
+            renderCharts(data.stats);
+            renderTables(data.stats);
+            renderRecentPurchases(data.stats.recent_purchases);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+}
+
+function updateStats(stats) {
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toFixed(2);
+    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toFixed(2);
+    document.getElementById('stat-purchases').textContent = stats.total_purchases || 0;
+    document.getElementById('stat-campaigns').textContent = stats.total_campaigns || 0;
+    document.getElementById('stat-coupons').textContent = stats.total_coupons || 0;
+    document.getElementById('stat-networks').textContent = stats.active_networks || 0;
+    
+    // Growth indicators
+    const revenueGrowth = stats.revenue_growth || 0;
+    const purchasesGrowth = stats.purchases_growth || 0;
+    
+    updateGrowthIndicator('revenue-growth', revenueGrowth);
+    updateGrowthIndicator('purchases-growth', purchasesGrowth);
+}
+
+function updateGrowthIndicator(elementId, growth) {
+    const element = document.getElementById(elementId);
+    const isPositive = growth >= 0;
+    const icon = isPositive ? 'ti-trending-up' : 'ti-trending-down';
+    const color = isPositive ? 'text-success' : 'text-danger';
+    
+    element.className = color;
+    element.innerHTML = `<i class="ti ${icon}"></i> ${Math.abs(growth).toFixed(1)}%`;
+}
+
+function renderCharts(stats) {
+    // Revenue Trend Chart
+    renderRevenueChart(stats.daily_revenue || []);
+    
+    // Status Chart
+    renderStatusChart(stats.purchase_status || []);
+    
+    // Network Comparison Chart
+    renderNetworkComparisonChart(stats.network_comparison || []);
+}
+
+function renderRevenueChart(dailyData) {
+    const container = document.querySelector("#revenueChart");
+    if (!container) return;
+    
+    if (revenueChart) {
+        revenueChart.destroy();
+        revenueChart = null;
+    }
+    
+    container.innerHTML = '';
+    
+    if (!dailyData || dailyData.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted py-5">No data available</p>';
+        return;
+    }
+    
+    const dates = dailyData.map(d => d.date);
+    const revenues = dailyData.map(d => parseFloat(d.revenue || 0));
+    
+    const options = {
+        series: [{
+            name: 'Revenue',
+            data: revenues
+        }],
+        chart: {
+            type: 'area',
+            height: 350,
+            toolbar: { show: false }
+        },
+        colors: ['#6ac75a'],
+        dataLabels: { enabled: false },
+        stroke: {
+            curve: 'smooth',
+            width: 2
+        },
+        xaxis: {
+            categories: dates
+        },
+        yaxis: {
+            labels: {
+                formatter: function(val) {
+                    return '$' + val.toFixed(2);
+                }
+            }
+        },
+        fill: {
+            type: 'gradient',
+            gradient: {
+                shadeIntensity: 1,
+                opacityFrom: 0.7,
+                opacityTo: 0.3
+            }
+        }
+    };
+    
+    revenueChart = new ApexCharts(container, options);
+    revenueChart.render();
+}
+
+function renderStatusChart(statusData) {
+    const container = document.querySelector("#statusChart");
+    if (!container) return;
+    
+    if (statusChart) {
+        statusChart.destroy();
+        statusChart = null;
+    }
+    
+    container.innerHTML = '';
+    
+    if (!statusData || statusData.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted py-5">No data available</p>';
+        return;
+    }
+    
+    const labels = statusData.map(s => s.status.charAt(0).toUpperCase() + s.status.slice(1));
+    const counts = statusData.map(s => s.count);
+    
+    const options = {
+        series: counts,
+        chart: {
+            type: 'donut',
+            height: 350
+        },
+        labels: labels,
+        colors: ['#6ac75a', '#f7b84b', '#f1556c'],
+        legend: {
+            position: 'bottom'
+        }
+    };
+    
+    statusChart = new ApexCharts(container, options);
+    statusChart.render();
+}
+
+function renderNetworkComparisonChart(networkData) {
+    const container = document.querySelector("#networkComparisonChart");
+    if (!container) return;
+    
+    if (networkComparisonChart) {
+        networkComparisonChart.destroy();
+        networkComparisonChart = null;
+    }
+    
+    container.innerHTML = '';
+    
+    if (!networkData || networkData.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted py-5">No data available</p>';
+        return;
+    }
+    
+    const networks = networkData.map(n => n.network?.display_name || 'Unknown');
+    const revenues = networkData.map(n => parseFloat(n.total_revenue || 0));
+    const purchases = networkData.map(n => n.total_purchases || 0);
+    
+    const options = {
+        series: [{
+            name: 'Revenue',
+            data: revenues
+        }, {
+            name: 'Purchases',
+            data: purchases
+        }],
+        chart: {
+            type: 'bar',
+            height: 400
+        },
+        colors: ['#6ac75a', '#465dff'],
+        plotOptions: {
+            bar: {
+                horizontal: false,
+                columnWidth: '55%'
+            }
+        },
+        dataLabels: {
+            enabled: false
+        },
+        xaxis: {
+            categories: networks
+        },
+        yaxis: [{
+            title: {
+                text: 'Revenue ($)'
+            },
+            labels: {
+                formatter: function(val) {
+                    return '$' + val.toFixed(0);
+                }
+            }
+        }, {
+            opposite: true,
+            title: {
+                text: 'Purchases'
+            }
+        }],
+        legend: {
+            position: 'top'
+        }
+    };
+    
+    networkComparisonChart = new ApexCharts(container, options);
+    networkComparisonChart.render();
+}
+
+function renderTables(stats) {
+    renderTopCampaigns(stats.top_campaigns || []);
+    renderTopNetworks(stats.top_networks || []);
+}
+
+function renderTopCampaigns(campaigns) {
+    const container = document.getElementById('topCampaignsTable');
+    
+    if (!campaigns || campaigns.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted">No data available</p>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive"><table class="table table-sm mb-0">';
+    html += '<thead><tr><th>Campaign</th><th class="text-end">Revenue</th><th class="text-end">Orders</th></tr></thead><tbody>';
+    
+    campaigns.forEach(c => {
+        html += `
+            <tr>
+                <td><i class="ti ti-speakerphone text-primary me-2"></i>${c.campaign?.name || 'Unknown'}</td>
+                <td class="text-end fw-semibold text-success">$${parseFloat(c.total_revenue).toFixed(2)}</td>
+                <td class="text-end">${c.total_purchases}</td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function renderTopNetworks(networks) {
+    const container = document.getElementById('topNetworksTable');
+    
+    if (!networks || networks.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted">No data available</p>';
+        return;
+    }
+    
+    let html = '<div class="table-responsive"><table class="table table-sm mb-0">';
+    html += '<thead><tr><th>Network</th><th class="text-end">Revenue</th><th class="text-end">Commission</th></tr></thead><tbody>';
+    
+    networks.forEach(n => {
+        html += `
+            <tr>
+                <td><i class="ti ti-affiliate text-info me-2"></i>${n.network?.display_name || 'Unknown'}</td>
+                <td class="text-end fw-semibold text-success">$${parseFloat(n.total_revenue).toFixed(2)}</td>
+                <td class="text-end text-primary">$${parseFloat(n.total_commission).toFixed(2)}</td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function renderRecentPurchases(purchases) {
+    const tbody = document.getElementById('recentPurchasesBody');
+    
+    if (!purchases || purchases.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No recent purchases</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    purchases.forEach(p => {
+        const statusBadge = getStatusBadge(p.status);
+        html += `
+            <tr>
+                <td><code>${p.order_id || 'N/A'}</code></td>
+                <td>${p.campaign?.name || 'Unknown'}</td>
+                <td>${p.network?.display_name || 'Unknown'}</td>
+                <td>$${parseFloat(p.order_value || 0).toFixed(2)}</td>
+                <td class="text-success fw-semibold">$${parseFloat(p.revenue || 0).toFixed(2)}</td>
+                <td>${statusBadge}</td>
+                <td>${new Date(p.order_date).toLocaleDateString()}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'approved': '<span class="badge bg-success-subtle text-success">Approved</span>',
+        'pending': '<span class="badge bg-warning-subtle text-warning">Pending</span>',
+        'rejected': '<span class="badge bg-danger-subtle text-danger">Rejected</span>'
+    };
+    return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
+}
+</script>
 @endsection

@@ -18,12 +18,12 @@
     </div>
 
     <!-- Statistics Cards -->
-    <div class="row row-cols-xxl-6 row-cols-md-3 row-cols-1 text-center mb-3">
+    <div class="row row-cols-xxl-6 row-cols-md-3 row-cols-1 text-center mb-3" id="statsCards">
         <div class="col">
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Total</h5>
-                    <h3 class="mb-0 fw-bold">{{ $stats['total'] }}</h3>
+                    <h3 class="mb-0 fw-bold" id="stat-total">{{ $stats['total'] }}</h3>
                 </div>
             </div>
         </div>
@@ -31,7 +31,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Approved</h5>
-                    <h3 class="mb-0 fw-bold text-success">{{ $stats['approved'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-success" id="stat-approved">{{ $stats['approved'] }}</h3>
                 </div>
             </div>
         </div>
@@ -39,7 +39,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Pending</h5>
-                    <h3 class="mb-0 fw-bold text-warning">{{ $stats['pending'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-warning" id="stat-pending">{{ $stats['pending'] }}</h3>
                 </div>
             </div>
         </div>
@@ -47,7 +47,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Rejected</h5>
-                    <h3 class="mb-0 fw-bold text-danger">{{ $stats['rejected'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-danger" id="stat-rejected">{{ $stats['rejected'] }}</h3>
                 </div>
             </div>
         </div>
@@ -55,7 +55,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Revenue</h5>
-                    <h3 class="mb-0 fw-bold text-primary">${{ number_format($stats['total_revenue'], 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-primary" id="stat-revenue">${{ number_format($stats['total_revenue'], 2) }}</h3>
                 </div>
             </div>
         </div>
@@ -63,7 +63,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                    <h3 class="mb-0 fw-bold text-info">${{ number_format($stats['total_commission'], 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-info" id="stat-commission">${{ number_format($stats['total_commission'], 2) }}</h3>
                 </div>
             </div>
         </div>
@@ -278,6 +278,7 @@ function loadPurchases(page = 1) {
         if (data.success) {
             renderPurchases(data.data.data);
             renderPagination(data.data);
+            updateStats(data.stats); // Update statistics
         }
     })
     .catch(error => {
@@ -440,6 +441,16 @@ function resetFilters() {
     document.getElementById('perPageSelect').value = '15';
     
     loadPurchases(1);
+}
+
+// Update statistics
+function updateStats(stats) {
+    document.getElementById('stat-total').textContent = stats.total || 0;
+    document.getElementById('stat-approved').textContent = stats.approved || 0;
+    document.getElementById('stat-pending').textContent = stats.pending || 0;
+    document.getElementById('stat-rejected').textContent = stats.rejected || 0;
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toFixed(2);
+    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toFixed(2);
 }
 
 // Export purchases

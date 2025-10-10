@@ -39,9 +39,24 @@ abstract class BaseNetworkService implements NetworkServiceInterface
     {
         $errors = [];
         
-        foreach ($this->requiredFields as $field) {
-            if (empty($credentials[$field])) {
-                $errors[$field] = "The {$field} field is required.";
+        // Check if requiredFields is an associative array (new format) or simple array (old format)
+        foreach ($this->requiredFields as $fieldKey => $fieldValue) {
+            // If it's associative array with field config
+            if (is_array($fieldValue)) {
+                $fieldName = $fieldKey;
+                $isRequired = $fieldValue['required'] ?? true;
+                $label = $fieldValue['label'] ?? $fieldName;
+                
+                if ($isRequired && empty($credentials[$fieldName])) {
+                    $errors[$fieldName] = "The {$label} field is required.";
+                }
+            } 
+            // If it's simple array (old format)
+            else {
+                $fieldName = $fieldValue;
+                if (empty($credentials[$fieldName])) {
+                    $errors[$fieldName] = "The {$fieldName} field is required.";
+                }
             }
         }
         

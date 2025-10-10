@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Country;
+use App\Models\Purchase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CountryController extends Controller
 {
@@ -12,7 +14,9 @@ class CountryController extends Controller
      */
     public function index()
     {
-        $countries = Country::withCount('networks')->paginate(15);
+        $countries = Country::withCount('purchases')
+            ->paginate(15);
+        
         return view('dashboard.countries.index', compact('countries'));
     }
 
@@ -32,8 +36,8 @@ class CountryController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:3', 'unique:countries'],
-            'currency' => ['nullable', 'string', 'max:3'],
-            'currency_symbol' => ['nullable', 'string', 'max:10'],
+            'code_3' => ['nullable', 'string', 'max:3'],
+            'currency_code' => ['nullable', 'string', 'max:3'],
             'phone_code' => ['nullable', 'string', 'max:10'],
             'is_active' => ['boolean'],
         ]);
@@ -48,14 +52,20 @@ class CountryController extends Controller
      */
     public function show(Country $country)
     {
-        $country->load('networks');
-        
         $stats = [
-            'total_networks' => $country->networks()->count(),
-            'active_networks' => $country->networks()->where('is_active', true)->count(),
+            'total_purchases' => $country->purchases()->count(),
+            'total_revenue' => $country->purchases()->sum('revenue'),
+            'total_commission' => $country->purchases()->sum('commission'),
+            'approved_purchases' => $country->purchases()->where('status', 'approved')->count(),
         ];
 
-        return view('dashboard.countries.show', compact('country', 'stats'));
+        $recent_purchases = $country->purchases()
+            ->with(['campaign', 'network', 'coupon'])
+            ->latest('order_date')
+            ->limit(10)
+            ->get();
+
+        return view('dashboard.countries.show', compact('country', 'stats', 'recent_purchases'));
     }
 
     /**
@@ -74,8 +84,8 @@ class CountryController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:3', 'unique:countries,code,' . $country->id],
-            'currency' => ['nullable', 'string', 'max:3'],
-            'currency_symbol' => ['nullable', 'string', 'max:10'],
+            'code_3' => ['nullable', 'string', 'max:3'],
+            'currency_code' => ['nullable', 'string', 'max:3'],
             'phone_code' => ['nullable', 'string', 'max:10'],
             'is_active' => ['boolean'],
         ]);
@@ -90,17 +100,27 @@ class CountryController extends Controller
      */
     public function destroy(Country $country)
     {
+        // Check if country has purchases
+        if ($country->purchases()->count() > 0) {
+            return back()->with('error', 'Cannot delete country with existing purchases');
+        }
+        
         $country->delete();
         return redirect()->route('countries.index')->with('success', 'Country deleted successfully');
     }
 
     /**
-     * Get country networks
+     * Get country statistics (for old routes compatibility)
      */
-    public function networks(Country $country)
+    public function brokers(Country $country)
     {
-        $networks = $country->networks()->with('campaigns')->paginate(20);
-        return response()->json($networks);
+        // Return country statistics instead
+        $stats = [
+            'total_purchases' => $country->purchases()->count(),
+            'total_revenue' => $country->purchases()->sum('revenue'),
+            'total_commission' => $country->purchases()->sum('commission'),
+        ];
+        
+        return response()->json($stats);
     }
 }
-

@@ -6,315 +6,548 @@ use App\Models\Coupon;
 use App\Models\Purchase;
 use App\Models\Campaign;
 use App\Models\Network;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class ReportController extends Controller
 {
     /**
      * Display reports index
      */
-    public function index()
+    public function index(Request $request)
     {
-        return view('dashboard.reports.index');
+        // For AJAX requests
+        if ($request->ajax() || $request->expectsJson()) {
+            return $this->getReportsData($request);
+        }
+        
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        // Get filter options
+        $networks = $user->connectedNetworks;
+        $campaigns = Campaign::where('user_id', $userId)->get();
+        
+        // Get overall stats
+        $stats = $this->getOverallStats();
+        
+        return view('dashboard.reports.index', compact('networks', 'campaigns', 'stats'));
     }
-
+    
     /**
-     * Generate coupons report
+     * Get reports data with filters
      */
-    public function coupons(Request $request)
+    private function getReportsData(Request $request)
     {
-        $query = Coupon::with('campaign');
-
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        // Build base queries
+        $purchasesQuery = Purchase::where('user_id', $userId);
+        $campaignsQuery = Campaign::where('user_id', $userId);
+        $couponsQuery = Coupon::whereHas('campaign', function($q) use ($userId) {
+            $q->where('user_id', $userId);
+        });
+        
         // Apply filters
-        if ($request->campaign_id) {
-            $query->where('campaign_id', $request->campaign_id);
-        }
-
-        if ($request->status) {
-            $query->where('is_active', $request->status === 'active');
-        }
-
-        if ($request->from_date) {
-            $query->whereDate('created_at', '>=', $request->from_date);
-        }
-
-        if ($request->to_date) {
-            $query->whereDate('created_at', '<=', $request->to_date);
-        }
-
-        $coupons = $query->paginate(20);
-
+        $this->applyReportFilters($purchasesQuery, $request);
+        $this->applyReportFilters($campaignsQuery, $request);
+        $this->applyReportFilters($couponsQuery, $request);
+        
+        // Get filtered statistics
         $stats = [
-            'total_coupons' => $query->count(),
-            'active_coupons' => Coupon::where('is_active', true)->count(),
-            'used_coupons' => Coupon::where('times_used', '>', 0)->count(),
-            'total_uses' => Coupon::sum('times_used'),
+            // Purchases
+            'total_purchases' => $purchasesQuery->count(),
+            'approved_purchases' => (clone $purchasesQuery)->where('status', 'approved')->count(),
+            'pending_purchases' => (clone $purchasesQuery)->where('status', 'pending')->count(),
+            'rejected_purchases' => (clone $purchasesQuery)->where('status', 'rejected')->count(),
+            
+            // Revenue
+            'total_revenue' => $purchasesQuery->sum('revenue'),
+            'total_commission' => $purchasesQuery->sum('commission'),
+            'total_order_value' => $purchasesQuery->sum('order_value'),
+            
+            // Campaigns & Coupons
+            'total_campaigns' => $campaignsQuery->count(),
+            'active_campaigns' => (clone $campaignsQuery)->where('status', 'active')->count(),
+            'total_coupons' => $couponsQuery->count(),
+            'active_coupons' => (clone $couponsQuery)->where('status', 'active')->count(),
+            
+            // By Network
+            'by_network' => $this->getRevenueByNetwork($request, $userId),
+            
+            // By Campaign
+            'top_campaigns' => $this->getTopCampaigns($request, $userId),
+            
+            // By Date
+            'daily_revenue' => $this->getDailyRevenue($request, $userId),
         ];
-
-        return view('dashboard.reports.coupons', compact('coupons', 'stats'));
+        
+        return response()->json([
+            'success' => true,
+            'stats' => $stats
+        ]);
     }
-
+    
     /**
-     * Generate purchases report
+     * Apply filters to query
      */
-    public function purchases(Request $request)
+    private function applyReportFilters($query, Request $request)
     {
-        $query = Purchase::with(['user', 'coupon', 'campaign']);
-
-        // Apply filters
-        if ($request->status) {
-            $query->where('status', $request->status);
+        // Filter by network
+        if ($request->network_id) {
+            if (method_exists($query->getModel(), 'network')) {
+                $query->where('network_id', $request->network_id);
+            } else {
+                $query->whereHas('campaign', function($q) use ($request) {
+                    $q->where('network_id', $request->network_id);
+                });
+            }
         }
-
+        
+        // Filter by campaign
         if ($request->campaign_id) {
-            $query->where('campaign_id', $request->campaign_id);
+            if ($query->getModel()->getTable() === 'purchases') {
+                $query->where('campaign_id', $request->campaign_id);
+            } elseif ($query->getModel()->getTable() === 'coupons') {
+                $query->where('campaign_id', $request->campaign_id);
+            }
         }
-
-        if ($request->from_date) {
-            $query->whereDate('created_at', '>=', $request->from_date);
+        
+        // Filter by date range
+        if ($request->date_from) {
+            $dateColumn = $query->getModel()->getTable() === 'purchases' ? 'order_date' : 'created_at';
+            $query->whereDate($dateColumn, '>=', $request->date_from);
         }
-
-        if ($request->to_date) {
-            $query->whereDate('created_at', '<=', $request->to_date);
+        
+        if ($request->date_to) {
+            $dateColumn = $query->getModel()->getTable() === 'purchases' ? 'order_date' : 'created_at';
+            $query->whereDate($dateColumn, '<=', $request->date_to);
         }
-
-        $purchases = $query->latest()->paginate(20);
-
-        $stats = [
-            'total_purchases' => $query->count(),
-            'completed_purchases' => Purchase::where('status', 'completed')->count(),
-            'total_revenue' => $query->where('status', 'completed')->sum('final_amount'),
-            'total_discounts' => $query->where('status', 'completed')->sum('discount_amount'),
-            'average_purchase' => $query->where('status', 'completed')->avg('final_amount'),
-        ];
-
-        return view('dashboard.reports.purchases', compact('purchases', 'stats'));
+        
+        return $query;
     }
-
+    
     /**
-     * Generate campaigns report
+     * Get revenue by network
      */
-    public function campaigns(Request $request)
+    private function getRevenueByNetwork(Request $request, int $userId)
     {
-        $query = Campaign::with('network')
-            ->withCount(['coupons', 'purchases'])
-            ->withSum(['purchases' => function($q) {
-                $q->where('status', 'completed');
-            }], 'final_amount');
-
+        $query = Purchase::where('user_id', $userId)
+            ->select('network_id', 
+                DB::raw('SUM(revenue) as total_revenue'),
+                DB::raw('SUM(commission) as total_commission'),
+                DB::raw('COUNT(*) as total_purchases'))
+            ->with('network:id,display_name')
+            ->groupBy('network_id');
+        
+        // Apply date filters
+        if ($request->date_from) {
+            $query->whereDate('order_date', '>=', $request->date_from);
+        }
+        if ($request->date_to) {
+            $query->whereDate('order_date', '<=', $request->date_to);
+        }
+        
+        return $query->orderByDesc('total_revenue')->limit(10)->get();
+    }
+    
+    /**
+     * Get top campaigns
+     */
+    private function getTopCampaigns(Request $request, int $userId)
+    {
+        $query = Purchase::where('user_id', $userId)
+            ->select('campaign_id',
+                DB::raw('SUM(revenue) as total_revenue'),
+                DB::raw('COUNT(*) as total_purchases'))
+            ->with('campaign:id,name,network_id')
+            ->groupBy('campaign_id');
+        
         // Apply filters
         if ($request->network_id) {
             $query->where('network_id', $request->network_id);
         }
-
-        if ($request->status) {
-            $query->where('is_active', $request->status === 'active');
+        if ($request->date_from) {
+            $query->whereDate('order_date', '>=', $request->date_from);
         }
-
-        if ($request->from_date) {
-            $query->whereDate('start_date', '>=', $request->from_date);
+        if ($request->date_to) {
+            $query->whereDate('order_date', '<=', $request->date_to);
         }
-
-        if ($request->to_date) {
-            $query->whereDate('end_date', '<=', $request->to_date);
-        }
-
-        $campaigns = $query->paginate(20);
-
-        $stats = [
-            'total_campaigns' => $query->count(),
-            'active_campaigns' => Campaign::where('is_active', true)->count(),
-            'total_coupons' => Coupon::count(),
-            'total_revenue' => Purchase::where('status', 'completed')->sum('final_amount'),
-        ];
-
-        return view('dashboard.reports.campaigns', compact('campaigns', 'stats'));
+        
+        return $query->orderByDesc('total_revenue')->limit(10)->get();
     }
-
+    
     /**
-     * Generate networks report
+     * Get daily revenue
      */
-    public function networks(Request $request)
+    private function getDailyRevenue(Request $request, int $userId)
     {
-        $networks = Network::with('country')
-            ->withCount(['campaigns', 'connections'])
-            ->get();
-
-        foreach ($networks as $network) {
-            $network->total_revenue = Purchase::whereHas('campaign', function($q) use ($network) {
-                $q->where('network_id', $network->id);
-            })->where('status', 'completed')->sum('final_amount');
-
-            $network->total_purchases = Purchase::whereHas('campaign', function($q) use ($network) {
-                $q->where('network_id', $network->id);
-            })->count();
+        $startDate = $request->date_from ?? Carbon::now()->startOfMonth()->format('Y-m-d');
+        $endDate = $request->date_to ?? Carbon::now()->format('Y-m-d');
+        
+        $query = Purchase::where('user_id', $userId)
+            ->select(DB::raw('DATE(order_date) as date'),
+                DB::raw('SUM(revenue) as revenue'),
+                DB::raw('COUNT(*) as purchases'))
+            ->whereBetween('order_date', [$startDate, $endDate])
+            ->groupBy('date')
+            ->orderBy('date', 'asc');
+        
+        if ($request->network_id) {
+            $query->where('network_id', $request->network_id);
         }
-
-        $stats = [
-            'total_networks' => $networks->count(),
-            'active_networks' => $networks->where('is_active', true)->count(),
-            'total_campaigns' => Campaign::count(),
-            'total_revenue' => Purchase::where('status', 'completed')->sum('final_amount'),
-        ];
-
-        return view('dashboard.reports.networks', compact('networks', 'stats'));
+        
+        return $query->get();
     }
-
+    
     /**
-     * Generate revenue report
+     * Get overall statistics
+     */
+    private function getOverallStats()
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        $currentMonth = Carbon::now()->startOfMonth();
+        
+        return [
+            'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue'),
+            'total_purchases' => Purchase::where('user_id', $userId)->count(),
+            'total_campaigns' => Campaign::where('user_id', $userId)->count(),
+            'total_coupons' => Coupon::whereHas('campaign', function($q) use ($userId) {
+                $q->where('user_id', $userId);
+            })->count(),
+            
+            // This month
+            'month_revenue' => Purchase::where('user_id', $userId)
+                ->where('order_date', '>=', $currentMonth)
+                ->sum('revenue'),
+            'month_purchases' => Purchase::where('user_id', $userId)
+                ->where('order_date', '>=', $currentMonth)
+                ->count(),
+        ];
+    }
+    
+    /**
+     * Coupons Report
+     */
+    public function coupons(Request $request)
+    {
+        // For AJAX requests
+        if ($request->ajax() || $request->expectsJson()) {
+            return $this->getCouponsReportData($request);
+        }
+        
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        $networks = $user->connectedNetworks;
+        $campaigns = Campaign::where('user_id', $userId)->get();
+        
+        return view('dashboard.reports.coupons', compact('networks', 'campaigns'));
+    }
+    
+    /**
+     * Purchases Report
+     */
+    public function purchases(Request $request)
+    {
+        // For AJAX requests
+        if ($request->ajax() || $request->expectsJson()) {
+            return $this->getPurchasesReportData($request);
+        }
+        
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        $networks = $user->connectedNetworks;
+        $campaigns = Campaign::where('user_id', $userId)->get();
+        
+        return view('dashboard.reports.purchases', compact('networks', 'campaigns'));
+    }
+    
+    /**
+     * Campaigns Report
+     */
+    public function campaigns(Request $request)
+    {
+        // For AJAX requests
+        if ($request->ajax() || $request->expectsJson()) {
+            return $this->getCampaignsReportData($request);
+        }
+        
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        $networks = $user->connectedNetworks;
+        
+        return view('dashboard.reports.campaigns', compact('networks'));
+    }
+    
+    /**
+     * Revenue Report
      */
     public function revenue(Request $request)
     {
-        $period = $request->period ?? 'daily'; // daily, weekly, monthly, yearly
-
-        $dateFormat = match($period) {
-            'daily' => '%Y-%m-%d',
-            'weekly' => '%Y-%u',
-            'monthly' => '%Y-%m',
-            'yearly' => '%Y',
-            default => '%Y-%m-%d',
-        };
-
-        $revenue = Purchase::selectRaw("
-                DATE_FORMAT(created_at, '{$dateFormat}') as period,
-                COUNT(*) as total_purchases,
-                SUM(amount) as gross_revenue,
-                SUM(discount_amount) as total_discounts,
-                SUM(final_amount) as net_revenue,
-                AVG(final_amount) as average_purchase
-            ")
-            ->where('status', 'completed')
-            ->when($request->from_date, function($q) use ($request) {
-                $q->whereDate('created_at', '>=', $request->from_date);
-            })
-            ->when($request->to_date, function($q) use ($request) {
-                $q->whereDate('created_at', '<=', $request->to_date);
-            })
-            ->groupBy('period')
-            ->orderBy('period', 'desc')
-            ->paginate(30);
-
-        $stats = [
-            'total_revenue' => Purchase::where('status', 'completed')->sum('final_amount'),
-            'total_discounts' => Purchase::where('status', 'completed')->sum('discount_amount'),
-            'total_purchases' => Purchase::where('status', 'completed')->count(),
-            'average_purchase' => Purchase::where('status', 'completed')->avg('final_amount'),
-        ];
-
-        return view('dashboard.reports.revenue', compact('revenue', 'stats', 'period'));
+        // For AJAX requests
+        if ($request->ajax() || $request->expectsJson()) {
+            return $this->getRevenueReportData($request);
+        }
+        
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        $networks = $user->connectedNetworks;
+        $campaigns = Campaign::where('user_id', $userId)->get();
+        
+        return view('dashboard.reports.revenue', compact('networks', 'campaigns'));
     }
-
+    
+    /**
+     * Get Coupons Report Data
+     */
+    private function getCouponsReportData(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        $query = Coupon::whereHas('campaign', function($q) use ($userId) {
+            $q->where('user_id', $userId);
+        })->with(['campaign.network']);
+        
+        // Apply filters
+        if ($request->network_id) {
+            $query->whereHas('campaign', function($q) use ($request) {
+                $q->where('network_id', $request->network_id);
+            });
+        }
+        
+        if ($request->campaign_id) {
+            $query->where('campaign_id', $request->campaign_id);
+        }
+        
+        if ($request->date_from) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        
+        if ($request->date_to) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+        
+        $statsQuery = clone $query;
+        
+        $stats = [
+            'total_coupons' => $statsQuery->count(),
+            'active_coupons' => (clone $statsQuery)->where('status', 'active')->count(),
+            'used_coupons' => (clone $statsQuery)->where('used_count', '>', 0)->count(),
+            'expired_coupons' => (clone $statsQuery)->where('expires_at', '<', now())->count(),
+            
+            // By network
+            'by_network' => Coupon::whereHas('campaign', function($q) use ($userId, $request) {
+                    $q->where('user_id', $userId);
+                    if ($request->network_id) {
+                        $q->where('network_id', $request->network_id);
+                    }
+                })
+                ->select('campaign_id', DB::raw('COUNT(*) as total'))
+                ->with('campaign.network')
+                ->groupBy('campaign_id')
+                ->orderByDesc('total')
+                ->limit(10)
+                ->get(),
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'stats' => $stats
+        ]);
+    }
+    
+    /**
+     * Get Purchases Report Data
+     */
+    private function getPurchasesReportData(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        $query = Purchase::where('user_id', $userId);
+        
+        // Apply filters
+        if ($request->network_id) {
+            $query->where('network_id', $request->network_id);
+        }
+        
+        if ($request->campaign_id) {
+            $query->where('campaign_id', $request->campaign_id);
+        }
+        
+        if ($request->date_from) {
+            $query->whereDate('order_date', '>=', $request->date_from);
+        }
+        
+        if ($request->date_to) {
+            $query->whereDate('order_date', '<=', $request->date_to);
+        }
+        
+        $statsQuery = clone $query;
+        
+        $stats = [
+            'total_purchases' => $statsQuery->count(),
+            'approved' => (clone $statsQuery)->where('status', 'approved')->count(),
+            'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
+            'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),
+            'total_revenue' => (clone $statsQuery)->sum('revenue'),
+            'total_commission' => (clone $statsQuery)->sum('commission'),
+            
+            // Daily trend
+            'daily_trend' => $this->getDailyRevenue($request, $userId),
+            
+            // By status
+            'by_status' => Purchase::where('user_id', $userId)
+                ->when($request->network_id, fn($q) => $q->where('network_id', $request->network_id))
+                ->select('status', DB::raw('COUNT(*) as total'), DB::raw('SUM(revenue) as revenue'))
+                ->groupBy('status')
+                ->get(),
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'stats' => $stats
+        ]);
+    }
+    
+    /**
+     * Get Campaigns Report Data
+     */
+    private function getCampaignsReportData(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        $query = Campaign::where('user_id', $userId);
+        
+        // Apply filters
+        if ($request->network_id) {
+            $query->where('network_id', $request->network_id);
+        }
+        
+        if ($request->date_from) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        
+        if ($request->date_to) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+        
+        $statsQuery = clone $query;
+        
+        $stats = [
+            'total_campaigns' => $statsQuery->count(),
+            'active' => (clone $statsQuery)->where('status', 'active')->count(),
+            'paused' => (clone $statsQuery)->where('status', 'paused')->count(),
+            'inactive' => (clone $statsQuery)->where('status', 'inactive')->count(),
+            
+            // Performance
+            'top_performers' => $this->getTopCampaigns($request, $userId),
+            
+            // By type
+            'by_type' => Campaign::where('user_id', $userId)
+                ->when($request->network_id, fn($q) => $q->where('network_id', $request->network_id))
+                ->select('campaign_type', DB::raw('COUNT(*) as total'))
+                ->groupBy('campaign_type')
+                ->get(),
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'stats' => $stats
+        ]);
+    }
+    
+    /**
+     * Get Revenue Report Data
+     */
+    private function getRevenueReportData(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $userId = $user->id;
+        
+        $query = Purchase::where('user_id', $userId);
+        
+        // Apply filters
+        if ($request->network_id) {
+            $query->where('network_id', $request->network_id);
+        }
+        
+        if ($request->campaign_id) {
+            $query->where('campaign_id', $request->campaign_id);
+        }
+        
+        if ($request->date_from) {
+            $query->whereDate('order_date', '>=', $request->date_from);
+        }
+        
+        if ($request->date_to) {
+            $query->whereDate('order_date', '<=', $request->date_to);
+        }
+        
+        $statsQuery = clone $query;
+        
+        $stats = [
+            'total_revenue' => $statsQuery->sum('revenue'),
+            'total_commission' => $statsQuery->sum('commission'),
+            'total_order_value' => $statsQuery->sum('order_value'),
+            'avg_order_value' => $statsQuery->avg('order_value'),
+            
+            // Daily revenue
+            'daily_revenue' => $this->getDailyRevenue($request, $userId),
+            
+            // By network
+            'by_network' => $this->getRevenueByNetwork($request, $userId),
+            
+            // Monthly comparison
+            'monthly_comparison' => Purchase::where('user_id', $userId)
+                ->select(
+                    DB::raw('DATE_FORMAT(order_date, "%Y-%m") as month'),
+                    DB::raw('SUM(revenue) as revenue'),
+                    DB::raw('COUNT(*) as orders')
+                )
+                ->groupBy('month')
+                ->orderBy('month', 'desc')
+                ->limit(12)
+                ->get(),
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'stats' => $stats
+        ]);
+    }
+    
     /**
      * Export report
      */
     public function export(Request $request, $type)
     {
-        $data = match($type) {
-            'coupons' => $this->getCouponsExportData($request),
-            'purchases' => $this->getPurchasesExportData($request),
-            'campaigns' => $this->getCampaignsExportData($request),
-            'revenue' => $this->getRevenueExportData($request),
-            default => [],
-        };
-
-        // Implementation depends on export format (CSV, Excel, PDF)
-        // For now, returning JSON
+        // Implementation for export functionality
         return response()->json([
-            'type' => $type,
-            'data' => $data,
-            'exported_at' => now(),
+            'success' => true,
+            'message' => 'Export functionality coming soon'
         ]);
     }
-
-    /**
-     * Download exported report
-     */
-    public function download($file)
-    {
-        // Implementation for downloading previously exported files
-        $path = storage_path('app/exports/' . $file);
-
-        if (!file_exists($path)) {
-            abort(404);
-        }
-
-        return response()->download($path);
-    }
-
-    /**
-     * Get coupons export data
-     */
-    protected function getCouponsExportData($request)
-    {
-        $query = Coupon::with('campaign');
-
-        if ($request->campaign_id) {
-            $query->where('campaign_id', $request->campaign_id);
-        }
-
-        if ($request->from_date) {
-            $query->whereDate('created_at', '>=', $request->from_date);
-        }
-
-        if ($request->to_date) {
-            $query->whereDate('created_at', '<=', $request->to_date);
-        }
-
-        return $query->get();
-    }
-
-    /**
-     * Get purchases export data
-     */
-    protected function getPurchasesExportData($request)
-    {
-        $query = Purchase::with(['user', 'coupon', 'campaign']);
-
-        if ($request->status) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->from_date) {
-            $query->whereDate('created_at', '>=', $request->from_date);
-        }
-
-        if ($request->to_date) {
-            $query->whereDate('created_at', '<=', $request->to_date);
-        }
-
-        return $query->get();
-    }
-
-    /**
-     * Get campaigns export data
-     */
-    protected function getCampaignsExportData($request)
-    {
-        $query = Campaign::with('network')
-            ->withCount(['coupons', 'purchases']);
-
-        if ($request->network_id) {
-            $query->where('network_id', $request->network_id);
-        }
-
-        return $query->get();
-    }
-
-    /**
-     * Get revenue export data
-     */
-    protected function getRevenueExportData($request)
-    {
-        return Purchase::with(['user', 'coupon', 'campaign'])
-            ->where('status', 'completed')
-            ->when($request->from_date, function($q) use ($request) {
-                $q->whereDate('created_at', '>=', $request->from_date);
-            })
-            ->when($request->to_date, function($q) use ($request) {
-                $q->whereDate('created_at', '<=', $request->to_date);
-            })
-            ->get();
-    }
 }
-

@@ -4,11 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\Campaign;
 use App\Models\Network;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
 class CampaignController extends Controller
 {
+    /**
+     * Get target user ID (parent if sub-user, self otherwise)
+     */
+    private function getTargetUserId(): int
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        return $user->isSubUser() ? $user->parent_user_id : $user->id;
+    }
     /**
      * Display a listing of campaigns for authenticated user
      */
@@ -20,7 +31,8 @@ class CampaignController extends Controller
         }
         
         // For web requests, return view
-        $networks = auth()->user()->connectedNetworks;
+        $targetUserId = $this->getTargetUserId();
+        $networks = User::find($targetUserId)->connectedNetworks;
         $stats = $this->getCampaignStats();
         
         return view('dashboard.campaigns.index', compact('networks', 'stats'));
@@ -31,8 +43,11 @@ class CampaignController extends Controller
      */
     private function getCampaignsData(Request $request)
     {
-        $query = Campaign::where('user_id', auth()->id())
-            ->with(['network', 'coupons']);
+        $targetUserId = $this->getTargetUserId();
+        $query = Campaign::where('user_id', $this->getTargetUserId())
+            ->with(['network', 'coupons'])
+            ->withCount('purchases')
+            ->withSum('purchases as total_revenue', 'revenue');
         
         // Filter by network
         if ($request->network_id) {
@@ -66,11 +81,25 @@ class CampaignController extends Controller
             });
         }
         
+        // Clone for stats
+        $statsQuery = clone $query;
+        
+        // Calculate filtered stats
+        $filteredStats = [
+            'total' => $statsQuery->count(),
+            'active' => (clone $statsQuery)->where('status', 'active')->count(),
+            'paused' => (clone $statsQuery)->where('status', 'paused')->count(),
+            'inactive' => (clone $statsQuery)->where('status', 'inactive')->count(),
+            'coupon_type' => (clone $statsQuery)->where('campaign_type', 'coupon')->count(),
+            'link_type' => (clone $statsQuery)->where('campaign_type', 'link')->count(),
+        ];
+        
         $campaigns = $query->latest()->paginate($request->per_page ?? 15);
         
         return response()->json([
             'success' => true,
-            'data' => $campaigns
+            'data' => $campaigns,
+            'stats' => $filteredStats
         ]);
     }
     
@@ -79,7 +108,7 @@ class CampaignController extends Controller
      */
     private function getCampaignStats()
     {
-        $userId = auth()->id();
+        $userId = $this->getTargetUserId();
         
         return [
             'total' => Campaign::where('user_id', $userId)->count(),
@@ -138,9 +167,12 @@ class CampaignController extends Controller
         
         $stats = [
             'total_coupons' => $campaign->coupons()->count(),
-            'used_coupons' => $campaign->coupons()->where('times_used', '>', 0)->count(),
-            'total_revenue' => $campaign->purchases()->where('status', 'completed')->sum('amount'),
+            'used_coupons' => $campaign->coupons()->where('used_count', '>', 0)->count(),
+            'total_revenue' => $campaign->purchases()->sum('revenue'),
+            'total_commission' => $campaign->purchases()->sum('commission'),
+            'total_order_value' => $campaign->purchases()->sum('order_value'),
             'total_purchases' => $campaign->purchases()->count(),
+            'approved_purchases' => $campaign->purchases()->where('status', 'approved')->count(),
         ];
 
         return view('dashboard.campaigns.show', compact('campaign', 'stats'));
@@ -180,6 +212,22 @@ class CampaignController extends Controller
         return redirect()->route('campaigns.index')->with('success', 'Campaign updated successfully');
     }
 
+    /**
+     * Get coupon statistics for a campaign
+     */
+    public function getCouponStats(Campaign $campaign)
+    {
+        $coupons = $campaign->coupons()
+            ->withCount('purchases as total_orders')
+            ->withSum('purchases as total_revenue', 'revenue')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'coupons' => $coupons
+        ]);
+    }
+    
     /**
      * Remove the specified campaign
      */

@@ -13,45 +13,46 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create roles and permissions first
+        // Seed networks first
         $this->call([
-            RolesAndPermissionsSeeder::class,
             NetworksSeeder::class,
         ]);
 
-        // Create super admin user
-        $superAdmin = User::firstOrCreate(
+        // Create main user
+        $mainUser = User::firstOrCreate(
             ['email' => 'admin@example.com'],
             [
-                'name' => 'Super Admin',
+                'name' => 'Main User',
                 'password' => Hash::make('password'),
+                'created_by' => null,
+                'parent_user_id' => null,
             ]
         );
-        $superAdmin->assignRole('super-admin');
 
-        // Create admin user
-        $admin = User::firstOrCreate(
-            ['email' => 'manager@example.com'],
+        // Create sub-users
+        User::firstOrCreate(
+            ['email' => 'sub1@example.com'],
             [
-                'name' => 'Admin User',
+                'name' => 'Sub User 1',
                 'password' => Hash::make('password'),
+                'created_by' => $mainUser->id,
+                'parent_user_id' => $mainUser->id,
             ]
         );
-        $admin->assignRole('admin');
 
-        // Create regular user
-        $user = User::firstOrCreate(
-            ['email' => 'user@example.com'],
+        User::firstOrCreate(
+            ['email' => 'sub2@example.com'],
             [
-                'name' => 'Regular User',
+                'name' => 'Sub User 2',
                 'password' => Hash::make('password'),
+                'created_by' => $mainUser->id,
+                'parent_user_id' => $mainUser->id,
             ]
         );
-        $user->assignRole('user');
 
-        $this->command->info('Default users created successfully!');
-        $this->command->info('Super Admin: admin@example.com / password');
-        $this->command->info('Admin: manager@example.com / password');
-        $this->command->info('User: user@example.com / password');
+        $this->command->info('✅ Database seeded successfully!');
+        $this->command->info('📧 Main User: admin@example.com / password');
+        $this->command->info('📧 Sub User 1: sub1@example.com / password');
+        $this->command->info('📧 Sub User 2: sub2@example.com / password');
     }
 }

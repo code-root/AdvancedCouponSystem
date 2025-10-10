@@ -69,11 +69,23 @@ class CouponController extends Controller
             $query->where('code', 'like', '%' . $request->search . '%');
         }
         
+        // Clone for stats
+        $statsQuery = clone $query;
+        
+        // Calculate filtered stats
+        $filteredStats = [
+            'total' => $statsQuery->count(),
+            'active' => (clone $statsQuery)->where('status', 'active')->count(),
+            'used' => (clone $statsQuery)->where('used_count', '>', 0)->count(),
+            'expired' => (clone $statsQuery)->where('expires_at', '<', now())->count(),
+        ];
+        
         $coupons = $query->latest()->paginate($request->per_page ?? 15);
         
         return response()->json([
             'success' => true,
-            'data' => $coupons
+            'data' => $coupons,
+            'stats' => $filteredStats
         ]);
     }
     
@@ -141,15 +153,38 @@ class CouponController extends Controller
         $coupon->load(['campaign', 'purchases']);
         
         $stats = [
-            'total_uses' => $coupon->times_used,
-            'remaining_uses' => $coupon->max_uses ? ($coupon->max_uses - $coupon->times_used) : null,
-            'total_revenue' => $coupon->purchases()->where('status', 'completed')->sum('amount'),
+            'total_uses' => $coupon->used_count ?? 0,
+            'remaining_uses' => $coupon->usage_limit ? ($coupon->usage_limit - $coupon->used_count) : null,
+            'total_revenue' => $coupon->purchases()->sum('revenue'),
+            'total_commission' => $coupon->purchases()->sum('commission'),
+            'total_order_value' => $coupon->purchases()->sum('order_value'),
+            'total_purchases' => $coupon->purchases()->count(),
+            'approved_purchases' => $coupon->purchases()->where('status', 'approved')->count(),
             'unique_users' => $coupon->purchases()->distinct('user_id')->count('user_id'),
         ];
 
         return view('dashboard.coupons.show', compact('coupon', 'stats'));
     }
 
+    /**
+     * Get daily statistics for a coupon
+     */
+    public function getDailyStats(Coupon $coupon)
+    {
+        $dailyData = $coupon->purchases()
+            ->selectRaw('DATE(order_date) as date')
+            ->selectRaw('SUM(revenue) as revenue')
+            ->selectRaw('COUNT(*) as orders')
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+        
+        return response()->json([
+            'success' => true,
+            'daily_data' => $dailyData
+        ]);
+    }
+    
     /**
      * Show the form for editing the coupon
      */

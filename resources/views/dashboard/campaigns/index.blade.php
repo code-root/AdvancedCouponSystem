@@ -23,7 +23,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Total</h5>
-                    <h3 class="mb-0 fw-bold">{{ $stats['total'] }}</h3>
+                    <h3 class="mb-0 fw-bold" id="stat-total">{{ $stats['total'] }}</h3>
                 </div>
             </div>
         </div>
@@ -31,7 +31,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Active</h5>
-                    <h3 class="mb-0 fw-bold text-success">{{ $stats['active'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-success" id="stat-active">{{ $stats['active'] }}</h3>
                 </div>
             </div>
         </div>
@@ -39,7 +39,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Paused</h5>
-                    <h3 class="mb-0 fw-bold text-warning">{{ $stats['paused'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-warning" id="stat-paused">{{ $stats['paused'] }}</h3>
                 </div>
             </div>
         </div>
@@ -47,7 +47,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Inactive</h5>
-                    <h3 class="mb-0 fw-bold text-danger">{{ $stats['inactive'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-danger" id="stat-inactive">{{ $stats['inactive'] }}</h3>
                 </div>
             </div>
         </div>
@@ -55,7 +55,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Coupons</h5>
-                    <h3 class="mb-0 fw-bold text-primary">{{ $stats['coupon_type'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-primary" id="stat-coupon">{{ $stats['coupon_type'] }}</h3>
                 </div>
             </div>
         </div>
@@ -63,7 +63,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Links</h5>
-                    <h3 class="mb-0 fw-bold text-info">{{ $stats['link_type'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-info" id="stat-link">{{ $stats['link_type'] }}</h3>
                 </div>
             </div>
         </div>
@@ -229,6 +229,7 @@ function loadCampaigns(page = 1) {
         if (data.success) {
             renderCampaigns(data.data.data);
             renderPagination(data.data);
+            updateStats(data.stats); // Update statistics
         }
     })
     .catch(error => {
@@ -265,7 +266,7 @@ function renderCampaigns(campaigns) {
                 <td>${typeBadge}</td>
                 <td><span class="badge bg-info">${campaign.coupons?.length || 0}</span></td>
                 <td><span class="badge bg-success">${campaign.purchases_count || 0}</span></td>
-                <td><strong>$${parseFloat(campaign.revenue || 0).toFixed(2)}</strong></td>
+                <td><strong class="text-success">$${parseFloat(campaign.total_revenue || 0).toFixed(2)}</strong></td>
                 <td>${statusBadge}</td>
                 <td class="pe-3 text-center">
                     <div class="hstack gap-1 justify-content-center">
@@ -380,6 +381,16 @@ function resetFilters() {
     document.getElementById('dateRange').value = '';
     
     loadCampaigns(1);
+}
+
+// Update statistics
+function updateStats(stats) {
+    document.getElementById('stat-total').textContent = stats.total || 0;
+    document.getElementById('stat-active').textContent = stats.active || 0;
+    document.getElementById('stat-paused').textContent = stats.paused || 0;
+    document.getElementById('stat-inactive').textContent = stats.inactive || 0;
+    document.getElementById('stat-coupon').textContent = stats.coupon_type || 0;
+    document.getElementById('stat-link').textContent = stats.link_type || 0;
 }
 
 // Delete campaign

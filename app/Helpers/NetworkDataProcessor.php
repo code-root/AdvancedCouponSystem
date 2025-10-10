@@ -36,14 +36,18 @@ class NetworkDataProcessor
                         // Handle different network formats
                         if ($networkName === 'digizag') {
                             $item = self::normalizeDigizagData($item);
+                        } elseif ($networkName === 'platformance') {
+                            $item = self::normalizePlatformanceData($item);
+                        } elseif ($networkName === 'optimisemedia') {
+                            $item = self::normalizeOptimiseMediaData($item);
                         } else {
                             $item = self::normalizeBoostinyData($item);
                         }
                         
                         // Get or create country
                         $country = Country::firstOrCreate(
-                            ['code' => strtoupper($item['country'] ?? 'NA')],
-                            ['name' => $item['country'] ?? 'Not Available']
+                            ['code' => strtoupper($item['country_code'] ?? 'NA')],
+                            ['name' => $item['country_code'] ?? 'Not Available']
                         );
                         
                         // Create or update campaign
@@ -170,6 +174,78 @@ class NetworkDataProcessor
             'status' => $stat['conversion_status'] ?? 'approved',
             'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
             'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
+        ];
+    }
+    
+    /**
+     * Normalize Platformance data format
+     */
+    private static function normalizePlatformanceData(array $item): array
+    {
+        return [
+            'campaign_id' => $item['campaign_id'] ?? null,
+            'campaign_name' => $item['campaign_name'] ?? 'Unknown',
+            'campaign_logo' => null,
+            'code' => $item['code'] ?? 'NA',
+            'country_code' => $item['country'] ?? 'NA',
+            'order_id' => $item['order_id'] ?? null,
+            'network_order_id' => $item['network_order_id'] ?? null,
+            'order_value' => $item['order_value'] ?? 0,
+            'commission' => $item['commission'] ?? 0,
+            'revenue' => $item['revenue'] ?? 0,
+            'quantity' => $item['quantity'] ?? 1,
+            'customer_type' => $item['customer_type'] ?? 'unknown',
+            'status' => $item['status'] ?? 'approved',
+            'order_date' => $item['order_date'] ?? now()->format('Y-m-d'),
+            'purchase_date' => $item['purchase_date'] ?? now()->format('Y-m-d'),
+        ];
+    }
+    
+    /**
+     * Normalize OptimiseMedia data to standard format
+     */
+    private static function normalizeOptimiseMediaData(array $item): array
+    {
+        // Calculate total conversions count
+        $countOrders = ($item['pendingConversions'] ?? 0) + 
+                      ($item['validatedConversions'] ?? 0) + 
+                      ($item['rejectedConversions'] ?? 0);
+        
+        // Calculate total revenue (commission)
+        $rejectedCommission = $item['rejectedCommission'] ?? 0;
+        $pendingCommission = $item['pendingCommission'] ?? 0;
+        $validatedCommission = $item['validatedCommission'] ?? 0;
+        $revenue = $rejectedCommission + $pendingCommission + $validatedCommission;
+        
+        // Use 'US' as default if countryCode is '-' or missing
+        $countryCode = ($item['countryCode'] && $item['countryCode'] !== '-') 
+            ? $item['countryCode'] 
+            : 'US';
+        
+        // Determine status based on commission type
+        $status = 'pending';
+        if ($validatedCommission > 0) {
+            $status = 'approved';
+        } elseif ($rejectedCommission > 0) {
+            $status = 'rejected';
+        }
+        
+        return [
+            'campaign_id' => $item['advertiserId'] ?? null,
+            'campaign_name' => $item['advertiserName'] ?? 'Unknown',
+            'campaign_logo' => 'https://www.optimisemedia.com/assets/icons/logo-circle.svg',
+            'code' => $item['voucherCode'] ?? 'NA',
+            'country_code' => $countryCode,
+            'order_id' => null, // OptimiseMedia doesn't provide individual order IDs
+            'network_order_id' => null,
+            'order_value' => $item['originalOrderValue'] ?? 0,
+            'commission' => $revenue,
+            'revenue' => $revenue,
+            'quantity' => $countOrders > 0 ? $countOrders : 1,
+            'customer_type' => strtolower(trim($item['campaignName'] ?? 'unknown')),
+            'status' => $status,
+            'order_date' => isset($item['date']) ? date('Y-m-d', strtotime($item['date'])) : now()->format('Y-m-d'),
+            'purchase_date' => isset($item['date']) ? date('Y-m-d', strtotime($item['date'])) : now()->format('Y-m-d'),
         ];
     }
     

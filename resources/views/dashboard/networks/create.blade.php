@@ -296,29 +296,63 @@ function loadNetworkConfig(networkId, selectedOption) {
 function renderDynamicFields(config) {
     let fieldsHTML = '<div class="row">';
     
-    config.required_fields.forEach(field => {
-        const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-        const isPassword = field.includes('secret') || field.includes('password') || field.includes('token');
-        
-        fieldsHTML += `
-            <div class="col-md-6 mb-3">
-                <label class="form-label">${fieldName} <span class="text-danger">*</span></label>
-                <div class="input-group">
-                    <input type="${isPassword ? 'password' : 'text'}" 
-                           class="form-control network-credential" 
-                           name="credentials[${field}]" 
-                           id="field_${field}"
-                           placeholder="Enter ${fieldName}" 
-                           required>
-                    ${isPassword ? `
-                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordField('field_${field}')">
-                            <i class="ti ti-eye"></i>
-                        </button>
-                    ` : ''}
+    // Handle both array and object formats
+    const requiredFields = config.required_fields;
+    
+    if (typeof requiredFields === 'object' && !Array.isArray(requiredFields)) {
+        // Object format (new style with field details)
+        Object.keys(requiredFields).forEach(fieldKey => {
+            const field = requiredFields[fieldKey];
+            const fieldLabel = field.label || fieldKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const fieldType = field.type || 'text';
+            const isPassword = fieldType === 'password' || fieldKey.includes('secret') || fieldKey.includes('password') || fieldKey.includes('token');
+            const placeholder = field.placeholder || `Enter ${fieldLabel}`;
+            
+            fieldsHTML += `
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">${fieldLabel} ${field.required ? '<span class="text-danger">*</span>' : ''}</label>
+                    <div class="input-group">
+                        <input type="${isPassword ? 'password' : fieldType}" 
+                               class="form-control network-credential" 
+                               name="credentials[${fieldKey}]" 
+                               id="field_${fieldKey}"
+                               placeholder="${placeholder}" 
+                               ${field.required ? 'required' : ''}>
+                        ${isPassword ? `
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordField('field_${fieldKey}')">
+                                <i class="ti ti-eye"></i>
+                            </button>
+                        ` : ''}
+                    </div>
                 </div>
-            </div>
-        `;
-    });
+            `;
+        });
+    } else if (Array.isArray(requiredFields)) {
+        // Array format (old style)
+        requiredFields.forEach(field => {
+            const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const isPassword = field.includes('secret') || field.includes('password') || field.includes('token');
+            
+            fieldsHTML += `
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">${fieldName} <span class="text-danger">*</span></label>
+                    <div class="input-group">
+                        <input type="${isPassword ? 'password' : 'text'}" 
+                               class="form-control network-credential" 
+                               name="credentials[${field}]" 
+                               id="field_${field}"
+                               placeholder="Enter ${fieldName}" 
+                               required>
+                        ${isPassword ? `
+                            <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordField('field_${field}')">
+                                <i class="ti ti-eye"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+    }
     
     fieldsHTML += '</div>';
     $('#dynamicFieldsContainer').html(fieldsHTML);
@@ -388,6 +422,32 @@ function testAndSubmit() {
         },
         success: function(response) {
             if (response.success) {
+                // Store connection data if available (for networks like Platformance)
+                if (response.data) {
+                    // Add token, phpsessid, and cookies to hidden fields
+                    if (response.data.token) {
+                        $('<input>').attr({
+                            type: 'hidden',
+                            name: 'credentials[token]',
+                            value: response.data.token
+                        }).appendTo('#networkForm');
+                    }
+                    if (response.data.phpsessid) {
+                        $('<input>').attr({
+                            type: 'hidden',
+                            name: 'credentials[phpsessid]',
+                            value: response.data.phpsessid
+                        }).appendTo('#networkForm');
+                    }
+                    if (response.data.cookies) {
+                        $('<input>').attr({
+                            type: 'hidden',
+                            name: 'credentials[cookies]',
+                            value: response.data.cookies
+                        }).appendTo('#networkForm');
+                    }
+                }
+                
                 Swal.fire({
                     icon: 'success',
                     title: 'Connection Successful!',

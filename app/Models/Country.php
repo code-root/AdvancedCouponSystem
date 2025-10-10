@@ -33,14 +33,6 @@ class Country extends Model
     ];
 
     /**
-     * Get the brokers for the country.
-     */
-    public function brokers()
-    {
-        return $this->hasMany(Broker::class);
-    }
-
-    /**
      * Get the purchases for the country.
      */
     public function purchases()
@@ -61,7 +53,7 @@ class Country extends Model
      */
     public function getTotalPurchases(): int
     {
-        return $this->purchases()->sum('quantity');
+        return $this->purchases()->count();
     }
 
     /**
@@ -80,4 +72,3 @@ class Country extends Model
         return $this->purchases()->sum('commission');
     }
 }
-

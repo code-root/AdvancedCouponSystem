@@ -25,6 +25,8 @@ class Campaign extends Model
         'advertiser_id',
         'campaign_type',
         'status',
+        'created_by',
+        'updated_by',
         'settings',
     ];
 

@@ -7,7 +7,7 @@
         <div class="col-lg-8 mx-auto">
             <div class="card">
                 <div class="card-header border-bottom border-dashed">
-                    <h4 class="card-title mb-0">Edit User Information</h4>
+                    <h4 class="card-title mb-0">Edit Sub-User Information</h4>
                 </div>
                 <div class="card-body">
                     @if($errors->any())
@@ -17,6 +17,13 @@
                                     <li>{{ $error }}</li>
                                 @endforeach
                             </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    @endif
+
+                    @if(session('success'))
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            {{ session('success') }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
                     @endif
@@ -36,25 +43,40 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Password <small class="text-muted">(Leave blank to keep current)</small></label>
-                                <input type="password" class="form-control" name="password">
+                                <div class="input-group">
+                                    <input type="password" class="form-control" name="password" id="password">
+                                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword()">
+                                        <i class="ti ti-eye" id="toggleIcon"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Confirm Password</label>
                                 <input type="password" class="form-control" name="password_confirmation">
                             </div>
+                            
+                            <!-- User Info -->
                             <div class="col-12 mb-3">
-                                <label class="form-label">Role <span class="text-danger">*</span></label>
-                                <select class="form-select" name="role" required>
-                                    <option value="">Select Role</option>
-                                    <option value="user" {{ $user->hasRole('user') ? 'selected' : '' }}>User</option>
-                                    <option value="manager" {{ $user->hasRole('manager') ? 'selected' : '' }}>Manager</option>
-                                    <option value="admin" {{ $user->hasRole('admin') ? 'selected' : '' }}>Admin</option>
-                                </select>
+                                <div class="alert alert-info">
+                                    <h6 class="mb-2"><i class="ti ti-info-circle me-1"></i> User Information</h6>
+                                    <ul class="mb-0">
+                                        <li><strong>Created:</strong> {{ $user->created_at->format('M d, Y H:i') }}</li>
+                                        <li><strong>Last Updated:</strong> {{ $user->updated_at->format('M d, Y H:i') }}</li>
+                                        @if($user->creator)
+                                            <li><strong>Created By:</strong> {{ $user->creator->name }}</li>
+                                        @endif
+                                        @if($user->parentUser)
+                                            <li><strong>Parent Account:</strong> {{ $user->parentUser->name }}</li>
+                                        @endif
+                                    </ul>
+                                </div>
                             </div>
                         </div>
 
                         <div class="text-end">
-                            <a href="{{ route('users.index') }}" class="btn btn-secondary">Cancel</a>
+                            <a href="{{ route('users.index') }}" class="btn btn-secondary">
+                                <i class="ti ti-arrow-left me-1"></i> Cancel
+                            </a>
                             <button type="submit" class="btn btn-primary">
                                 <i class="ti ti-device-floppy me-1"></i> Update User
                             </button>
@@ -66,3 +88,21 @@
     </div>
 @endsection
 
+@section('scripts')
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('toggleIcon');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleIcon.classList.remove('ti-eye');
+        toggleIcon.classList.add('ti-eye-off');
+    } else {
+        passwordInput.type = 'password';
+        toggleIcon.classList.remove('ti-eye-off');
+        toggleIcon.classList.add('ti-eye');
+    }
+}
+</script>
+@endsection
