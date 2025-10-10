@@ -42,8 +42,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
     
     // Dashboard Routes
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
     Route::prefix('dashboard')->name('dashboard.')->group(function () {
-        Route::get('/', [DashboardController::class, 'index'])->name('index');
         Route::get('overview', [DashboardController::class, 'overview'])->name('overview');
         Route::get('analytics', [DashboardController::class, 'analytics'])->name('analytics');
         Route::get('recent-activities', [DashboardController::class, 'recentActivities'])->name('activities');

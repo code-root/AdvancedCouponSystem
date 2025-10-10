@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
@@ -28,8 +29,10 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        // Assign default role
-        $user->assignRole('user');
+        // Assign default role if it exists
+        if (Role::where('name', 'user')->exists()) {
+            $user->assignRole('user');
+        }
 
         $token = $user->createToken('auth_token')->plainTextToken;
 

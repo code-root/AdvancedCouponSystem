@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Spatie\Permission\Models\Role;
 
 class RegisterController extends Controller
 {
@@ -36,12 +37,14 @@ class RegisterController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        // Assign default role
-        $user->assignRole('user');
+        // Assign default role if it exists
+        if (Role::where('name', 'user')->exists()) {
+            $user->assignRole('user');
+        }
 
         Auth::login($user);
 
-        return redirect()->route('dashboard.index');
+        return redirect()->route('dashboard');
     }
 }
 
