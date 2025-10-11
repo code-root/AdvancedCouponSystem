@@ -1,7 +1,7 @@
 @extends('layouts.vertical', ['title' => 'Connect Network'])
 
 @section('css')
-    @vite(['node_modules/select2/dist/css/select2.min.css', 'node_modules/sweetalert2/dist/sweetalert2.min.css'])
+    @vite(['node_modules/sweetalert2/dist/sweetalert2.min.css'])
 @endsection
 
 @section('content')
@@ -44,7 +44,7 @@
                             <!-- Select Network -->
                             <div class="col-12 mb-3">
                                 <label class="form-label">Select Network <span class="text-danger">*</span></label>
-                                <select class="form-select" name="network_id" id="networkSelect" required>
+                                <select class="select2 form-control" name="network_id" id="networkSelect" data-toggle="select2" required>
                                     <option value="">Choose a network...</option>
                                     @foreach($networks as $network)
                                         <option value="{{ $network->id }}" 
@@ -226,11 +226,10 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    // Initialize Select2
-    $('#networkSelect').select2({
-        placeholder: 'Choose a network...',
-        allowClear: true
-    });
+    // Initialize Select2 explicitly
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('[data-toggle="select2"]').select2();
+    }
 
     // Handle network selection
     $('#networkSelect').on('change', function() {

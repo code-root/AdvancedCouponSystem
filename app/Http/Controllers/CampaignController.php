@@ -49,8 +49,31 @@ class CampaignController extends Controller
             ->withCount('purchases')
             ->withSum('purchases as total_revenue', 'revenue');
         
-        // Filter by network
-        if ($request->network_id) {
+        // Filter by network (support multiple)
+        if ($request->has('network_ids')) {
+            $networkIds = $request->input('network_ids');
+            
+            // Handle different formats
+            if (is_string($networkIds)) {
+                $networkIds = str_contains($networkIds, ',') 
+                    ? explode(',', $networkIds) 
+                    : [$networkIds];
+            } elseif (!is_array($networkIds)) {
+                $networkIds = [$networkIds];
+            }
+            
+            // Clean up: remove empty values
+            $networkIds = array_filter($networkIds, function($id) {
+                return !empty($id) && $id !== 'null' && $id !== null && $id !== '';
+            });
+            
+            // Reset array keys
+            $networkIds = array_values($networkIds);
+            
+            if (!empty($networkIds)) {
+                $query->whereIn('network_id', $networkIds);
+            }
+        } elseif ($request->network_id) {
             $query->where('network_id', $request->network_id);
         }
         

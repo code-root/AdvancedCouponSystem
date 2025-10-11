@@ -99,8 +99,36 @@ class ReportController extends Controller
      */
     private function applyReportFilters($query, Request $request)
     {
-        // Filter by network
-        if ($request->network_id) {
+        // Filter by network (support multiple)
+        if ($request->has('network_ids')) {
+            $networkIds = $request->input('network_ids');
+            
+            // Handle different formats
+            if (is_string($networkIds)) {
+                $networkIds = str_contains($networkIds, ',') 
+                    ? explode(',', $networkIds) 
+                    : [$networkIds];
+            } elseif (!is_array($networkIds)) {
+                $networkIds = [$networkIds];
+            }
+            
+            // Clean up
+            $networkIds = array_filter($networkIds, function($id) {
+                return !empty($id) && $id !== 'null' && $id !== null && $id !== '';
+            });
+            
+            $networkIds = array_values($networkIds);
+            
+            if (!empty($networkIds)) {
+                if (method_exists($query->getModel(), 'network')) {
+                    $query->whereIn('network_id', $networkIds);
+                } else {
+                    $query->whereHas('campaign', function($q) use ($networkIds) {
+                        $q->whereIn('network_id', $networkIds);
+                    });
+                }
+            }
+        } elseif ($request->network_id) {
             if (method_exists($query->getModel(), 'network')) {
                 $query->where('network_id', $request->network_id);
             } else {
@@ -110,8 +138,28 @@ class ReportController extends Controller
             }
         }
         
-        // Filter by campaign
-        if ($request->campaign_id) {
+        // Filter by campaign (support multiple)
+        $campaignIds = $request->input('campaign_ids', []);
+        
+        // Ensure it's an array
+        if (!is_array($campaignIds)) {
+            $campaignIds = $campaignIds ? [$campaignIds] : [];
+        }
+        
+        // Clean up
+        $campaignIds = array_filter($campaignIds, function($id) {
+            return !empty($id) && $id !== 'null' && $id !== null && $id !== '';
+        });
+        
+        $campaignIds = array_values($campaignIds);
+        
+        if (!empty($campaignIds)) {
+            if ($query->getModel()->getTable() === 'purchases') {
+                $query->whereIn('campaign_id', $campaignIds);
+            } elseif ($query->getModel()->getTable() === 'coupons') {
+                $query->whereIn('campaign_id', $campaignIds);
+            }
+        } elseif ($request->has('campaign_id')) {
             if ($query->getModel()->getTable() === 'purchases') {
                 $query->where('campaign_id', $request->campaign_id);
             } elseif ($query->getModel()->getTable() === 'coupons') {

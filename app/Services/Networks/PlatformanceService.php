@@ -255,11 +255,17 @@ class PlatformanceService extends BaseNetworkService
                 
                 // If successful, return data
                 if ($performanceData['success']) {
+                    $totalRecords = count($performanceData['data'] ?? []);
+                    
                     return [
                         'success' => true,
-                        'message' => 'Data synced successfully',
+                        'message' => "Successfully synced {$totalRecords} records from Platformance",
                         'data' => [
                             'coupons' => [
+                                'campaigns' => $totalRecords,
+                                'coupons' => $totalRecords,
+                                'purchases' => 0,
+                                'total' => $totalRecords,
                                 'data' => $performanceData['data'],
                             ],
                         ],
@@ -302,11 +308,17 @@ class PlatformanceService extends BaseNetworkService
                 return $performanceData;
             }
             
+            $totalRecords = count($performanceData['data'] ?? []);
+            
             return [
                 'success' => true,
-                'message' => 'Data synced successfully (re-authenticated)',
+                'message' => "Successfully synced {$totalRecords} records from Platformance (re-authenticated)",
                 'data' => [
                     'coupons' => [
+                        'campaigns' => $totalRecords,
+                        'coupons' => $totalRecords,
+                        'purchases' => 0,
+                        'total' => $totalRecords,
                         'data' => $performanceData['data'],
                     ],
                 ],

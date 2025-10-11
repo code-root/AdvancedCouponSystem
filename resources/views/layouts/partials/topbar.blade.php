@@ -56,37 +56,59 @@
                 <div class="dropdown">
                     <button class="topbar-link dropdown-toggle drop-arrow-none" data-bs-toggle="dropdown" data-bs-offset="0,25" type="button" aria-haspopup="false" aria-expanded="false">
                         <i class="ti ti-bell fs-22"></i>
-                        <span class="position-absolute start-100 top-0 translate-middle badge rounded-pill bg-danger">3</span>
+                        @if(auth()->user()->unreadNotifications->count() > 0)
+                        <span class="position-absolute start-100 top-0 translate-middle badge rounded-pill bg-danger" id="notificationBadge">
+                            {{ auth()->user()->unreadNotifications->count() }}
+                        </span>
+                        @endif
                     </button>
                     <div class="dropdown-menu dropdown-menu-end dropdown-menu-lg">
                         <div class="dropdown-header card shadow-none rounded-0">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
-                                    <h6 class="m-0 fw-semibold"> Notification </h6>
-                                    <p class="mb-0 fs-12 fw-medium text-muted">You have <span class="text-danger">3</span> unread notifications</p>
+                                    <h6 class="m-0 fw-semibold">Notifications</h6>
+                                    <p class="mb-0 fs-12 fw-medium text-muted">
+                                        You have <span class="text-danger" id="unreadCount">{{ auth()->user()->unreadNotifications->count() }}</span> unread
+                                    </p>
                                 </div>
                                 <div class="dropdown">
                                     <a href="#" class="dropdown-toggle drop-arrow-none card-drop" data-bs-toggle="dropdown" aria-expanded="false">
                                         <i class="ti ti-dots-vertical"></i>
                                     </a>
                                     <div class="dropdown-menu dropdown-menu-end">
-                                        <a href="javascript:void(0);" class="dropdown-item">Mark as Read</a>
-                                        <a href="javascript:void(0);" class="dropdown-item">Delete All</a>
+                                        <a href="javascript:markAllAsReadTopbar();" class="dropdown-item">Mark All as Read</a>
+                                        <a href="{{ route('notifications.index') }}" class="dropdown-item">View All</a>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="position-relative z-2 card shadow-none rounded-0" style="max-height: 300px;" data-simplebar>
-                            <!-- Notifications will be dynamically loaded here -->
+                        <div class="position-relative z-2 card shadow-none rounded-0" style="max-height: 300px;" data-simplebar id="notificationsList">
+                            @forelse(auth()->user()->unreadNotifications->take(5) as $notification)
+                            <a href="javascript:void(0);" class="dropdown-item notification-item py-3 {{ $notification->read_at ? '' : 'bg-primary-subtle' }}">
+                                <div class="d-flex align-items-start">
+                                    <div class="avatar-sm bg-{{ $notification->data['color'] ?? 'primary' }}-subtle rounded me-2">
+                                        <span class="avatar-title bg-{{ $notification->data['color'] ?? 'primary' }}-subtle text-{{ $notification->data['color'] ?? 'primary' }}">
+                                            <i class="ti {{ $notification->data['icon'] ?? 'ti-bell' }}"></i>
+                                        </span>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1 fs-14">{{ $notification->data['title'] ?? 'Notification' }}</h6>
+                                        <p class="mb-1 fs-13 text-muted">{{ \Illuminate\Support\Str::limit($notification->data['message'] ?? '', 60) }}</p>
+                                        <small class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                                    </div>
+                                </div>
+                            </a>
+                            @empty
                             <div class="text-center py-5">
                                 <i class="ti ti-bell-off fs-48 text-muted"></i>
-                                <p class="text-muted mt-3">No new notifications</p>
+                                <p class="text-muted mt-3 mb-0">No notifications</p>
                             </div>
+                            @endforelse
                         </div>
 
-                        <a href="javascript:void(0);" class="dropdown-item notification-item position-fixed z-2 bottom-0 text-center text-reset text-decoration-underline link-offset-2 fw-bold notify-item border-top border-light py-2">
-                            View All
+                        <a href="{{ route('notifications.index') }}" class="dropdown-item notification-item position-fixed z-2 bottom-0 text-center text-reset text-decoration-underline link-offset-2 fw-bold notify-item border-top border-light py-2">
+                            View All Notifications
                         </a>
                     </div>
                 </div>

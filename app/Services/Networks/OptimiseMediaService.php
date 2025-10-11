@@ -256,11 +256,17 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
             }
 
             // Process and return data
+            $totalRecords = count($responseData);
+            
             return [
                 'success' => true,
-                'message' => 'Data synced successfully from OptimiseMedia',
+                'message' => "Successfully synced {$totalRecords} records from OptimiseMedia",
                 'data' => [
                     'coupons' => [
+                        'campaigns' => $totalRecords,
+                        'coupons' => $totalRecords,
+                        'purchases' => 0,
+                        'total' => $totalRecords,
                         'data' => $responseData
                     ]
                 ]

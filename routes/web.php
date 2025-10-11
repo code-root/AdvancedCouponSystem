@@ -12,6 +12,8 @@ use App\Http\Controllers\CouponController;
 use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\CountryController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SessionController;
+use App\Http\Controllers\NotificationController;
 
 // Public Routes
 Route::get('/', function () {
@@ -105,10 +107,34 @@ Route::middleware(['auth'])->group(function () {
         Route::post('export', [CouponController::class, 'export'])->name('export');
     });
     
+    // Session Management Routes
+    Route::prefix('dashboard/sessions')->name('sessions.')->group(function () {
+        Route::get('/', [SessionController::class, 'index'])->name('index');
+        Route::get('data', [SessionController::class, 'getData'])->name('data');
+        Route::get('statistics', [SessionController::class, 'statistics'])->name('statistics');
+        Route::post('heartbeat', [SessionController::class, 'heartbeat'])->name('heartbeat');
+        Route::get('{session}', [SessionController::class, 'show'])->name('show');
+        Route::delete('{session}', [SessionController::class, 'destroy'])->name('destroy');
+        Route::post('logout-others', [SessionController::class, 'destroyOthers'])->name('logout-others');
+        Route::post('cleanup', [SessionController::class, 'cleanup'])->name('cleanup');
+    });
+    
+    // Notification Routes
+    Route::prefix('dashboard/notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('index');
+        Route::post('{notification}/read', [NotificationController::class, 'markAsRead'])->name('read');
+        Route::post('mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
+        Route::delete('{notification}', [NotificationController::class, 'destroy'])->name('destroy');
+        Route::post('clear-all', [NotificationController::class, 'clearAll'])->name('clear-all');
+        Route::get('unread-count', [NotificationController::class, 'unreadCount'])->name('unread-count');
+    });
+    
     // Purchase Management Routes
     Route::prefix('purchases')->name('purchases.')->group(function () {
         Route::get('/', [PurchaseController::class, 'index'])->name('index');
-        Route::get('statistics', [PurchaseController::class, 'statistics'])->name('statistics');
+        Route::get('statistics', [PurchaseController::class, 'statisticsPage'])->name('statistics');
+        Route::get('statistics-data', [PurchaseController::class, 'statistics'])->name('statistics-data');
+        Route::get('network-comparison', [PurchaseController::class, 'networkComparison'])->name('network-comparison');
         Route::get('create', [PurchaseController::class, 'create'])->name('create');
         Route::post('/', [PurchaseController::class, 'store'])->name('store');
         Route::post('export', [PurchaseController::class, 'export'])->name('export');
@@ -140,6 +166,32 @@ Route::middleware(['auth'])->group(function () {
         Route::get('campaigns', [ReportController::class, 'campaigns'])->name('campaigns');
         Route::get('revenue', [ReportController::class, 'revenue'])->name('revenue');
         Route::get('export/{type}', [ReportController::class, 'export'])->name('export');
+    });
+    
+    // Sync Routes
+    Route::prefix('sync')->name('sync.')->group(function () {
+        // Schedules
+        Route::get('schedules', [\App\Http\Controllers\SyncController::class, 'schedulesIndex'])->name('schedules.index');
+        Route::get('schedules/create', [\App\Http\Controllers\SyncController::class, 'schedulesCreate'])->name('schedules.create');
+        Route::post('schedules', [\App\Http\Controllers\SyncController::class, 'schedulesStore'])->name('schedules.store');
+        Route::get('schedules/{id}/edit', [\App\Http\Controllers\SyncController::class, 'schedulesEdit'])->name('schedules.edit');
+        Route::put('schedules/{id}', [\App\Http\Controllers\SyncController::class, 'schedulesUpdate'])->name('schedules.update');
+        Route::delete('schedules/{id}', [\App\Http\Controllers\SyncController::class, 'schedulesDestroy'])->name('schedules.destroy');
+        Route::post('schedules/{id}/toggle', [\App\Http\Controllers\SyncController::class, 'schedulesToggle'])->name('schedules.toggle');
+        Route::post('schedules/{id}/run', [\App\Http\Controllers\SyncController::class, 'schedulesRunNow'])->name('schedules.run');
+        
+        // Quick Sync
+        Route::get('quick-sync', [\App\Http\Controllers\SyncController::class, 'quickSyncPage'])->name('quick-sync');
+        
+        // Manual Sync
+        Route::post('manual', [\App\Http\Controllers\SyncController::class, 'manualSync'])->name('manual');
+        
+        // Logs
+        Route::get('logs', [\App\Http\Controllers\SyncController::class, 'logsIndex'])->name('logs.index');
+        Route::get('logs/{id}', [\App\Http\Controllers\SyncController::class, 'logsShow'])->name('logs.show');
+        
+        // Settings
+        Route::get('settings', [\App\Http\Controllers\SyncController::class, 'settingsIndex'])->name('settings.index');
     });
     
     // Settings Routes

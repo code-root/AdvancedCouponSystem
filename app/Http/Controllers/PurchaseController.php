@@ -7,6 +7,8 @@ use App\Models\Coupon;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Models\Campaign;
+use App\Helpers\UserHelper;
+use Illuminate\Support\Facades\Log;
 
 class PurchaseController extends Controller
 {
@@ -67,13 +69,53 @@ class PurchaseController extends Controller
      */
     private function applyPurchaseFilters($query, Request $request)
     {
-        // Filter by network
-        if ($request->network_id) {
+        // Filter by network (support multiple)
+        // Laravel converts network_ids[] to network_ids array automatically
+        $networkIds = $request->input('network_ids', []);
+        
+        // Ensure it's an array
+        if (!is_array($networkIds)) {
+            $networkIds = $networkIds ? [$networkIds] : [];
+        }
+        
+        // Clean up: remove empty values
+        $networkIds = array_filter($networkIds, function($id) {
+            return !empty($id) && $id !== 'null' && $id !== null && $id !== '';
+        });
+        
+        // Reset array keys
+        $networkIds = array_values($networkIds);
+        
+        Log::info('Network Filter', [
+            'raw_input' => $request->all(),
+            'network_ids' => $networkIds,
+            'count' => count($networkIds)
+        ]);
+        
+        if (!empty($networkIds)) {
+            $query->whereIn('network_id', $networkIds);
+        } elseif ($request->has('network_id')) {
             $query->where('network_id', $request->network_id);
         }
         
-        // Filter by campaign
-        if ($request->campaign_id) {
+        // Filter by campaign (support multiple)
+        $campaignIds = $request->input('campaign_ids', []);
+        
+        // Ensure it's an array
+        if (!is_array($campaignIds)) {
+            $campaignIds = $campaignIds ? [$campaignIds] : [];
+        }
+        
+        // Clean up
+        $campaignIds = array_filter($campaignIds, function($id) {
+            return !empty($id) && $id !== 'null' && $id !== null && $id !== '';
+        });
+        
+        $campaignIds = array_values($campaignIds);
+        
+        if (!empty($campaignIds)) {
+            $query->whereIn('campaign_id', $campaignIds);
+        } elseif ($request->has('campaign_id')) {
             $query->where('campaign_id', $request->campaign_id);
         }
         
@@ -264,35 +306,105 @@ class PurchaseController extends Controller
 
         return back()->with('success', 'Purchase cancelled successfully');
     }
+    
+    /**
+     * Show statistics page
+     */
+    public function statisticsPage()
+    {
+        return view('dashboard.purchases.statistics');
+    }
 
     /**
-     * Get purchase statistics
+     * Get purchase statistics (API)
      */
-    public function statistics()
+    public function statistics(Request $request)
     {
+        $targetUserId = UserHelper::getTargetUserId();
+        
+        $query = Purchase::where('user_id', $targetUserId);
+        
+        // Apply filters
+        if ($request->filled('date_from')) {
+            $query->where('order_date', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->where('order_date', '<=', $request->date_to);
+        }
+        
+        // Support multiple network IDs
+        if ($request->filled('network_ids')) {
+            $networkIds = is_array($request->network_ids) ? $request->network_ids : [$request->network_ids];
+            if (!empty($networkIds)) {
+                $query->whereIn('network_id', $networkIds);
+            }
+        }
+        
+        // Support multiple campaign IDs
+        if ($request->filled('campaign_ids')) {
+            $campaignIds = is_array($request->campaign_ids) ? $request->campaign_ids : [$request->campaign_ids];
+            if (!empty($campaignIds)) {
+                $query->whereIn('campaign_id', $campaignIds);
+            }
+        }
+        
         $stats = [
-            'total_purchases' => Purchase::count(),
-            'completed_purchases' => Purchase::where('status', 'completed')->count(),
-            'pending_purchases' => Purchase::where('status', 'pending')->count(),
-            'cancelled_purchases' => Purchase::where('status', 'cancelled')->count(),
-            'total_revenue' => Purchase::where('status', 'completed')->sum('final_amount'),
-            'total_discounts' => Purchase::where('status', 'completed')->sum('discount_amount'),
-            'average_purchase' => Purchase::where('status', 'completed')->avg('final_amount'),
-            'daily_stats' => Purchase::selectRaw('DATE(created_at) as date, COUNT(*) as count, SUM(final_amount) as revenue')
-                ->where('status', 'completed')
+            'total_purchases' => (clone $query)->count(),
+            'approved_purchases' => (clone $query)->where('status', 'approved')->count(),
+            'pending_purchases' => (clone $query)->where('status', 'pending')->count(),
+            'rejected_purchases' => (clone $query)->where('status', 'rejected')->count(),
+            'paid_purchases' => (clone $query)->where('status', 'paid')->count(),
+            'total_revenue' => (clone $query)->where('status', 'approved')->sum('revenue'),
+            'total_commission' => (clone $query)->where('status', 'approved')->sum('commission'),
+            'total_order_value' => (clone $query)->where('status', 'approved')->sum('order_value'),
+            'average_purchase' => (clone $query)->where('status', 'approved')->avg('order_value') ?: 0,
+            'average_revenue' => (clone $query)->where('status', 'approved')->avg('revenue') ?: 0,
+            'daily_stats' => (clone $query)->selectRaw('DATE(order_date) as date, COUNT(*) as count, SUM(order_value) as order_value, SUM(revenue) as revenue, SUM(commission) as commission')
+                ->where('status', 'approved')
                 ->groupBy('date')
-                ->latest('date')
+                ->orderBy('date', 'desc')
                 ->limit(30)
                 ->get(),
-            'monthly_stats' => Purchase::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count, SUM(final_amount) as revenue')
-                ->where('status', 'completed')
+            'monthly_stats' => (clone $query)->selectRaw('DATE_FORMAT(order_date, "%Y-%m") as month, COUNT(*) as count, SUM(order_value) as order_value, SUM(revenue) as revenue, SUM(commission) as commission')
+                ->where('status', 'approved')
                 ->groupBy('month')
-                ->latest('month')
+                ->orderBy('month', 'desc')
                 ->limit(12)
                 ->get(),
         ];
 
         return response()->json($stats);
+    }
+    
+    /**
+     * Get network comparison statistics
+     */
+    public function networkComparison()
+    {
+        $targetUserId = UserHelper::getTargetUserId();
+        
+        // Get all connected networks for this user
+        $connectedNetworks = \App\Models\NetworkConnection::where('user_id', $targetUserId)
+            ->where('is_connected', true)
+            ->pluck('network_id');
+        
+        // Get stats for all connected networks (including those with 0 purchases)
+        $networkStats = \App\Models\Network::select('networks.id', 'networks.display_name as network_name')
+            ->selectRaw('COALESCE(COUNT(purchases.id), 0) as count')
+            ->selectRaw('COALESCE(SUM(purchases.order_value), 0) as order_value')
+            ->selectRaw('COALESCE(SUM(purchases.revenue), 0) as revenue')
+            ->selectRaw('COALESCE(SUM(purchases.commission), 0) as commission')
+            ->leftJoin('purchases', function($join) use ($targetUserId) {
+                $join->on('networks.id', '=', 'purchases.network_id')
+                     ->where('purchases.user_id', '=', $targetUserId)
+                     ->where('purchases.status', '=', 'approved');
+            })
+            ->whereIn('networks.id', $connectedNetworks)
+            ->groupBy('networks.id', 'networks.display_name')
+            ->orderByRaw('COALESCE(SUM(purchases.revenue), 0) DESC')
+            ->get();
+        
+        return response()->json($networkStats);
     }
 
     /**

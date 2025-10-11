@@ -65,5 +65,62 @@ class ClickDealerService extends BaseNetworkService
             'data' => null
         ];
     }
+    
+    /**
+     * Sync data from ClickDealer
+     */
+    public function syncData(array $credentials, array $config = []): array
+    {
+        try {
+            $startDate = $config['date_from'] ?? now()->startOfMonth()->format('Y-m-d');
+            $endDate = $config['date_to'] ?? now()->format('Y-m-d');
+            
+            $apiUrl = $credentials['api_endpoint'] ?? $this->defaultConfig['api_url'];
+            $endpoint = "{$apiUrl}/statistics/conversions";
+            
+            $response = $this->makeRequest('get', $endpoint, [
+                'query' => [
+                    'api_token' => $credentials['api_token'],
+                    'affiliate_id' => $credentials['affiliate_id'],
+                    'date_start' => $startDate,
+                    'date_end' => $endDate,
+                ],
+                'headers' => [
+                    'Accept' => 'application/json'
+                ]
+            ]);
+            
+            if ($response['success']) {
+                $data = $response['data']['conversions'] ?? [];
+                
+                return [
+                    'success' => true,
+                    'message' => "Successfully synced data from ClickDealer",
+                    'data' => [
+                        'coupons' => [
+                            'total' => count($data),
+                            'campaigns' => count($data),
+                            'coupons' => count($data),
+                            'purchases' => 0,
+                            'data' => $data
+                        ]
+                    ]
+                ];
+            }
+            
+            return [
+                'success' => false,
+                'message' => 'Failed to sync data from ClickDealer',
+                'data' => []
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Error syncing ClickDealer data: ' . $e->getMessage(),
+                'data' => []
+            ];
+        }
+    }
 }
 

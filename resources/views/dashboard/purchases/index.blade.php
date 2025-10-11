@@ -83,9 +83,8 @@
                         
                         <!-- Network Filter -->
                         <div class="col-md-2">
-                            <label class="form-label">Network</label>
-                            <select class="form-select" id="networkFilter">
-                                <option value="">All Networks</option>
+                            <label class="form-label">Networks</label>
+                            <select class="select2 form-control select2-multiple" id="networkFilter" multiple="multiple" data-toggle="select2" data-placeholder="Choose Networks...">
                                 @foreach($networks as $network)
                                     <option value="{{ $network->id }}">{{ $network->display_name }}</option>
                                 @endforeach
@@ -94,9 +93,8 @@
                         
                         <!-- Campaign Filter -->
                         <div class="col-md-2">
-                            <label class="form-label">Campaign</label>
-                            <select class="form-select" id="campaignFilter">
-                                <option value="">All Campaigns</option>
+                            <label class="form-label">Campaigns</label>
+                            <select class="select2 form-control select2-multiple" id="campaignFilter" multiple="multiple" data-toggle="select2" data-placeholder="Choose Campaigns...">
                                 @foreach($campaigns as $campaign)
                                     <option value="{{ $campaign->id }}">{{ $campaign->name }}</option>
                                 @endforeach
@@ -106,7 +104,7 @@
                         <!-- Status Filter -->
                         <div class="col-md-2">
                             <label class="form-label">Status</label>
-                            <select class="form-select" id="statusFilter">
+                            <select class="select2 form-control" id="statusFilter" data-toggle="select2">
                                 <option value="">All Status</option>
                                 <option value="pending">Pending</option>
                                 <option value="approved">Approved</option>
@@ -118,7 +116,7 @@
                         <!-- Customer Type Filter -->
                         <div class="col-md-2">
                             <label class="form-label">Customer</label>
-                            <select class="form-select" id="customerTypeFilter">
+                            <select class="select2 form-control" id="customerTypeFilter" data-toggle="select2">
                                 <option value="">All Types</option>
                                 <option value="new">New</option>
                                 <option value="returning">Returning</option>
@@ -145,7 +143,7 @@
                         <!-- Per Page -->
                         <div class="col-md-2">
                             <label class="form-label">Per Page</label>
-                            <select class="form-select" id="perPageSelect">
+                            <select class="select2 form-control" id="perPageSelect" data-toggle="select2">
                                 <option value="15">15</option>
                                 <option value="25">25</option>
                                 <option value="50">50</option>
@@ -217,7 +215,13 @@
 let currentPage = 1;
 let filters = {};
 
-document.addEventListener('DOMContentLoaded', function() {
+// Wait for window to fully load (including Vite assets)
+window.addEventListener('load', function() {
+    // Initialize Select2 explicitly
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('[data-toggle="select2"]').select2();
+    }
+    
     // Initialize Flatpickr
     flatpickr("#dateRange", {
         mode: "range",
@@ -252,8 +256,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Per page change
-    document.getElementById('perPageSelect').addEventListener('change', function(e) {
-        filters.per_page = e.target.value;
+    $('#perPageSelect').on('change', function() {
+        filters.per_page = $(this).val();
         loadPurchases(1);
     });
 });
@@ -262,28 +266,50 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadPurchases(page = 1) {
     currentPage = page;
     
-    const params = new URLSearchParams({
-        page: currentPage,
-        ...filters
+    // Prepare params with proper array handling
+    const params = new URLSearchParams();
+    params.append('page', currentPage);
+    
+    // Add filters
+    Object.keys(filters).forEach(key => {
+        const value = filters[key];
+        
+        if (value === null || value === undefined || value === '') {
+            return; // Skip empty values
+        }
+        
+        // Handle arrays (network_ids, campaign_ids)
+        if (Array.isArray(value)) {
+            value.forEach(item => {
+                if (item) {
+                    params.append(key + '[]', item);
+                }
+            });
+        } else {
+            params.append(key, value);
+        }
     });
     
-    fetch(`{{ route('purchases.index') }}?${params}`, {
+    console.log('Sending params:', params.toString());
+    
+    $.ajax({
+        url: '{{ route("purchases.index") }}?' + params.toString(),
+        method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json'
+        },
+        success: function(data) {
+            if (data.success) {
+                renderPurchases(data.data.data);
+                renderPagination(data.data);
+                updateStats(data.stats);
+            }
+        },
+        error: function(error) {
+            console.error('Error:', error);
+            showEmptyState('Error loading purchases');
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderPurchases(data.data.data);
-            renderPagination(data.data);
-            updateStats(data.stats); // Update statistics
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showEmptyState('Error loading purchases');
     });
 }
 
@@ -409,10 +435,13 @@ function getCustomerBadge(type) {
 
 // Apply filters
 function applyFilters() {
-    filters.network_id = document.getElementById('networkFilter').value;
-    filters.campaign_id = document.getElementById('campaignFilter').value;
-    filters.status = document.getElementById('statusFilter').value;
-    filters.customer_type = document.getElementById('customerTypeFilter').value;
+    const networkIds = $('#networkFilter').val() || [];
+    const campaignIds = $('#campaignFilter').val() || [];
+    
+    filters.network_ids = networkIds.length > 0 ? networkIds : null;
+    filters.campaign_ids = campaignIds.length > 0 ? campaignIds : null;
+    filters.status = $('#statusFilter').val();
+    filters.customer_type = $('#customerTypeFilter').val();
     filters.search = document.getElementById('searchInput').value;
     filters.revenue_min = document.getElementById('revenueMin').value;
     filters.revenue_max = document.getElementById('revenueMax').value;
@@ -432,13 +461,13 @@ function resetFilters() {
     };
     
     document.getElementById('searchInput').value = '';
-    document.getElementById('networkFilter').value = '';
-    document.getElementById('campaignFilter').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('customerTypeFilter').value = '';
+    $('#networkFilter').val(null).trigger('change');
+    $('#campaignFilter').val(null).trigger('change');
+    $('#statusFilter').val('').trigger('change');
+    $('#customerTypeFilter').val('').trigger('change');
+    $('#perPageSelect').val('15').trigger('change');
     document.getElementById('revenueMin').value = '';
     document.getElementById('revenueMax').value = '';
-    document.getElementById('perPageSelect').value = '15';
     
     loadPurchases(1);
 }

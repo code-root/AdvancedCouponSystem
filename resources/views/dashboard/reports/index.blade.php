@@ -2,6 +2,92 @@
 
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        /* Fix Select2 display issues */
+        .select2-container--bootstrap-5 .select2-selection--multiple {
+            min-height: 38px;
+            padding: 0 0 0 4px;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+        }
+        
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+            background-color: #0d6efd;
+            border: 1px solid #0d6efd;
+            color: #fff;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            line-height: 1.4;
+            display: inline-block;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+        
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__display {
+            margin-right: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+            color: #fff;
+            margin-right: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove:hover {
+            color: #fff;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Fix dropdown width and text wrapping */
+        .select2-dropdown {
+            min-width: 250px;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .select2-results__option {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding: 8px 12px;
+            font-size: 0.875rem;
+        }
+        
+        .select2-results__option--highlighted {
+            background-color: #0d6efd;
+            color: #fff;
+        }
+        
+        /* Ensure proper spacing for selected items */
+        .select2-selection__rendered {
+            padding: 2px 4px;
+        }
+        
+        /* Fix placeholder styling */
+        .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__placeholder {
+            color: #6c757d;
+            margin: 0;
+            padding: 0;
+        }
+        
+        /* Ensure proper container height */
+        .select2-container {
+            width: 100% !important;
+        }
+    </style>
 @endsection
 
 @section('content')
@@ -15,18 +101,16 @@
                     <form id="filtersForm">
                         <div class="row g-3">
                             <div class="col-lg-3 col-md-6">
-                                <label class="form-label">Network</label>
-                                <select class="form-select" id="networkFilter" onchange="loadCampaignsForNetwork()">
-                                    <option value="">All Networks</option>
+                                <label class="form-label">Networks</label>
+                                <select class="select2 form-control select2-multiple" id="networkFilter" multiple="multiple" data-toggle="select2" data-placeholder="Choose Networks...">
                                     @foreach($networks as $network)
                                         <option value="{{ $network->id }}">{{ $network->display_name }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-lg-3 col-md-6">
-                                <label class="form-label">Campaign</label>
-                                <select class="form-select" id="campaignFilter">
-                                    <option value="">All Campaigns</option>
+                                <label class="form-label">Campaigns</label>
+                                <select class="select2 form-control select2-multiple" id="campaignFilter" multiple="multiple" data-toggle="select2" data-placeholder="Choose Campaigns...">
                                     @foreach($campaigns as $campaign)
                                         <option value="{{ $campaign->id }}" data-network="{{ $campaign->network_id }}">{{ $campaign->name }}</option>
                                     @endforeach
@@ -175,35 +259,32 @@ let revenueChart = null;
 const allCampaigns = @json($campaigns);
 
 // Load reports on page load
-document.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('load', function() {
+    // Initialize Select2 explicitly
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('[data-toggle="select2"]').select2();
+    }
+    
+    // Add event listeners for filter changes
+    $('#networkFilter').on('change', function() {
+        applyFilters();
+    });
+    
+    $('#campaignFilter').on('change', function() {
+        applyFilters();
+    });
+    
     loadReports();
 });
 
-// Load campaigns based on selected network
-function loadCampaignsForNetwork() {
-    const networkId = document.getElementById('networkFilter').value;
-    const campaignSelect = document.getElementById('campaignFilter');
-    
-    // Clear existing options
-    campaignSelect.innerHTML = '<option value="">All Campaigns</option>';
-    
-    // Filter and add campaigns
-    allCampaigns.forEach(campaign => {
-        if (!networkId || campaign.network_id == networkId) {
-            const option = document.createElement('option');
-            option.value = campaign.id;
-            option.textContent = campaign.name;
-            option.setAttribute('data-network', campaign.network_id);
-            campaignSelect.appendChild(option);
-        }
-    });
-}
-
 // Apply filters
 function applyFilters() {
+    const networkIds = $('#networkFilter').val() || [];
+    const campaignIds = $('#campaignFilter').val() || [];
+    
     filters = {
-        network_id: document.getElementById('networkFilter').value,
-        campaign_id: document.getElementById('campaignFilter').value,
+        network_ids: networkIds.length > 0 ? networkIds : null,
+        campaign_ids: campaignIds.length > 0 ? campaignIds : null,
     };
     
     // Get date range
@@ -220,8 +301,8 @@ function applyFilters() {
 // Reset filters
 function resetFilters() {
     filters = {};
-    document.getElementById('networkFilter').value = '';
-    document.getElementById('campaignFilter').value = '';
+    $('#networkFilter').val(null).trigger('change');
+    $('#campaignFilter').val(null).trigger('change');
     document.getElementById('dateRange').value = '';
     
     loadReports();
@@ -229,25 +310,47 @@ function resetFilters() {
 
 // Load reports data
 function loadReports() {
-    const params = new URLSearchParams(filters);
+    // Prepare params with proper array handling
+    const params = new URLSearchParams();
     
-    fetch(`{{ route('reports.index') }}?${params}`, {
+    // Add filters
+    Object.keys(filters).forEach(key => {
+        const value = filters[key];
+        
+        if (value === null || value === undefined || value === '') {
+            return;
+        }
+        
+        // Handle arrays
+        if (Array.isArray(value)) {
+            value.forEach(item => {
+                if (item) {
+                    params.append(key + '[]', item);
+                }
+            });
+        } else {
+            params.append(key, value);
+        }
+    });
+    
+    $.ajax({
+        url: '{{ route("reports.index") }}?' + params.toString(),
+        method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json'
+        },
+        success: function(data) {
+            if (data.success) {
+                updateStats(data.stats);
+                renderRevenueChart(data.stats.daily_revenue);
+                renderTopCampaigns(data.stats.top_campaigns);
+                renderTopNetworks(data.stats.by_network);
+            }
+        },
+        error: function(error) {
+            console.error('Error loading reports:', error);
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateStats(data.stats);
-            renderRevenueChart(data.stats.daily_revenue);
-            renderTopCampaigns(data.stats.top_campaigns);
-            renderTopNetworks(data.stats.by_network);
-        }
-    })
-    .catch(error => {
-        console.error('Error loading reports:', error);
     });
 }
 

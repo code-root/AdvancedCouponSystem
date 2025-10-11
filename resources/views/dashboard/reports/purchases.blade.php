@@ -15,7 +15,7 @@
                     <div class="row g-3">
                         <div class="col-lg-4 col-md-6">
                             <label class="form-label">Network</label>
-                            <select class="form-select" id="networkFilter">
+                            <select class="select2 form-control" id="networkFilter" data-toggle="select2">
                                 <option value="">All Networks</option>
                                 @foreach($networks as $network)
                                     <option value="{{ $network->id }}">{{ $network->display_name }}</option>
@@ -24,7 +24,7 @@
                         </div>
                         <div class="col-lg-4 col-md-6">
                             <label class="form-label">Campaign</label>
-                            <select class="form-select" id="campaignFilter">
+                            <select class="select2 form-control" id="campaignFilter" data-toggle="select2">
                                 <option value="">All Campaigns</option>
                                 @foreach($campaigns as $campaign)
                                     <option value="{{ $campaign->id }}">{{ $campaign->name }}</option>
@@ -140,13 +140,18 @@ let dailyChart = null;
 let statusChart = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Select2 explicitly
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('[data-toggle="select2"]').select2();
+    }
+    
     loadReport();
 });
 
 function applyFilters() {
     filters = {
-        network_id: document.getElementById('networkFilter').value,
-        campaign_id: document.getElementById('campaignFilter').value,
+        network_id: $('#networkFilter').val(),
+        campaign_id: $('#campaignFilter').val(),
     };
     
     const dateRange = document.getElementById('dateRange').value;
@@ -161,8 +166,8 @@ function applyFilters() {
 
 function resetFilters() {
     filters = {};
-    document.getElementById('networkFilter').value = '';
-    document.getElementById('campaignFilter').value = '';
+    $('#networkFilter').val('').trigger('change');
+    $('#campaignFilter').val('').trigger('change');
     document.getElementById('dateRange').value = '';
     loadReport();
 }

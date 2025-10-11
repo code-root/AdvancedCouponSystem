@@ -54,35 +54,51 @@ class DashboardController extends Controller
         
         $dateRange = $this->getDateRange($request);
         
+        // Get network IDs from request (support multiple)
+        $networkIds = $request->input('network_ids', []);
+        
+        // Ensure it's an array
+        if (!is_array($networkIds)) {
+            $networkIds = $networkIds ? [$networkIds] : [];
+        }
+        
+        // Clean up
+        $networkIds = array_filter($networkIds, function($id) {
+            return !empty($id) && $id !== 'null' && $id !== null && $id !== '';
+        });
+        
+        $networkIds = array_values($networkIds);
+        $networkIds = !empty($networkIds) ? $networkIds : null;
+        
         // Main statistics
         $stats = [
             // Overview stats
-            'total_revenue' => $this->getTotalRevenue($userId, $dateRange, $request->network_id),
-            'total_commission' => $this->getTotalCommission($userId, $dateRange, $request->network_id),
-            'total_purchases' => $this->getTotalPurchases($userId, $dateRange, $request->network_id),
-            'total_campaigns' => $this->getTotalCampaigns($userId, $request->network_id),
-            'total_coupons' => $this->getTotalCoupons($userId, $request->network_id),
+            'total_revenue' => $this->getTotalRevenue($userId, $dateRange, $networkIds),
+            'total_commission' => $this->getTotalCommission($userId, $dateRange, $networkIds),
+            'total_purchases' => $this->getTotalPurchases($userId, $dateRange, $networkIds),
+            'total_campaigns' => $this->getTotalCampaigns($userId, $networkIds),
+            'total_coupons' => $this->getTotalCoupons($userId, $networkIds),
             'active_networks' => $user->networkConnections()->where('is_connected', true)->count(),
             
             // Comparison with previous period
-            'revenue_growth' => $this->getGrowthPercentage($userId, 'revenue', $dateRange, $request->network_id),
-            'purchases_growth' => $this->getGrowthPercentage($userId, 'purchases', $dateRange, $request->network_id),
+            'revenue_growth' => $this->getGrowthPercentage($userId, 'revenue', $dateRange, $networkIds),
+            'purchases_growth' => $this->getGrowthPercentage($userId, 'purchases', $dateRange, $networkIds),
             
             // Network comparison
             'network_comparison' => $this->getNetworkComparison($userId, $dateRange),
             
             // Daily revenue trend
-            'daily_revenue' => $this->getDailyRevenue($userId, $dateRange, $request->network_id),
+            'daily_revenue' => $this->getDailyRevenue($userId, $dateRange, $networkIds),
             
             // Top performers
-            'top_campaigns' => $this->getTopCampaigns($userId, $dateRange, $request->network_id),
+            'top_campaigns' => $this->getTopCampaigns($userId, $dateRange, $networkIds),
             'top_networks' => $this->getTopNetworks($userId, $dateRange),
             
             // Recent activities
-            'recent_purchases' => $this->getRecentPurchases($userId, $request->network_id),
+            'recent_purchases' => $this->getRecentPurchases($userId, $networkIds),
             
             // Status breakdown
-            'purchase_status' => $this->getPurchaseStatusBreakdown($userId, $dateRange, $request->network_id),
+            'purchase_status' => $this->getPurchaseStatusBreakdown($userId, $dateRange, $networkIds),
         ];
         
         return response()->json([
@@ -124,13 +140,13 @@ class DashboardController extends Controller
     /**
      * Get total revenue
      */
-    private function getTotalRevenue($userId, $dateRange, $networkId = null)
+    private function getTotalRevenue($userId, $dateRange, $networkIds = null)
     {
         $query = Purchase::where('user_id', $userId)
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']]);
         
-        if ($networkId) {
-            $query->where('network_id', $networkId);
+        if ($networkIds) {
+            $query->whereIn('network_id', $networkIds);
         }
         
         return $query->sum('revenue');
@@ -139,13 +155,13 @@ class DashboardController extends Controller
     /**
      * Get total commission
      */
-    private function getTotalCommission($userId, $dateRange, $networkId = null)
+    private function getTotalCommission($userId, $dateRange, $networkIds = null)
     {
         $query = Purchase::where('user_id', $userId)
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']]);
         
-        if ($networkId) {
-            $query->where('network_id', $networkId);
+        if ($networkIds) {
+            $query->whereIn('network_id', $networkIds);
         }
         
         return $query->sum('commission');
@@ -154,13 +170,13 @@ class DashboardController extends Controller
     /**
      * Get total purchases
      */
-    private function getTotalPurchases($userId, $dateRange, $networkId = null)
+    private function getTotalPurchases($userId, $dateRange, $networkIds = null)
     {
         $query = Purchase::where('user_id', $userId)
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']]);
         
-        if ($networkId) {
-            $query->where('network_id', $networkId);
+        if ($networkIds) {
+            $query->whereIn('network_id', $networkIds);
         }
         
         return $query->count();
@@ -169,12 +185,12 @@ class DashboardController extends Controller
     /**
      * Get total campaigns
      */
-    private function getTotalCampaigns($userId, $networkId = null)
+    private function getTotalCampaigns($userId, $networkIds = null)
     {
         $query = Campaign::where('user_id', $userId);
         
-        if ($networkId) {
-            $query->where('network_id', $networkId);
+        if ($networkIds) {
+            $query->whereIn('network_id', $networkIds);
         }
         
         return $query->count();
@@ -183,12 +199,12 @@ class DashboardController extends Controller
     /**
      * Get total coupons
      */
-    private function getTotalCoupons($userId, $networkId = null)
+    private function getTotalCoupons($userId, $networkIds = null)
     {
-        $query = Coupon::whereHas('campaign', function($q) use ($userId, $networkId) {
+        $query = Coupon::whereHas('campaign', function($q) use ($userId, $networkIds) {
             $q->where('user_id', $userId);
-            if ($networkId) {
-                $q->where('network_id', $networkId);
+            if ($networkIds) {
+                $q->whereIn('network_id', $networkIds);
             }
         });
         
@@ -198,7 +214,7 @@ class DashboardController extends Controller
     /**
      * Get growth percentage compared to previous period
      */
-    private function getGrowthPercentage($userId, $metric, $dateRange, $networkId = null)
+    private function getGrowthPercentage($userId, $metric, $dateRange, $networkIds = null)
     {
         $from = Carbon::parse($dateRange['from']);
         $to = Carbon::parse($dateRange['to']);
@@ -208,8 +224,8 @@ class DashboardController extends Controller
         $previousTo = $from->copy()->subDay();
         
         $query = Purchase::where('user_id', $userId);
-        if ($networkId) {
-            $query->where('network_id', $networkId);
+        if ($networkIds) {
+            $query->whereIn('network_id', $networkIds);
         }
         
         if ($metric === 'revenue') {
@@ -248,7 +264,7 @@ class DashboardController extends Controller
     /**
      * Get daily revenue
      */
-    private function getDailyRevenue($userId, $dateRange, $networkId = null)
+    private function getDailyRevenue($userId, $dateRange, $networkIds = null)
     {
         $query = Purchase::where('user_id', $userId)
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
@@ -258,8 +274,8 @@ class DashboardController extends Controller
             ->groupBy('date')
             ->orderBy('date', 'asc');
         
-        if ($networkId) {
-            $query->where('network_id', $networkId);
+        if ($networkIds) {
+            $query->whereIn('network_id', $networkIds);
         }
         
         return $query->get();
@@ -268,7 +284,7 @@ class DashboardController extends Controller
     /**
      * Get top campaigns
      */
-    private function getTopCampaigns($userId, $dateRange, $networkId = null)
+    private function getTopCampaigns($userId, $dateRange, $networkIds = null)
     {
         $query = Purchase::where('user_id', $userId)
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
@@ -278,8 +294,8 @@ class DashboardController extends Controller
             ->with('campaign:id,name,network_id')
             ->groupBy('campaign_id');
         
-        if ($networkId) {
-            $query->where('network_id', $networkId);
+        if ($networkIds) {
+            $query->whereIn('network_id', $networkIds);
         }
         
         return $query->orderByDesc('total_revenue')->limit(10)->get();
@@ -306,14 +322,14 @@ class DashboardController extends Controller
     /**
      * Get recent purchases
      */
-    private function getRecentPurchases($userId, $networkId = null)
+    private function getRecentPurchases($userId, $networkIds = null)
     {
         $query = Purchase::where('user_id', $userId)
             ->with(['coupon', 'campaign', 'network'])
             ->latest('order_date');
         
-        if ($networkId) {
-            $query->where('network_id', $networkId);
+        if ($networkIds) {
+            $query->whereIn('network_id', $networkIds);
         }
         
         return $query->limit(10)->get();
@@ -322,7 +338,7 @@ class DashboardController extends Controller
     /**
      * Get purchase status breakdown
      */
-    private function getPurchaseStatusBreakdown($userId, $dateRange, $networkId = null)
+    private function getPurchaseStatusBreakdown($userId, $dateRange, $networkIds = null)
     {
         $query = Purchase::where('user_id', $userId)
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
@@ -331,8 +347,8 @@ class DashboardController extends Controller
                 DB::raw('SUM(revenue) as revenue'))
             ->groupBy('status');
         
-        if ($networkId) {
-            $query->where('network_id', $networkId);
+        if ($networkIds) {
+            $query->whereIn('network_id', $networkIds);
         }
         
         return $query->get();

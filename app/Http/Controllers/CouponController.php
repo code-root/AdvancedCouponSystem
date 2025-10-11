@@ -38,13 +38,59 @@ class CouponController extends Controller
             })
             ->with(['campaign.network']);
         
-        // Filter by campaign
-        if ($request->campaign_id) {
+        // Filter by campaign (support multiple)
+        if ($request->has('campaign_ids')) {
+            $campaignIds = $request->input('campaign_ids');
+            
+            // Handle different formats
+            if (is_string($campaignIds)) {
+                $campaignIds = str_contains($campaignIds, ',') 
+                    ? explode(',', $campaignIds) 
+                    : [$campaignIds];
+            } elseif (!is_array($campaignIds)) {
+                $campaignIds = [$campaignIds];
+            }
+            
+            // Clean up
+            $campaignIds = array_filter($campaignIds, function($id) {
+                return !empty($id) && $id !== 'null' && $id !== null && $id !== '';
+            });
+            
+            $campaignIds = array_values($campaignIds);
+            
+            if (!empty($campaignIds)) {
+                $query->whereIn('campaign_id', $campaignIds);
+            }
+        } elseif ($request->campaign_id) {
             $query->where('campaign_id', $request->campaign_id);
         }
         
-        // Filter by network
-        if ($request->network_id) {
+        // Filter by network (support multiple)
+        if ($request->has('network_ids')) {
+            $networkIds = $request->input('network_ids');
+            
+            // Handle different formats
+            if (is_string($networkIds)) {
+                $networkIds = str_contains($networkIds, ',') 
+                    ? explode(',', $networkIds) 
+                    : [$networkIds];
+            } elseif (!is_array($networkIds)) {
+                $networkIds = [$networkIds];
+            }
+            
+            // Clean up
+            $networkIds = array_filter($networkIds, function($id) {
+                return !empty($id) && $id !== 'null' && $id !== null && $id !== '';
+            });
+            
+            $networkIds = array_values($networkIds);
+            
+            if (!empty($networkIds)) {
+                $query->whereHas('campaign', function($q) use ($networkIds) {
+                    $q->whereIn('network_id', $networkIds);
+                });
+            }
+        } elseif ($request->network_id) {
             $query->whereHas('campaign', function($q) use ($request) {
                 $q->where('network_id', $request->network_id);
             });

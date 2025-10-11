@@ -138,6 +138,39 @@
 
             <li class="side-nav-title mt-2">Configuration</li>
 
+            <!-- Data Sync Section -->
+            <li class="side-nav-item">
+                <a data-bs-toggle="collapse" href="#sidebarSync" aria-expanded="false" aria-controls="sidebarSync" class="side-nav-link {{ request()->is('sync*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-refresh"></i></span>
+                    <span class="menu-text"> Data Sync </span>
+                    <span class="menu-arrow"></span>
+                </a>
+                <div class="collapse {{ request()->is('sync*') ? 'show' : '' }}" id="sidebarSync">
+                    <ul class="sub-menu">
+                        <li class="side-nav-item">
+                            <a href="{{ route('sync.quick-sync') }}" class="side-nav-link {{ request()->routeIs('sync.quick-sync') ? 'active' : '' }}">
+                                <span class="menu-text">Quick Sync</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('sync.schedules.index') }}" class="side-nav-link {{ request()->routeIs('sync.schedules.*') ? 'active' : '' }}">
+                                <span class="menu-text">Schedules</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('sync.logs.index') }}" class="side-nav-link {{ request()->routeIs('sync.logs.*') ? 'active' : '' }}">
+                                <span class="menu-text">Sync Logs</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('sync.settings.index') }}" class="side-nav-link {{ request()->routeIs('sync.settings.*') ? 'active' : '' }}">
+                                <span class="menu-text">Settings</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
             <!-- Countries Section -->
             <li class="side-nav-item">
                 <a href="{{ route('countries.index') }}" class="side-nav-link {{ request()->is('countries*') ? 'active' : '' }}">
@@ -191,6 +224,28 @@
                 <a href="{{ route('users.index') }}" class="side-nav-link {{ request()->is('users*') ? 'active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-users"></i></span>
                     <span class="menu-text"> Users </span>
+                </a>
+            </li>
+
+            <!-- Login Sessions -->
+            <li class="side-nav-item">
+                <a href="{{ route('sessions.index') }}" class="side-nav-link {{ request()->is('dashboard/sessions*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-device-desktop-analytics"></i></span>
+                    <span class="menu-text"> Login Sessions </span>
+                    @if(auth()->check() && auth()->user()->sessions()->active()->count() > 1)
+                    <span class="badge bg-success rounded-pill ms-auto">{{ auth()->user()->sessions()->active()->count() }}</span>
+                    @endif
+                </a>
+            </li>
+            
+            <!-- Notifications -->
+            <li class="side-nav-item">
+                <a href="{{ route('notifications.index') }}" class="side-nav-link {{ request()->is('dashboard/notifications*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-bell"></i></span>
+                    <span class="menu-text"> Notifications </span>
+                    @if(auth()->check() && auth()->user()->unreadNotifications->count() > 0)
+                    <span class="badge bg-danger rounded-pill ms-auto">{{ auth()->user()->unreadNotifications->count() }}</span>
+                    @endif
                 </a>
             </li>
 

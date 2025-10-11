@@ -15,7 +15,7 @@
                     <div class="row g-3">
                         <div class="col-lg-6 col-md-6">
                             <label class="form-label">Network</label>
-                            <select class="form-select" id="networkFilter">
+                            <select class="select2 form-control" id="networkFilter" data-toggle="select2">
                                 <option value="">All Networks</option>
                                 @foreach($networks as $network)
                                     <option value="{{ $network->id }}">{{ $network->display_name }}</option>
@@ -115,12 +115,17 @@ let performanceChart = null;
 let typeChart = null;
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Select2 explicitly
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('[data-toggle="select2"]').select2();
+    }
+    
     loadReport();
 });
 
 function applyFilters() {
     filters = {
-        network_id: document.getElementById('networkFilter').value,
+        network_id: $('#networkFilter').val(),
     };
     
     const dateRange = document.getElementById('dateRange').value;
@@ -135,7 +140,7 @@ function applyFilters() {
 
 function resetFilters() {
     filters = {};
-    document.getElementById('networkFilter').value = '';
+    $('#networkFilter').val('').trigger('change');
     document.getElementById('dateRange').value = '';
     loadReport();
 }

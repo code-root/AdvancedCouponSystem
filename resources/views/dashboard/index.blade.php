@@ -15,8 +15,7 @@
             <div class="mt-3 mt-sm-0">
                 <div class="row g-2 mb-0 align-items-center">
                     <div class="col-auto">
-                        <select class="form-select" id="networkFilter" onchange="loadDashboard()">
-                            <option value="">All Networks</option>
+                        <select class="select2 form-control select2-multiple" id="networkFilter" multiple="multiple" style="min-width: 200px;" data-toggle="select2" data-placeholder="Choose Networks...">
                             @foreach($networks as $network)
                                 <option value="{{ $network->id }}">{{ $network->display_name }}</option>
                             @endforeach
@@ -244,13 +243,25 @@ let revenueChart = null;
 let statusChart = null;
 let networkComparisonChart = null;
 
-document.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('load', function() {
+    // Initialize Select2 explicitly
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('[data-toggle="select2"]').select2();
+    }
+    
+    // Add change event listener after initialization
+    $('#networkFilter').on('change', function() {
+        loadDashboard();
+    });
+    
     loadDashboard();
 });
 
 function loadDashboard() {
+    const networkIds = $('#networkFilter').val() || [];
+    
     filters = {
-        network_id: document.getElementById('networkFilter').value,
+        network_ids: networkIds.length > 0 ? networkIds : null,
     };
     
     const dateRange = document.getElementById('dateRange').value;
@@ -260,24 +271,47 @@ function loadDashboard() {
         filters.date_to = dates[1] || dates[0];
     }
     
-    const params = new URLSearchParams(filters);
+    // Prepare params with proper array handling
+    const params = new URLSearchParams();
     
-    fetch(`{{ route('dashboard') }}?${params}`, {
+    Object.keys(filters).forEach(key => {
+        const value = filters[key];
+        
+        if (value === null || value === undefined || value === '') {
+            return;
+        }
+        
+        // Handle arrays
+        if (Array.isArray(value)) {
+            value.forEach(item => {
+                if (item) {
+                    params.append(key + '[]', item);
+                }
+            });
+        } else {
+            params.append(key, value);
+        }
+    });
+    
+    $.ajax({
+        url: '{{ route("dashboard") }}?' + params.toString(),
+        method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json'
+        },
+        success: function(data) {
+            if (data.success) {
+                updateStats(data.stats);
+                renderCharts(data.stats);
+                renderTables(data.stats);
+                renderRecentPurchases(data.stats.recent_purchases);
+            }
+        },
+        error: function(error) {
+            console.error('Error:', error);
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateStats(data.stats);
-            renderCharts(data.stats);
-            renderTables(data.stats);
-            renderRecentPurchases(data.stats.recent_purchases);
-        }
-    })
-    .catch(error => console.error('Error:', error));
+    });
 }
 
 function updateStats(stats) {

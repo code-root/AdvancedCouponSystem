@@ -83,9 +83,8 @@
                         
                         <!-- Network Filter -->
                         <div class="col-md-2">
-                            <label class="form-label">Network</label>
-                            <select class="form-select" id="networkFilter">
-                                <option value="">All Networks</option>
+                            <label class="form-label">Networks</label>
+                            <select class="select2 form-control select2-multiple" id="networkFilter" multiple="multiple" data-toggle="select2" data-placeholder="Choose Networks...">
                                 @foreach($networks as $network)
                                     <option value="{{ $network->id }}">{{ $network->display_name }}</option>
                                 @endforeach
@@ -95,7 +94,7 @@
                         <!-- Status Filter -->
                         <div class="col-md-2">
                             <label class="form-label">Status</label>
-                            <select class="form-select" id="statusFilter">
+                            <select class="select2 form-control" id="statusFilter" data-toggle="select2">
                                 <option value="">All Status</option>
                                 <option value="active">Active</option>
                                 <option value="paused">Paused</option>
@@ -106,7 +105,7 @@
                         <!-- Campaign Type Filter -->
                         <div class="col-md-2">
                             <label class="form-label">Type</label>
-                            <select class="form-select" id="typeFilter">
+                            <select class="select2 form-control" id="typeFilter" data-toggle="select2">
                                 <option value="">All Types</option>
                                 <option value="coupon">Coupon</option>
                                 <option value="link">Link</option>
@@ -182,7 +181,12 @@
 let currentPage = 1;
 let filters = {};
 
-document.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('load', function() {
+    // Initialize Select2 explicitly
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('[data-toggle="select2"]').select2();
+    }
+    
     // Initialize Flatpickr for date range
     flatpickr("#dateRange", {
         mode: "range",
@@ -213,28 +217,48 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadCampaigns(page = 1) {
     currentPage = page;
     
-    const params = new URLSearchParams({
-        page: currentPage,
-        ...filters
+    // Prepare params with proper array handling
+    const params = new URLSearchParams();
+    params.append('page', currentPage);
+    
+    // Add filters
+    Object.keys(filters).forEach(key => {
+        const value = filters[key];
+        
+        if (value === null || value === undefined || value === '') {
+            return;
+        }
+        
+        // Handle arrays
+        if (Array.isArray(value)) {
+            value.forEach(item => {
+                if (item) {
+                    params.append(key + '[]', item);
+                }
+            });
+        } else {
+            params.append(key, value);
+        }
     });
     
-    fetch(`{{ route('campaigns.index') }}?${params}`, {
+    $.ajax({
+        url: '{{ route("campaigns.index") }}?' + params.toString(),
+        method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json'
+        },
+        success: function(data) {
+            if (data.success) {
+                renderCampaigns(data.data.data);
+                renderPagination(data.data);
+                updateStats(data.stats);
+            }
+        },
+        error: function(error) {
+            console.error('Error loading campaigns:', error);
+            showEmptyState('Error loading campaigns');
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderCampaigns(data.data.data);
-            renderPagination(data.data);
-            updateStats(data.stats); // Update statistics
-        }
-    })
-    .catch(error => {
-        console.error('Error loading campaigns:', error);
-        showEmptyState('Error loading campaigns');
     });
 }
 
@@ -363,9 +387,10 @@ function getTypeBadge(type) {
 
 // Apply filters
 function applyFilters() {
-    filters.network_id = document.getElementById('networkFilter').value;
-    filters.status = document.getElementById('statusFilter').value;
-    filters.campaign_type = document.getElementById('typeFilter').value;
+    const networkIds = $('#networkFilter').val() || [];
+    filters.network_ids = networkIds.length > 0 ? networkIds : null;
+    filters.status = $('#statusFilter').val();
+    filters.campaign_type = $('#typeFilter').val();
     filters.search = document.getElementById('searchInput').value;
     
     loadCampaigns(1);
@@ -375,9 +400,9 @@ function applyFilters() {
 function resetFilters() {
     filters = {};
     document.getElementById('searchInput').value = '';
-    document.getElementById('networkFilter').value = '';
-    document.getElementById('statusFilter').value = '';
-    document.getElementById('typeFilter').value = '';
+    $('#networkFilter').val(null).trigger('change');
+    $('#statusFilter').val('').trigger('change');
+    $('#typeFilter').val('').trigger('change');
     document.getElementById('dateRange').value = '';
     
     loadCampaigns(1);

@@ -213,11 +213,17 @@ class DigizagService extends BaseNetworkService
         $totalRecords = ($results['coupons']['total'] ?? 0) + ($results['links']['total'] ?? 0);
         
         if ($results['coupons']['success'] || $results['links']['success']) {
+            $couponTotal = $results['coupons']['total'] ?? 0;
+            $linkTotal = $results['links']['total'] ?? 0;
+            
             return [
                 'success' => true,
                 'message' => "Successfully synced {$totalRecords} records from Digizag",
                 'data' => [
                     'coupons' => [
+                        'campaigns' => $couponTotal + $linkTotal,
+                        'coupons' => $couponTotal + $linkTotal,
+                        'purchases' => 0,
                         'total' => $results['coupons']['total'] ?? 0,
                         'data' => $results['coupons']['data'] ?? []
                     ],

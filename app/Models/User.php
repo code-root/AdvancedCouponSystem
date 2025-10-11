@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -158,5 +159,21 @@ class User extends Authenticatable
     public function getMainParent()
     {
         return $this->parent_user_id ? User::find($this->parent_user_id) : $this;
+    }
+    
+    /**
+     * Get all sessions for this user
+     */
+    public function sessions()
+    {
+        return $this->hasMany(\App\Models\UserSession::class);
+    }
+    
+    /**
+     * Get active sessions
+     */
+    public function activeSessions()
+    {
+        return $this->sessions()->where('is_active', true);
     }
 }

@@ -26,11 +26,11 @@
                             </div>
                             <div class="col-4">
                                 <p class="text-muted mb-1">Campaigns</p>
-                                <h4 class="mb-0">0</h4>
+                                <h4 class="mb-0">{{ auth()->user()->campaigns()->count() }}</h4>
                             </div>
                             <div class="col-4">
                                 <p class="text-muted mb-1">Coupons</p>
-                                <h4 class="mb-0">0</h4>
+                                <h4 class="mb-0">{{ auth()->user()->coupons()->count() }}</h4>
                             </div>
                         </div>
                     </div>

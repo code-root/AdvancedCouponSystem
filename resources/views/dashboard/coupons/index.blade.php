@@ -67,9 +67,8 @@
                         
                         <!-- Network Filter -->
                         <div class="col-md-2">
-                            <label class="form-label">Network</label>
-                            <select class="form-select" id="networkFilter">
-                                <option value="">All Networks</option>
+                            <label class="form-label">Networks</label>
+                            <select class="select2 form-control select2-multiple" id="networkFilter" multiple="multiple" data-toggle="select2" data-placeholder="Choose Networks...">
                                 @foreach($networks as $network)
                                     <option value="{{ $network->id }}">{{ $network->display_name }}</option>
                                 @endforeach
@@ -78,9 +77,8 @@
                         
                         <!-- Campaign Filter -->
                         <div class="col-md-3">
-                            <label class="form-label">Campaign</label>
-                            <select class="form-select" id="campaignFilter">
-                                <option value="">All Campaigns</option>
+                            <label class="form-label">Campaigns</label>
+                            <select class="select2 form-control select2-multiple" id="campaignFilter" multiple="multiple" data-toggle="select2" data-placeholder="Choose Campaigns...">
                                 @foreach($campaigns as $campaign)
                                     <option value="{{ $campaign->id }}">{{ $campaign->name }}</option>
                                 @endforeach
@@ -90,7 +88,7 @@
                         <!-- Status Filter -->
                         <div class="col-md-2">
                             <label class="form-label">Status</label>
-                            <select class="form-select" id="statusFilter">
+                            <select class="select2 form-control" id="statusFilter" data-toggle="select2">
                                 <option value="">All Status</option>
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
@@ -164,7 +162,12 @@
 let currentPage = 1;
 let filters = {};
 
-document.addEventListener('DOMContentLoaded', function() {
+window.addEventListener('load', function() {
+    // Initialize Select2 explicitly
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('[data-toggle="select2"]').select2();
+    }
+    
     // Initialize Flatpickr
     flatpickr("#dateRange", {
         mode: "range",
@@ -192,23 +195,50 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function loadCoupons(page = 1) {
     currentPage = page;
-    const params = new URLSearchParams({ page: currentPage, ...filters });
     
-    fetch(`{{ route('coupons.index') }}?${params}`, {
+    // Prepare params with proper array handling
+    const params = new URLSearchParams();
+    params.append('page', currentPage);
+    
+    // Add filters
+    Object.keys(filters).forEach(key => {
+        const value = filters[key];
+        
+        if (value === null || value === undefined || value === '') {
+            return;
+        }
+        
+        // Handle arrays
+        if (Array.isArray(value)) {
+            value.forEach(item => {
+                if (item) {
+                    params.append(key + '[]', item);
+                }
+            });
+        } else {
+            params.append(key, value);
+        }
+    });
+    
+    $.ajax({
+        url: '{{ route("coupons.index") }}?' + params.toString(),
+        method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'Accept': 'application/json'
+        },
+        success: function(data) {
+            if (data.success) {
+                renderCoupons(data.data.data);
+                renderPagination(data.data);
+                updateStats(data.stats);
+            }
+        },
+        error: function(error) {
+            console.error('Error:', error);
+            showEmptyState('Error loading coupons');
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            renderCoupons(data.data.data);
-            renderPagination(data.data);
-            updateStats(data.stats); // Update statistics
-        }
-    })
-    .catch(error => showEmptyState('Error loading coupons'));
+    });
 }
 
 function renderCoupons(coupons) {
@@ -317,9 +347,12 @@ function updateStats(stats) {
 }
 
 function applyFilters() {
-    filters.network_id = document.getElementById('networkFilter').value;
-    filters.campaign_id = document.getElementById('campaignFilter').value;
-    filters.status = document.getElementById('statusFilter').value;
+    const networkIds = $('#networkFilter').val() || [];
+    const campaignIds = $('#campaignFilter').val() || [];
+    
+    filters.network_ids = networkIds.length > 0 ? networkIds : null;
+    filters.campaign_ids = campaignIds.length > 0 ? campaignIds : null;
+    filters.status = $('#statusFilter').val();
     filters.search = document.getElementById('searchInput').value;
     loadCoupons(1);
 }
@@ -327,9 +360,9 @@ function applyFilters() {
 function resetFilters() {
     filters = {};
     document.getElementById('searchInput').value = '';
-    document.getElementById('networkFilter').value = '';
-    document.getElementById('campaignFilter').value = '';
-    document.getElementById('statusFilter').value = '';
+    $('#networkFilter').val(null).trigger('change');
+    $('#campaignFilter').val(null).trigger('change');
+    $('#statusFilter').val('').trigger('change');
     document.getElementById('dateRange').value = '';
     loadCoupons(1);
 }
