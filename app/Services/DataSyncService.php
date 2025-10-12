@@ -120,17 +120,15 @@ class DataSyncService
      */
     protected function getNetworkService(Network $network)
     {
-        $networkName = strtolower($network->name);
-        
-        return match($networkName) {
-            'boostiny' => app(BoostinyService::class),
-            'admitad' => app(AdmitadService::class),
-            'digizag' => app(\App\Services\Networks\DigizagService::class),
-            'platformance' => app(\App\Services\Networks\PlatformanceService::class),
-            'optimisemedia' => app(\App\Services\Networks\OptimiseMediaService::class),
-            'clickdealer' => app(\App\Services\Networks\ClickDealerService::class),
-            default => null,
-        };
+        try {
+            return \App\Services\Networks\NetworkServiceFactory::create($network->name);
+        } catch (\Exception $e) {
+            Log::error("Failed to create network service", [
+                'network_name' => $network->name,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
 
     /**
@@ -144,19 +142,48 @@ class DataSyncService
             return $result;
         }
 
-        // Count synced records
-        $campaignsCount = $result['data']['coupons']['campaigns'] ?? 0;
-        $couponsCount = $result['data']['coupons']['coupons'] ?? 0;
-        $purchasesCount = $result['data']['coupons']['purchases'] ?? 0;
+
+
+        // Process coupon data using NetworkDataProcessor
+        $couponStats = ['campaigns' => 0, 'coupons' => 0, 'purchases' => 0];
+        if (!empty($result['data']['coupons']['data'])) {
+            $couponResult = \App\Helpers\NetworkDataProcessor::processCouponData(
+                $result['data']['coupons']['data'],
+                $network->id,
+                $userId,
+                $config['date_from'],
+                $config['date_to'],
+                $network->name
+            );
+            $couponStats = $couponResult['processed'] ?? $couponStats;
+        }
+
+        // Process link data if exists
+        $linkStats = ['campaigns' => 0, 'purchases' => 0];
+        if (!empty($result['data']['links']['data'])) {
+            $linkResult = \App\Helpers\NetworkDataProcessor::processLinkData(
+                $result['data']['links']['data'],
+                $network->id,
+                $userId,
+                $config['date_from'],
+                $config['date_to']
+            );
+            $linkStats = $linkResult['processed'] ?? $linkStats;
+        }
+
+        $totalRecords = ($couponStats['purchases'] ?? 0) + ($linkStats['purchases'] ?? 0);
 
         return [
             'success' => true,
             'message' => $result['message'] ?? 'Data synced successfully',
-            'total_records' => $campaignsCount + $couponsCount + $purchasesCount,
-            'campaigns_count' => $campaignsCount,
-            'coupons_count' => $couponsCount,
-            'purchases_count' => $purchasesCount,
-            'metadata' => $result['data'] ?? null,
+            'total_records' => $totalRecords,
+            'campaigns_count' => $couponStats['campaigns'] ?? 0,
+            'coupons_count' => $couponStats['coupons'] ?? 0,
+            'purchases_count' => $couponStats['purchases'] ?? 0,
+            'metadata' => [
+                'coupon_stats' => $couponStats,
+                'link_stats' => $linkStats,
+            ],
         ];
     }
 
@@ -209,7 +236,6 @@ class DataSyncService
     public function resetDailyCounters(): void
     {
         SyncSchedule::query()->update(['runs_today' => 0]);
-        Log::info('Daily counters reset for all sync schedules');
     }
 }
 

@@ -86,12 +86,6 @@ class PurchaseController extends Controller
         // Reset array keys
         $networkIds = array_values($networkIds);
         
-        Log::info('Network Filter', [
-            'raw_input' => $request->all(),
-            'network_ids' => $networkIds,
-            'count' => count($networkIds)
-        ]);
-        
         if (!empty($networkIds)) {
             $query->whereIn('network_id', $networkIds);
         } elseif ($request->has('network_id')) {

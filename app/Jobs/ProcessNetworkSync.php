@@ -85,8 +85,7 @@ class ProcessNetworkSync implements ShouldQueue
                     $this->updateSchedule();
                 }
 
-                Log::info("Sync completed successfully for log ID: {$this->syncLogId}");
-            } else {
+        } else {
                 throw new Exception($result['message'] ?? 'Unknown sync error');
             }
 

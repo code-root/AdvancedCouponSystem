@@ -1,0 +1,40 @@
+===========================================
+   PUSHER CONFIGURATION
+===========================================
+
+Add these lines to your .env file:
+
+PUSHER_APP_ID=2062528
+PUSHER_APP_KEY=02c2589457ba91878fbf
+PUSHER_APP_SECRET=5270cb6a88efcb2adb77
+PUSHER_APP_CLUSTER=ap2
+
+# Also update these lines (if they exist):
+BROADCAST_CONNECTION=pusher
+
+# Vite variables (for frontend):
+VITE_PUSHER_APP_KEY="${PUSHER_APP_KEY}"
+VITE_PUSHER_APP_CLUSTER="${PUSHER_APP_CLUSTER}"
+
+===========================================
+   QUICK FIX COMMANDS
+===========================================
+
+After updating .env file, run:
+
+php artisan config:clear
+php artisan cache:clear
+
+===========================================
+   VERIFICATION
+===========================================
+
+Check if settings are loaded correctly:
+
+php artisan tinker
+> config('broadcasting.connections.pusher.options.cluster')
+
+Should return: "ap2"
+
+===========================================
+

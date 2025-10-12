@@ -18,7 +18,8 @@ class NetworkServiceFactory
         $serviceClass = self::getServiceClass($networkName);
         
         if (!class_exists($serviceClass)) {
-            throw new Exception("Network service not found for: {$networkName}");
+
+            throw new Exception("Network service not available" . $serviceClass);
         }
         
         return new $serviceClass();
@@ -32,7 +33,33 @@ class NetworkServiceFactory
      */
     private static function getServiceClass(string $networkName): string
     {
-        $className = ucfirst(strtolower($networkName)) . 'Service';
+        // Map of network names to service classes
+        $serviceMap = [
+            'boostiny' => 'BoostinyService',
+            'clickdealer' => 'ClickDealerService',
+            'admitad' => 'AdmitadService',
+            'digizag' => 'DigizagService',
+            'platformance' => 'PlatformanceService',
+            'optimisemedia' => 'OptimiseMediaService',
+            'cpx' => 'CPXService',
+            'arabclicks' => 'ArabclicksService',
+            'globalnetwork' => 'GlobalNetworkService',
+            'linkaraby' => 'LinkArabyService',
+            'icw' => 'ICWService',
+            'globalemedia' => 'GlobalemediaService',
+            'mediamak' => 'MediaMakService',
+            'omolaat' => 'OmolaatService',
+        ];
+        
+        $normalizedName = strtolower($networkName);
+        
+        if (isset($serviceMap[$normalizedName])) {
+            $className = $serviceMap[$normalizedName];
+        } else {
+            // Fallback to ucfirst for unknown networks
+            $className = ucfirst($normalizedName) . 'Service';
+        }
+        
         return "App\\Services\\Networks\\{$className}";
     }
     
@@ -62,6 +89,14 @@ class NetworkServiceFactory
             'digizag' => DigizagService::class,
             'platformance' => PlatformanceService::class,
             'optimisemedia' => OptimiseMediaService::class,
+            'cpx' => CPXService::class,
+            'arabclicks' => ArabclicksService::class,
+            'globalnetwork' => GlobalNetworkService::class,
+            'linkaraby' => LinkArabyService::class,
+            'icw' => ICWService::class,
+            'globalemedia' => GlobalemediaService::class,
+            'mediamak' => MediaMakService::class,
+            'omolaat' => OmolaatService::class,
             // Add more networks as needed
         ];
     }

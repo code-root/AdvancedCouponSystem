@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\CampaignController;
@@ -37,16 +38,29 @@ Route::middleware('guest')->group(function () {
     Route::post('password/reset', [ResetPasswordController::class, 'reset'])->name('password.update');
 });
 
+// Email Verification Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('email/verify', [VerifyEmailController::class, 'notice'])->name('verification.notice');
+    Route::get('email/verify/{id}/{hash}', [VerifyEmailController::class, 'verify'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+    Route::post('email/resend', [VerifyEmailController::class, 'resend'])
+        ->middleware('throttle:6,1')
+        ->name('verification.resend');
+});
+
 // Authenticated Routes
 Route::middleware(['auth'])->group(function () {
     
     // Logout
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
     
-    // Dashboard Routes
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Dashboard Routes (require email verification)
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->middleware('verified')
+        ->name('dashboard');
     
-    Route::prefix('dashboard')->name('dashboard.')->group(function () {
+    Route::prefix('dashboard')->name('dashboard.')->middleware('verified')->group(function () {
         Route::get('overview', [DashboardController::class, 'overview'])->name('overview');
         Route::get('analytics', [DashboardController::class, 'analytics'])->name('analytics');
         Route::get('recent-activities', [DashboardController::class, 'recentActivities'])->name('activities');
@@ -57,7 +71,7 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Network Management Routes
-    Route::prefix('networks')->name('networks.')->group(function () {
+    Route::prefix('networks')->name('networks.')->middleware('verified')->group(function () {
         Route::get('/', [NetworkController::class, 'index'])->name('index');
         Route::get('create', [NetworkController::class, 'create'])->name('create');
         Route::post('/', [NetworkController::class, 'store'])->name('store');
@@ -73,7 +87,7 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Campaign Management Routes
-    Route::prefix('campaigns')->name('campaigns.')->group(function () {
+    Route::prefix('campaigns')->name('campaigns.')->middleware('verified')->group(function () {
         Route::get('/', [CampaignController::class, 'index'])->name('index');
         Route::get('create', [CampaignController::class, 'create'])->name('create');
         Route::post('/', [CampaignController::class, 'store'])->name('store');
@@ -89,7 +103,7 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Coupon Management Routes
-    Route::prefix('coupons')->name('coupons.')->group(function () {
+    Route::prefix('coupons')->name('coupons.')->middleware('verified')->group(function () {
         Route::get('/', [CouponController::class, 'index'])->name('index');
         Route::get('create', [CouponController::class, 'create'])->name('create');
         Route::post('/', [CouponController::class, 'store'])->name('store');

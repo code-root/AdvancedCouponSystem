@@ -119,11 +119,21 @@ class TrackUserSession
         ]);
         
         // Broadcast new session event (for real-time updates)
-        broadcast(new NewSessionCreated($userSession))->toOthers();
+        try {
+            broadcast(new NewSessionCreated($userSession))->toOthers();
+        } catch (\Exception $e) {
+            \Log::error('Failed to broadcast session event: ' . $e->getMessage());
+        }
         
-        // Send notification to user about new login
-        $user = \App\Models\User::find($userId);
-        $user->notify(new NewLoginNotification($userSession));
+        // Send notification to user about new login (only if email is configured)
+        if (config('mail.default') !== 'log' && config('mail.mailers.smtp.host')) {
+            try {
+                $user = \App\Models\User::find($userId);
+                $user->notify(new NewLoginNotification($userSession));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send login notification: ' . $e->getMessage());
+            }
+        }
     }
 
     /**

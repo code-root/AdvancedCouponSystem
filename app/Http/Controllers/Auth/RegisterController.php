@@ -42,9 +42,25 @@ class RegisterController extends Controller
             $user->assignRole('user');
         }
 
+        // Send email verification notification (only if email is configured)
+        if (config('mail.default') !== 'log' && config('mail.mailers.smtp.host')) {
+            try {
+                $user->sendEmailVerificationNotification();
+            } catch (\Exception $e) {
+                \Log::error('Failed to send verification email: ' . $e->getMessage());
+            }
+        }
+
         Auth::login($user);
 
-        return redirect()->route('dashboard');
+        // Redirect based on email configuration
+        if (config('mail.default') === 'log' || !config('mail.mailers.smtp.host')) {
+            return redirect()->route('dashboard')
+                ->with('info', 'Registration successful! Email verification is disabled. Please configure SMTP to enable it.');
+        }
+
+        return redirect()->route('verification.notice')
+            ->with('success', 'Registration successful! Please check your email to verify your account.');
     }
 }
 

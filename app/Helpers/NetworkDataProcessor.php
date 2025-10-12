@@ -24,20 +24,36 @@ class NetworkDataProcessor
         ];
         
         try {
+            
             DB::transaction(function () use ($data, $networkId, $userId, $startDate, $endDate, $networkName, &$processed) {
                 // Delete existing purchases for this date range
-                Purchase::where('network_id', $networkId)
+                $deletedCount = Purchase::where('network_id', $networkId)
                     ->where('user_id', $userId)
                     ->whereBetween('order_date', [$startDate, $endDate])
                     ->delete();
                 
-                foreach ($data as $item) {
+                
+                foreach ($data as $index => $item) {
                     try {
                         // Handle different network formats
                         if ($networkName === 'digizag') {
                             $item = self::normalizeDigizagData($item);
+                        } elseif ($networkName === 'globalnetwork') {
+                            $item = self::normalizeGlobalNetworkData($item);
+                        } elseif ($networkName === 'arabclicks') {
+                            $item = self::normalizeArabclicksData($item);
+                        } elseif ($networkName === 'linkaraby') {
+                            $item = self::normalizeLinkArabyData($item);
+                        } elseif ($networkName === 'icw') {
+                            $item = self::normalizeICWData($item);
+                        } elseif ($networkName === 'mediamak') {
+                            $item = self::normalizeMediaMakData($item);
+                        } elseif ($networkName === 'cpx') {
+                            $item = self::normalizeCPXData($item);
                         } elseif ($networkName === 'platformance') {
                             $item = self::normalizePlatformanceData($item);
+                        } elseif ($networkName === 'globalemedia') {
+                            $item = self::normalizePlatformanceData($item); // Same format as Platformance
                         } elseif ($networkName === 'optimisemedia') {
                             $item = self::normalizeOptimiseMediaData($item);
                         } else {
@@ -101,15 +117,24 @@ class NetworkDataProcessor
                         ]);
                         $processed['purchases']++;
                         
+                        if ($networkName === 'globalnetwork' && $index < 2) {
+                        
+                        }
+                        
                     } catch (\Exception $e) {
                         $processed['errors'][] = [
                             'campaign' => $item['campaign_name'] ?? 'Unknown',
                             'error' => $e->getMessage()
                         ];
-                        Log::error('Error processing coupon data: ' . $e->getMessage());
+                        Log::error('Error processing coupon data: ' . $e->getMessage(), [
+                            'item' => $item,
+                            'network' => $networkName
+                        ]);
                     }
                 }
             }, 2);
+            
+
             
             return [
                 'success' => true,
@@ -174,6 +199,156 @@ class NetworkDataProcessor
             'status' => $stat['conversion_status'] ?? 'approved',
             'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
             'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
+        ];
+    }
+    
+    /**
+     * Normalize GlobalNetwork data format (HasOffers - same as Digizag)
+     */
+    private static function normalizeGlobalNetworkData(array $item): array
+    {
+        $stat = $item['Stat'] ?? [];
+        $offer = $item['Offer'] ?? [];
+        
+        return [
+            'campaign_id' => $stat['offer_id'] ?? null,
+            'campaign_name' => $offer['name'] ?? 'Unknown',
+            'campaign_logo' => null,
+            'code' => $stat['affiliate_info1'] ?? $stat['promo_code'] ?? 'NA',
+            'country' => 'NA',
+            'order_id' => $stat['id'] ?? null,
+            'network_order_id' => $stat['id'] ?? null,
+            'order_value' => $stat['conversion_sale_amount'] ?? 0,
+            'commission' => $stat['payout'] ?? 0,
+            'revenue' => $stat['payout'] ?? 0,
+            'quantity' => 1,
+            'customer_type' => 'unknown',
+            'status' => $stat['conversion_status'] ?? 'approved',
+            'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
+            'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
+        ];
+    }
+    
+    /**
+     * Normalize Arabclicks data format (HasOffers - same as Digizag/GlobalNetwork)
+     */
+    private static function normalizeArabclicksData(array $item): array
+    {
+        $stat = $item['Stat'] ?? [];
+        $offer = $item['Offer'] ?? [];
+        
+        return [
+            'campaign_id' => $stat['offer_id'] ?? null,
+            'campaign_name' => $offer['name'] ?? 'Unknown',
+            'campaign_logo' => null,
+            'code' => $stat['affiliate_info1'] ?? $stat['affiliate_info5'] ?? 'NA',
+            'country' => 'NA',
+            'order_id' => $stat['id'] ?? null,
+            'network_order_id' => $stat['id'] ?? null,
+            'order_value' => $stat['conversion_sale_amount'] ?? 0,
+            'commission' => $stat['payout'] ?? 0,
+            'revenue' => $stat['payout'] ?? 0,
+            'quantity' => 1,
+            'customer_type' => 'unknown',
+            'status' => $stat['conversion_status'] ?? 'approved',
+            'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
+            'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
+        ];
+    }
+    
+    /**
+     * Normalize LinkAraby data format (Google Sheets)
+     */
+    private static function normalizeLinkArabyData(array $item): array
+    {
+        return [
+            'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'campaign_name' => $item['campaign_name'] ?? 'Unknown',
+            'campaign_logo' => null,
+            'code' => $item['coupon_code'] ?? 'NA',
+            'country' => $item['country'] ?? 'NA',
+            'order_id' => $item['transaction_id'] ?? null,
+            'network_order_id' => $item['transaction_id'] ?? null,
+            'order_value' => $item['sale_amount'] ?? 0,
+            'commission' => $item['commission'] ?? 0,
+            'revenue' => $item['commission'] ?? 0,
+            'quantity' => $item['conversions'] ?? 1,
+            'customer_type' => $item['customer_type'] ?? 'unknown',
+            'status' => $item['status'] ?? 'approved',
+            'order_date' => $item['date'] ?? now()->format('Y-m-d'),
+            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'),
+        ];
+    }
+    
+    /**
+     * Normalize ICW data format (Google Sheets)
+     */
+    private static function normalizeICWData(array $item): array
+    {
+        return [
+            'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'campaign_name' => $item['campaign_name'] ?? 'Unknown',
+            'campaign_logo' => null,
+            'code' => $item['coupon_code'] ?? 'NA',
+            'country' => $item['country'] ?? 'NA',
+            'order_id' => $item['transaction_id'] ?? null,
+            'network_order_id' => $item['transaction_id'] ?? null,
+            'order_value' => $item['sale_amount'] ?? 0,
+            'commission' => $item['commission'] ?? 0,
+            'revenue' => $item['commission'] ?? 0,
+            'quantity' => $item['conversions'] ?? 1,
+            'customer_type' => $item['customer_type'] ?? 'unknown',
+            'status' => $item['status'] ?? 'approved',
+            'order_date' => $item['date'] ?? now()->format('Y-m-d'),
+            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'),
+        ];
+    }
+    
+    /**
+     * Normalize MediaMak data format (Google Sheets)
+     */
+    private static function normalizeMediaMakData(array $item): array
+    {
+        return [
+            'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'campaign_name' => $item['campaign_name'] ?? 'Unknown',
+            'campaign_logo' => null,
+            'code' => $item['coupon_code'] ?? 'NA',
+            'country' => $item['country'] ?? 'NA',
+            'order_id' => $item['transaction_id'] ?? null,
+            'network_order_id' => $item['transaction_id'] ?? null,
+            'order_value' => $item['sale_amount'] ?? 0,
+            'commission' => $item['commission'] ?? 0,
+            'revenue' => $item['commission'] ?? 0,
+            'quantity' => $item['conversions'] ?? 1,
+            'customer_type' => $item['customer_type'] ?? 'unknown',
+            'status' => $item['status'] ?? 'approved',
+            'order_date' => $item['date'] ?? now()->format('Y-m-d'),
+            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'),
+        ];
+    }
+    
+    /**
+     * Normalize CPX data format
+     */
+    private static function normalizeCPXData(array $item): array
+    {
+        return [
+            'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'campaign_name' => $item['campaign_name'] ?? 'Unknown',
+            'campaign_logo' => null,
+            'code' => $item['coupon_code'] ?? 'NA',
+            'country' => $item['country'] ?? 'NA',
+            'order_id' => $item['transaction_id'] ?? null,
+            'network_order_id' => $item['transaction_id'] ?? null,
+            'order_value' => $item['sale_amount'] ?? 0,
+            'commission' => $item['commission'] ?? 0,
+            'revenue' => $item['commission'] ?? 0,
+            'quantity' => $item['conversions'] ?? 1,
+            'customer_type' => $item['customer_type'] ?? 'unknown',
+            'status' => $item['status'] ?? 'approved',
+            'order_date' => $item['date'] ?? now()->format('Y-m-d'),
+            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'),
         ];
     }
     
