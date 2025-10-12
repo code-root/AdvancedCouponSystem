@@ -129,6 +129,7 @@
                                 <th>Connection Name</th>
                                 <th>Country</th>
                                 <th>Status</th>
+                                <th class="text-center">Connected Users</th>
                                 <th>Connected At</th>
                                 <th>Last Sync</th>
                                 <th class="text-center pe-3" style="width: 120px;">Action</th>
@@ -176,6 +177,12 @@
                                         </span>
                                     @endif
                                 </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info-subtle text-info px-2 py-1">
+                                        <i class="ti ti-users fs-14"></i> 
+                                        {{ $connection->network->connections_count ?? 0 }}
+                                    </span>
+                                </td>
                                 <td>
                                     <span class="text-muted">{{ $connection->connected_at ? $connection->connected_at->format('M d, Y H:i') : '-' }}</span>
                                 </td>
@@ -189,7 +196,7 @@
                                             <i class="ti ti-refresh"></i>
                                         </button>
                                         @endif
-                                        <a href="{{ route('networks.show', $connection->network_id) }}" class="btn btn-soft-info btn-icon btn-sm rounded-circle" title="View Details">
+                                        <a href="{{ route('networks.show', $connection->id) }}" class="btn btn-soft-info btn-icon btn-sm rounded-circle" title="View Details">
                                             <i class="ti ti-eye"></i>
                                         </a>
                                         <a href="{{ route('networks.edit', $connection->id) }}" class="btn btn-soft-warning btn-icon btn-sm rounded-circle" title="Edit">
@@ -262,13 +269,39 @@
 
                                     <div class="border-top border-dashed pt-3 mt-3">
                                         <div class="row text-center g-2">
-                                            <div class="col-6">
-                                                <p class="text-muted mb-1 fs-12">Commission</p>
-                                                <h6 class="mb-0">Up to {{ $network->commission_rate }}%</h6>
+                                            <div class="col-4">
+                                                <p class="text-muted mb-1 fs-11" title="Average revenue per user">Avg Revenue</p>
+                                                <h6 class="mb-0 text-success fw-bold">
+                                                    <i class="ti ti-currency-dollar fs-14"></i>
+                                                    @if(($network->avg_revenue_per_user ?? 0) >= 1000)
+                                                        {{ number_format($network->avg_revenue_per_user / 1000, 1) }}K
+                                                    @else
+                                                        {{ number_format($network->avg_revenue_per_user ?? 0, 0) }}
+                                                    @endif
+                                                </h6>
+                                                <small class="text-muted fs-10">per user</small>
                                             </div>
-                                            <div class="col-6">
-                                                <p class="text-muted mb-1 fs-12">Products</p>
-                                                <h6 class="mb-0">{{ $network->total_products ?? '1000+' }}</h6>
+                                            <div class="col-4">
+                                                <p class="text-muted mb-1 fs-11" title="Total coupons available">Coupons</p>
+                                                <h6 class="mb-0 text-primary fw-bold">
+                                                    <i class="ti ti-ticket fs-14"></i>
+                                                    @if(($network->total_coupons ?? 0) >= 1000)
+                                                        {{ number_format($network->total_coupons / 1000, 1) }}K
+                                                    @else
+                                                        {{ number_format($network->total_coupons ?? 0) }}
+                                                    @endif
+                                                </h6>
+                                                <small class="text-muted fs-10">total</small>
+                                            </div>
+                                            <div class="col-4">
+                                                <p class="text-muted mb-1 fs-11" title="Connected users">Users</p>
+                                                <h6 class="mb-0">
+                                                    <span class="badge bg-info-subtle text-info px-2 py-1">
+                                                        <i class="ti ti-users fs-14"></i>
+                                                        {{ $network->connections_count ?? 0 }}
+                                                    </span>
+                                                </h6>
+                                                <small class="text-muted fs-10">connected</small>
                                             </div>
                                         </div>
                                     </div>
@@ -304,7 +337,7 @@ function syncConnection(connectionId) {
         allowEscapeKey: false
     });
 
-    fetch(`/networks/${connectionId}/sync`, {
+    fetch(`/networks/connections/${connectionId}/sync`, {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -370,7 +403,7 @@ function disconnectNetwork(connectionId) {
         cancelButtonText: 'Cancel'
     }).then((result) => {
         if (result.isConfirmed) {
-            fetch(`/networks/${connectionId}`, {
+            fetch(`/networks/connections/${connectionId}`, {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,

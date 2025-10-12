@@ -117,7 +117,7 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
                     'APIkey' => $token
                 ])
                 ->post($apiUrl, $testData);
-
+                    // Log::info($response->body());
             if ($response->successful()) {
                 return [
                     'success' => true,
@@ -233,6 +233,7 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
                     'APIkey' => $token
                 ])
                 ->post($apiUrl, $requestData);
+                    Log::info($response->body());
 
             if (!$response->successful()) {
                 return [
@@ -272,7 +273,9 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
                 ]
             ];
 
-        } catch (\Exception $e) {
+        } catch (\Exception $e ) {
+            Log::info($response->body());
+
             return [
                 'success' => false,
                 'message' => 'Sync failed: ' . $e->getMessage(),

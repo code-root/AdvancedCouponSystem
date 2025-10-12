@@ -98,21 +98,44 @@
                     <div class="card-header border-bottom border-dashed">
                         <div class="d-flex justify-content-between align-items-center">
                             <h4 class="card-title mb-0">API Credentials</h4>
-                            <button type="button" class="btn btn-sm btn-soft-primary" id="loadFieldsBtn">
-                                <i class="ti ti-reload me-1"></i> Load Required Fields
-                            </button>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-sm btn-soft-info" id="showCredentialsBtn">
+                                    <i class="ti ti-eye me-1"></i> Show Credentials
+                                </button>
+                                <button type="button" class="btn btn-sm btn-soft-primary" id="loadFieldsBtn">
+                                    <i class="ti ti-reload me-1"></i> Edit Credentials
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="card-body">
                         <div class="alert alert-info mb-3">
                             <i class="ti ti-info-circle me-2"></i>
-                            <strong>Note:</strong> Leave fields empty if you don't want to change them. Only fill in the fields you want to update.
+                            <strong>Note:</strong> Click "Show Credentials" to view current credentials (requires password). Click "Edit Credentials" to update them.
+                        </div>
+                        
+                        <!-- Password Verification Modal -->
+                        <div id="passwordVerificationSection" class="mb-3" style="display: none;">
+                            <div class="alert alert-warning">
+                                <i class="ti ti-shield-lock me-2"></i>
+                                <strong>Security Check:</strong> Enter your account password to view credentials
+                            </div>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="verifyPassword" 
+                                       placeholder="Enter your password">
+                                <button type="button" class="btn btn-primary" id="verifyPasswordBtn">
+                                    <i class="ti ti-check me-1"></i> Verify
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="cancelVerifyBtn">
+                                    <i class="ti ti-x"></i>
+                                </button>
+                            </div>
                         </div>
                         
                         <div id="credentialsContainer" class="row">
                             <div class="col-12 text-center text-muted py-4">
                                 <i class="ti ti-lock fs-48"></i>
-                                <p class="mt-2">Click "Load Required Fields" to update credentials</p>
+                                <p class="mt-2">Click "Show Credentials" to view or "Edit Credentials" to update</p>
                             </div>
                         </div>
                     </div>
@@ -165,8 +188,11 @@
                         </div>
 
                         <div class="mt-3 pt-3 border-top border-dashed border-primary">
-                            <button type="button" class="btn btn-soft-primary w-100" onclick="testConnectionNow()">
+                            <button type="button" class="btn btn-soft-primary w-100 mb-2" onclick="testConnectionNow()">
                                 <i class="ti ti-plug-connected me-1"></i> Test Connection
+                            </button>
+                            <button type="button" class="btn btn-soft-success w-100" onclick="reconnectNetwork()">
+                                <i class="ti ti-refresh me-1"></i> Reconnect & Update
                             </button>
                         </div>
                     </div>
@@ -190,15 +216,172 @@
 @section('scripts')
 <script>
 const networkId = {{ $network->id }};
+const connectionId = {{ $userConnection->id }};
 let currentCredentials = @json($userConnection->credentials ?? []);
+let isEditMode = false;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Load fields button
     document.getElementById('loadFieldsBtn')?.addEventListener('click', loadCredentialFields);
+    
+    // Show credentials button
+    document.getElementById('showCredentialsBtn')?.addEventListener('click', showPasswordVerification);
+    
+    // Verify password button
+    document.getElementById('verifyPasswordBtn')?.addEventListener('click', verifyPasswordAndShowCredentials);
+    
+    // Cancel verify button
+    document.getElementById('cancelVerifyBtn')?.addEventListener('click', hidePasswordVerification);
+    
+    // Enter key in password field
+    document.getElementById('verifyPassword')?.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            verifyPasswordAndShowCredentials();
+        }
+    });
 });
 
-// Load credential fields based on network
+// Show password verification section
+function showPasswordVerification() {
+    document.getElementById('passwordVerificationSection').style.display = 'block';
+    document.getElementById('verifyPassword').focus();
+    hidePasswordVerification.cancelMode = false;
+}
+
+// Hide password verification section
+function hidePasswordVerification() {
+    document.getElementById('passwordVerificationSection').style.display = 'none';
+    document.getElementById('verifyPassword').value = '';
+}
+
+// Verify password and show credentials
+function verifyPasswordAndShowCredentials() {
+    const password = document.getElementById('verifyPassword').value;
+    
+    if (!password) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Password Required',
+            text: 'Please enter your password to continue'
+        });
+        return;
+    }
+    
+    const btn = document.getElementById('verifyPasswordBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Verifying...';
+    
+    fetch('{{ route("networks.verify-password") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ password: password })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            hidePasswordVerification();
+            showCurrentCredentials();
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Verification Failed',
+                text: data.message || 'Invalid password'
+            });
+        }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check me-1"></i> Verify';
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to verify password'
+        });
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check me-1"></i> Verify';
+    });
+}
+
+// Show current credentials (read-only)
+function showCurrentCredentials() {
+    fetch(`/networks/${networkId}/config`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderCredentialFieldsReadOnly(data.data.required_fields);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to load credentials'
+                });
+            }
+        });
+}
+
+// Render credentials as read-only
+function renderCredentialFieldsReadOnly(requiredFields) {
+    // Convert to array if it's an object
+    if (!Array.isArray(requiredFields)) {
+        if (typeof requiredFields === 'object' && requiredFields !== null) {
+            requiredFields = Object.keys(requiredFields);
+        } else {
+            console.error('Invalid requiredFields:', requiredFields);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Invalid network configuration'
+            });
+            return;
+        }
+    }
+    
+    let html = '<div class="alert alert-success mb-3">';
+    html += '<i class="ti ti-shield-check me-2"></i>';
+    html += '<strong>Current Credentials (Read-Only)</strong>';
+    html += '</div>';
+    html += '<div class="row">';
+    
+    requiredFields.forEach(field => {
+        const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const isPassword = field.includes('secret') || field.includes('password') || field.includes('token') || field.includes('key');
+        const currentValue = currentCredentials[field] || 'Not set';
+        
+        html += `
+            <div class="col-md-6 mb-3">
+                <label class="form-label fw-semibold">${fieldName}</label>
+                <div class="input-group">
+                    <input type="${isPassword ? 'password' : 'text'}" 
+                           class="form-control bg-light" 
+                           value="${currentValue}" 
+                           readonly>
+                    ${isPassword ? `
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordField('readonly_${field}', event)">
+                            <i class="ti ti-eye"></i>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    html += '<div class="alert alert-info mt-3">';
+    html += '<i class="ti ti-info-circle me-2"></i>';
+    html += 'To edit these credentials, click the "Edit Credentials" button above.';
+    html += '</div>';
+    
+    document.getElementById('credentialsContainer').innerHTML = html;
+    isEditMode = false;
+}
+
+// Load credential fields for editing
 function loadCredentialFields() {
+    isEditMode = true;
     const btn = document.getElementById('loadFieldsBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Loading...';
@@ -207,7 +390,7 @@ function loadCredentialFields() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                renderCredentialFields(data.data.required_fields);
+                renderCredentialFieldsEditable(data.data.required_fields);
             } else {
                 Swal.fire({
                     icon: 'error',
@@ -216,7 +399,7 @@ function loadCredentialFields() {
                 });
             }
             btn.disabled = false;
-            btn.innerHTML = '<i class="ti ti-reload me-1"></i> Load Required Fields';
+            btn.innerHTML = '<i class="ti ti-reload me-1"></i> Edit Credentials';
         })
         .catch(error => {
             Swal.fire({
@@ -225,18 +408,36 @@ function loadCredentialFields() {
                 text: 'Failed to load configuration'
             });
             btn.disabled = false;
-            btn.innerHTML = '<i class="ti ti-reload me-1"></i> Load Required Fields';
+            btn.innerHTML = '<i class="ti ti-reload me-1"></i> Edit Credentials';
         });
 }
 
-// Render credential input fields
-function renderCredentialFields(requiredFields) {
-    let html = '<div class="row">';
+// Render credential input fields for editing
+function renderCredentialFieldsEditable(requiredFields) {
+    // Convert to array if it's an object
+    if (!Array.isArray(requiredFields)) {
+        if (typeof requiredFields === 'object' && requiredFields !== null) {
+            requiredFields = Object.keys(requiredFields);
+        } else {
+            console.error('Invalid requiredFields:', requiredFields);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Invalid network configuration'
+            });
+            return;
+        }
+    }
+    
+    let html = '<div class="alert alert-warning mb-3">';
+    html += '<i class="ti ti-edit me-2"></i>';
+    html += '<strong>Edit Mode:</strong> Leave fields empty to keep current values. Only fill in fields you want to update.';
+    html += '</div>';
+    html += '<div class="row">';
     
     requiredFields.forEach(field => {
         const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
         const isPassword = field.includes('secret') || field.includes('password') || field.includes('token') || field.includes('key');
-        const currentValue = currentCredentials[field] || '';
         
         html += `
             <div class="col-md-6 mb-3">
@@ -249,7 +450,7 @@ function renderCredentialFields(requiredFields) {
                            placeholder="Enter new ${fieldName} or leave empty"
                            value="">
                     ${isPassword ? `
-                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordField('field_${field}')">
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordField('field_${field}', event)">
                             <i class="ti ti-eye"></i>
                         </button>
                     ` : ''}
@@ -263,9 +464,91 @@ function renderCredentialFields(requiredFields) {
     document.getElementById('credentialsContainer').innerHTML = html;
 }
 
+// Reconnect to network and update credentials
+function reconnectNetwork() {
+    const credentials = {};
+    
+    if (isEditMode) {
+        // Collect credentials from edit fields
+        document.querySelectorAll('.network-credential').forEach(input => {
+            const name = input.name.replace('credentials[', '').replace(']', '');
+            if (input.value) {
+                credentials[name] = input.value;
+            } else if (currentCredentials[name]) {
+                credentials[name] = currentCredentials[name];
+            }
+        });
+    } else {
+        // Use current credentials
+        Object.assign(credentials, currentCredentials);
+    }
+    
+    // Use current credentials if no new ones provided
+    if (Object.keys(credentials).length === 0) {
+        Object.assign(credentials, currentCredentials);
+    }
+    
+    credentials.api_endpoint = document.querySelector('[name="api_endpoint"]').value;
+    
+    Swal.fire({
+        title: 'Reconnecting',
+        html: 'Attempting to reconnect and update credentials...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    fetch('{{ route("networks.reconnect") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+            connection_id: connectionId,
+            network_id: networkId,
+            credentials: credentials
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update current credentials
+            if (data.updated_credentials) {
+                currentCredentials = data.updated_credentials;
+            }
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Reconnected Successfully!',
+                html: data.message + '<br><small class="text-muted">Credentials have been updated.</small>',
+                showConfirmButton: true
+            }).then(() => {
+                // Reload page to show updated data
+                window.location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Reconnection Failed',
+                html: `<p>${data.message}</p>${data.data?.hint ? '<small class="text-muted">' + data.data.hint + '</small>' : ''}`
+            });
+        }
+    })
+    .catch(error => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to reconnect to network'
+        });
+    });
+}
+
 // Test connection
 function testConnectionNow() {
-    const credentials = {};
+    let credentials = {};
     
     // Collect current credentials
     document.querySelectorAll('.network-credential').forEach(input => {
@@ -331,8 +614,18 @@ function testConnectionNow() {
 }
 
 // Toggle password visibility
-function togglePasswordField(fieldId) {
-    const field = document.getElementById(fieldId);
+function togglePasswordField(fieldId, event) {
+    // Find the field - could be by ID or by finding sibling input
+    let field = document.getElementById(fieldId);
+    
+    if (!field) {
+        // Try to find the input field in the same group
+        const button = event.currentTarget;
+        field = button.closest('.input-group').querySelector('input');
+    }
+    
+    if (!field) return;
+    
     const button = event.currentTarget;
     const icon = button.querySelector('i');
     

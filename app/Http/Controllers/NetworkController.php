@@ -8,6 +8,8 @@ use App\Models\NetworkData;
 use App\Services\Networks\NetworkServiceFactory;
 use App\Helpers\NetworkDataProcessor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
@@ -28,7 +30,37 @@ class NetworkController extends Controller
         $connectedNetworkIds = auth()->user()->networkConnections()->pluck('network_id');
         $availableNetworks = Network::where('is_active', true)
             ->whereNotIn('id', $connectedNetworkIds)
+            ->withCount(['connections' => function($query) {
+                $query->where('is_connected', true);
+            }])
             ->get();
+        
+        // Add statistics for available networks
+        $availableNetworks->each(function($network) {
+            // Get total coupons count for this network
+            $network->total_coupons = DB::table('coupons')
+                ->join('campaigns', 'coupons.campaign_id', '=', 'campaigns.id')
+                ->where('campaigns.network_id', $network->id)
+                ->count();
+            
+            // Get average revenue per user for this network
+            $revenueStats = DB::table('purchases')
+                ->select(DB::raw('COUNT(DISTINCT user_id) as user_count, COALESCE(SUM(revenue), 0) as total_revenue'))
+                ->where('network_id', $network->id)
+                ->first();
+            
+            $network->avg_revenue_per_user = $revenueStats && $revenueStats->user_count > 0 
+                ? round($revenueStats->total_revenue / $revenueStats->user_count, 2) 
+                : 0;
+        });
+        
+        // Add connected users count for user's connections as well
+        $userConnections->getCollection()->transform(function($connection) {
+            $connection->network->loadCount(['connections' => function($query) {
+                $query->where('is_connected', true);
+            }]);
+            return $connection;
+        });
         
         return view('dashboard.networks.index', compact('userConnections', 'availableNetworks'));
     }
@@ -130,10 +162,11 @@ class NetworkController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Network $network)
+    public function show($connectionId)
     {
         $userConnection = auth()->user()->networkConnections()
-            ->where('network_id', $network->id)
+            ->with('network')
+            ->where('id', $connectionId)
             ->first();
 
         if (!$userConnection) {
@@ -141,8 +174,10 @@ class NetworkController extends Controller
                 ->with('error', 'Network connection not found.');
         }
 
+        $network = $userConnection->network;
+
         // Get network data
-        $networkData = $userConnection->network->data()->latest()->paginate(10);
+        $networkData = $network->data()->latest()->paginate(10);
 
         return view('dashboard.networks.show', compact('network', 'userConnection', 'networkData'));
     }
@@ -150,16 +185,19 @@ class NetworkController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Network $network)
+    public function edit($connectionId)
     {
         $userConnection = auth()->user()->networkConnections()
-            ->where('network_id', $network->id)
+            ->with('network')
+            ->where('id', $connectionId)
             ->first();
 
         if (!$userConnection) {
             return redirect()->route('networks.index')
                 ->with('error', 'Network connection not found.');
         }
+
+        $network = $userConnection->network;
 
         return view('dashboard.networks.edit', compact('network', 'userConnection'));
     }
@@ -232,12 +270,12 @@ class NetworkController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $request, $networkId)
+    public function destroy(Request $request, $connectionId)
     {
         try {
-            // Find connection by ID (not network_id)
+            // Find connection by ID
             $userConnection = auth()->user()->networkConnections()
-                ->where('id', $networkId)
+                ->where('id', $connectionId)
                 ->first();
 
             if (!$userConnection) {
@@ -372,11 +410,26 @@ class NetworkController extends Controller
             }
             
             $service = NetworkServiceFactory::create($network->name);
+            $requiredFields = $service->getRequiredFields();
+            
+            // Convert required fields to simple array of field names
+            // Support both old format ['email', 'password'] and new format ['email' => [...], 'password' => [...]]
+            $fieldNames = [];
+            foreach ($requiredFields as $key => $value) {
+                if (is_array($value)) {
+                    // New format: key is field name
+                    $fieldNames[] = $key;
+                } else {
+                    // Old format: value is field name
+                    $fieldNames[] = $value;
+                }
+            }
             
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'required_fields' => $service->getRequiredFields(),
+                    'required_fields' => $fieldNames,
+                    'required_fields_config' => $requiredFields, // Full config for advanced use
                     'default_config' => $service->getDefaultConfig(),
                     'network_info' => [
                         'name' => $network->name,
@@ -473,7 +526,7 @@ class NetworkController extends Controller
             
             foreach ($credentials as $key => $value) {
                 // Try to decrypt sensitive fields
-                if (in_array($key, ['client_secret', 'api_secret', 'password', 'token'])) {
+                if (in_array($key, ['client_secret', 'api_secret',  'token', 'access_token', 'refresh_token'])) {
                     try {
                         $decryptedCredentials[$key] = decrypt($value);
                     } catch (\Exception $e) {
@@ -505,10 +558,22 @@ class NetworkController extends Controller
                 ], 400);
             }
             
-            // Update cookies if new ones were returned (e.g., after re-authentication)
+            // Update credentials if new ones were returned (e.g., after re-authentication)
+            $credentialsUpdated = false;
+            
             if (isset($syncResult['new_cookies'])) {
                 $credentials['cookies'] = $syncResult['new_cookies'];
+                $credentialsUpdated = true;
+            }
+            
+            if (isset($syncResult['new_access_token'])) {
+                $credentials['access_token'] = $syncResult['new_access_token'];
+                $credentialsUpdated = true;
+            }
+            
+            if ($credentialsUpdated) {
                 $connection->update(['credentials' => $credentials]);
+                Log::info("Updated credentials for connection {$connection->id} after re-authentication");
             }
             
             // Process coupon data
@@ -564,6 +629,221 @@ class NetworkController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Sync error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Verify user password to view credentials
+     */
+    public function verifyPassword(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'password' => 'required|string'
+            ]);
+            
+            // Verify password using Hash::check
+            if (!Hash::check($validated['password'], auth()->user()->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid password. Please try again.'
+                ], 401);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Password verified successfully'
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error verifying password: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Reconnect to network and update credentials
+     */
+    public function reconnect(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'connection_id' => 'required|exists:network_connections,id',
+                'network_id' => 'required|exists:networks,id',
+                'credentials' => 'required|array'
+            ]);
+            
+            // Find connection
+            $connection = NetworkConnection::where('id', $validated['connection_id'])
+                ->where('user_id', auth()->id())
+                ->first();
+                
+            if (!$connection) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Connection not found'
+                ], 404);
+            }
+            
+            $network = $connection->network;
+            
+            // Check if service exists
+            if (!NetworkServiceFactory::exists($network->name)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Service not available for this network'
+                ], 400);
+            }
+            
+            $service = NetworkServiceFactory::create($network->name);
+            
+            // Test connection with new credentials
+            $testResult = $service->testConnection($validated['credentials']);
+            
+            if (!$testResult['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Reconnection failed: ' . ($testResult['message'] ?? 'Unknown error'),
+                    'data' => $testResult['data'] ?? null
+                ], 400);
+            }
+            
+            // Encrypt sensitive credentials
+            $encryptedCredentials = [];
+            foreach ($validated['credentials'] as $key => $value) {
+                if (in_array($key, ['client_secret', 'api_secret', 'password', 'token', 'api_key'])) {
+                    $encryptedCredentials[$key] = encrypt($value);
+                } else {
+                    $encryptedCredentials[$key] = $value;
+                }
+            }
+            
+            // Update credentials from test result (for services that return cookies, tokens, etc.)
+            if (isset($testResult['data'])) {
+                foreach ($testResult['data'] as $key => $value) {
+                    if (!isset($encryptedCredentials[$key])) {
+                        $encryptedCredentials[$key] = $value;
+                    }
+                }
+            }
+            
+            // Update connection
+            $connection->update([
+                'credentials' => $encryptedCredentials,
+                'is_connected' => true,
+                'connected_at' => now(),
+                'status' => 'active'
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully reconnected and updated credentials!',
+                'updated_credentials' => $encryptedCredentials,
+                'data' => [
+                    'connection_id' => $connection->id,
+                    'connected_at' => $connection->connected_at->format('Y-m-d H:i:s')
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Reconnection error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Reconnection error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Handle Admitad OAuth callback
+     */
+    public function admitadCallback(Request $request)
+    {
+        try {
+            $code = $request->input('code');
+            $state = $request->input('state');
+            
+            if (empty($code)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authorization code not received',
+                    'error' => $request->input('error'),
+                    'error_description' => $request->input('error_description'),
+                ], 400);
+            }
+            
+            // Find the pending Admitad connection for this user
+            // You might want to store the connection_id in the state parameter
+            $connection = NetworkConnection::where('user_id', auth()->id())
+                ->whereHas('network', function($query) {
+                    $query->where('name', 'admitad');
+                })
+                ->where('status', 'pending')
+                ->latest()
+                ->first();
+            
+            if (!$connection) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No pending Admitad connection found',
+                ], 404);
+            }
+            
+            // Get client credentials from connection
+            $credentials = $connection->credentials ?? [];
+            $clientId = $credentials['client_id'] ?? '';
+            $clientSecret = $credentials['client_secret'] ?? '';
+            
+            if (empty($clientId) || empty($clientSecret)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Client credentials not found',
+                ], 400);
+            }
+            
+            // Exchange code for access token
+            $service = NetworkServiceFactory::create('admitad');
+            $tokenResult = $service->exchangeCodeForToken($code, $clientId, $clientSecret);
+            
+            if (!$tokenResult['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $tokenResult['message'],
+                ], 400);
+            }
+            
+            // Update connection with access token
+            $credentials['access_token'] = encrypt($tokenResult['access_token']);
+            if (isset($tokenResult['refresh_token'])) {
+                $credentials['refresh_token'] = encrypt($tokenResult['refresh_token']);
+            }
+            $credentials['token_expires_at'] = now()->addSeconds($tokenResult['expires_in'] ?? 3600);
+            
+            $connection->update([
+                'credentials' => $credentials,
+                'is_connected' => true,
+                'connected_at' => now(),
+                'status' => 'active',
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully connected to Admitad!',
+                'data' => [
+                    'connection_id' => $connection->id,
+                    'access_token' => $tokenResult['access_token'],
+                    'state' => $state,
+                ]
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Admitad callback error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Callback error: ' . $e->getMessage()
             ], 500);
         }
     }

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\UserSession;
+use App\Events\SessionTerminated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class SessionController extends Controller
 {
@@ -102,18 +105,35 @@ class SessionController extends Controller
 
         // Check if this is the current session
         if ($session->isCurrent()) {
+            // If deleting current session, perform actual logout
+            $session->markAsInactive('self_logout');
+            
+            // Logout user
+            Auth::logout();
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
+
             return response()->json([
-                'success' => false,
-                'message' => 'Cannot logout current session. Use normal logout instead.',
-            ], 400);
+                'success' => true,
+                'message' => 'Logged out successfully',
+                'is_current' => true,
+                'redirect' => route('login'),
+            ]);
         }
 
-        // Mark session as inactive
+        // Broadcast event BEFORE terminating (so the user can receive it)
+        broadcast(new SessionTerminated($session, 'forced'))->toOthers();
+        
+        // Mark other session as inactive
         $session->markAsInactive('forced');
+        
+        // Invalidate the actual session file to force logout
+        $this->invalidateSessionFile($session->session_id);
 
         return response()->json([
             'success' => true,
-            'message' => 'Session terminated successfully',
+            'message' => 'Session terminated and user logged out successfully',
+            'is_current' => false,
         ]);
     }
 
@@ -124,18 +144,54 @@ class SessionController extends Controller
     {
         $currentSessionId = session()->getId();
 
-        UserSession::where('user_id', Auth::id())
+        // Get all other sessions
+        $otherSessions = UserSession::where('user_id', Auth::id())
             ->where('session_id', '!=', $currentSessionId)
             ->where('is_active', true)
-            ->update([
-                'is_active' => false,
-                'logout_reason' => 'forced_by_user',
-            ]);
+            ->get();
+
+        // Invalidate each session
+        foreach ($otherSessions as $session) {
+            // Broadcast event BEFORE terminating
+            broadcast(new SessionTerminated($session, 'forced_by_user'))->toOthers();
+            
+            // Mark as inactive
+            $session->markAsInactive('forced_by_user');
+            
+            // Try to delete actual session file
+            $this->invalidateSessionFile($session->session_id);
+        }
 
         return response()->json([
             'success' => true,
             'message' => 'All other sessions have been terminated',
+            'count' => $otherSessions->count(),
         ]);
+    }
+    
+    /**
+     * Invalidate session file
+     */
+    private function invalidateSessionFile(string $sessionId): void
+    {
+        try {
+            // Get session driver
+            $driver = config('session.driver');
+            
+            if ($driver === 'file') {
+                $sessionPath = storage_path('framework/sessions/' . $sessionId);
+                if (file_exists($sessionPath)) {
+                    @unlink($sessionPath);
+                }
+            } elseif ($driver === 'database') {
+                DB::table(config('session.table', 'sessions'))
+                    ->where('id', $sessionId)
+                    ->delete();
+            }
+        } catch (\Exception $e) {
+            // Log error but don't fail
+            Log::warning('Failed to invalidate session file: ' . $e->getMessage());
+        }
     }
 
     /**

@@ -95,10 +95,8 @@ cd /var/www/AdvancedCouponSystem
 # تثبيت Composer Dependencies
 composer install --optimize-autoloader --no-dev
 
-# تثبيت NPM Dependencies
 npm install
 
-# بناء Assets للإنتاج
 npm run build
 ```
 
@@ -158,16 +156,12 @@ MAIL_FROM_NAME="${APP_NAME}"
 ### 6️⃣ توليد Application Key وإعداد قاعدة البيانات
 
 ```bash
-# توليد Application Key
 php artisan key:generate
 
-# تشغيل Migrations
 php artisan migrate --force
 
-# تشغيل Seeders (إذا كانت موجودة)
 php artisan db:seed --force
 
-# إنشاء Storage Link
 php artisan storage:link
 
 # تحسين التطبيق للإنتاج

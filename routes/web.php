@@ -75,16 +75,27 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [NetworkController::class, 'index'])->name('index');
         Route::get('create', [NetworkController::class, 'create'])->name('create');
         Route::post('/', [NetworkController::class, 'store'])->name('store');
-        Route::get('{network}', [NetworkController::class, 'show'])->name('show');
-        Route::get('{network}/edit', [NetworkController::class, 'edit'])->name('edit');
-        Route::put('{network}', [NetworkController::class, 'update'])->name('update');
-        Route::delete('{network}', [NetworkController::class, 'destroy'])->name('destroy');
-        Route::post('{network}/connections', [NetworkController::class, 'createConnection'])->name('connections.create');
-        Route::post('{connection}/sync', [NetworkController::class, 'syncConnection'])->name('sync');
+        
+        // Connection-based routes (use connection ID)
+        Route::get('connections/{connection}/edit', [NetworkController::class, 'edit'])->name('edit');
+        Route::put('connections/{connection}', [NetworkController::class, 'update'])->name('update');
+        Route::delete('connections/{connection}', [NetworkController::class, 'destroy'])->name('destroy');
+        Route::get('connections/{connection}', [NetworkController::class, 'show'])->name('show');
+        Route::post('connections/{connection}/sync', [NetworkController::class, 'syncConnection'])->name('sync');
+        
+        // Network-based routes (use network ID for general info)
         Route::get('{network}/data', [NetworkController::class, 'getData'])->name('data');
         Route::get('{network}/config', [NetworkController::class, 'getNetworkConfig'])->name('config');
+        Route::post('{network}/connections', [NetworkController::class, 'createConnection'])->name('connections.create');
+        
+        // General routes (no specific ID)
         Route::post('test-connection', [NetworkController::class, 'testConnection'])->name('test-connection');
+        Route::post('verify-password', [NetworkController::class, 'verifyPassword'])->name('verify-password');
+        Route::post('reconnect', [NetworkController::class, 'reconnect'])->name('reconnect');
     });
+    
+    // OAuth Callbacks (outside verified middleware for external redirects)
+    Route::get('/admitad/callback', [NetworkController::class, 'admitadCallback'])->name('admitad.callback');
     
     // Campaign Management Routes
     Route::prefix('campaigns')->name('campaigns.')->middleware('verified')->group(function () {

@@ -404,10 +404,11 @@ function setupRealtimeUpdates() {
             encrypted: true
         });
 
-        const channel = pusher.subscribe('private-user.{{ auth()->id() }}');
+        const userChannel = pusher.subscribe('private-user.{{ auth()->id() }}');
+        const sessionChannel = pusher.subscribe('private-session.{{ session()->getId() }}');
 
         // Listen for new session events
-        channel.bind('session.created', function(data) {
+        userChannel.bind('session.created', function(data) {
             console.log('New session detected:', data);
             
             // Show toast notification
@@ -418,9 +419,89 @@ function setupRealtimeUpdates() {
                 window.location.reload();
             }, 2000);
         });
+        
+        // Listen for session termination (real-time logout)
+        userChannel.bind('session.terminated', function(data) {
+            console.log('Session terminated event received:', data);
+            handleSessionTerminated(data);
+        });
+        
+        sessionChannel.bind('session.terminated', function(data) {
+            console.log('This session was terminated:', data);
+            handleSessionTerminated(data);
+        });
     } catch (error) {
         console.error('Pusher setup error:', error);
     }
+}
+
+// Handle session termination (force logout)
+function handleSessionTerminated(data) {
+    const currentSessionId = '{{ session()->getId() }}';
+    
+    // Check if this is our current session
+    if (data.device_session_id === currentSessionId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Session Terminated!',
+            html: `
+                <p>Your session has been terminated.</p>
+                <p><strong>Reason:</strong> ${getTerminationReason(data.reason)}</p>
+                <p class="text-muted">You will be logged out now.</p>
+            `,
+            timer: 3000,
+            timerProgressBar: true,
+            showConfirmButton: false,
+            allowOutsideClick: false,
+            allowEscapeKey: false
+        }).then(() => {
+            // Force logout
+            performForceLogout();
+        });
+        
+        // Auto logout after 3 seconds even if modal is closed
+        setTimeout(() => {
+            performForceLogout();
+        }, 3000);
+    }
+}
+
+// Get user-friendly termination reason
+function getTerminationReason(reason) {
+    const reasons = {
+        'forced': 'Terminated by you from another device',
+        'forced_by_user': 'You logged out all other devices',
+        'self_logout': 'You logged out',
+        'expired': 'Session expired',
+        'admin': 'Terminated by administrator'
+    };
+    
+    return reasons[reason] || 'Session terminated';
+}
+
+// Perform force logout
+function performForceLogout() {
+    // Clear local data
+    if (localStorage) {
+        localStorage.clear();
+    }
+    if (sessionStorage) {
+        sessionStorage.clear();
+    }
+    
+    // Submit logout form
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ route("logout") }}';
+    
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = '_token';
+    csrfInput.value = '{{ csrf_token() }}';
+    
+    form.appendChild(csrfInput);
+    document.body.appendChild(form);
+    form.submit();
 }
 
 // Show notification for new session
@@ -621,7 +702,7 @@ function renderSessionDetails(session) {
 function logoutSession(sessionId) {
     Swal.fire({
         title: 'Logout This Session?',
-        text: 'This will terminate the session on the other device',
+        text: 'This will terminate the session and log you out if it\'s your current session',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#f1556c',
@@ -639,13 +720,30 @@ function logoutSession(sessionId) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        text: data.message,
-                        timer: 2000
-                    });
-                    setTimeout(() => location.reload(), 2000);
+                    // Check if this was current session
+                    if (data.is_current && data.redirect) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Logged Out!',
+                            text: 'You have been logged out successfully',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                        
+                        // Redirect to login page after 2 seconds
+                        setTimeout(() => {
+                            window.location.href = data.redirect;
+                        }, 2000);
+                    } else {
+                        // Just a remote session termination
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: data.message,
+                            timer: 2000
+                        });
+                        setTimeout(() => location.reload(), 2000);
+                    }
                 } else {
                     Swal.fire({
                         icon: 'error',
@@ -653,6 +751,13 @@ function logoutSession(sessionId) {
                         text: data.message
                     });
                 }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'Failed to logout session'
+                });
             });
         }
     });

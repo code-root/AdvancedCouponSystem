@@ -3,6 +3,7 @@
 namespace App\Services\Networks;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class GlobalNetworkService extends BaseNetworkService
@@ -20,329 +21,345 @@ class GlobalNetworkService extends BaseNetworkService
     ];
     
     /**
-     * Test connection to GlobalNetwork API
+     * Step 1: Test connection to GlobalNetwork API
      */
     public function testConnection(array $credentials): array
     {
-        // Validate credentials first
-        $validation = $this->validateCredentials($credentials);
-        if (!$validation['valid']) {
-            return [
-                'success' => false,
-                'message' => 'Invalid credentials provided. Please provide your API Key.',
-                'errors' => $validation['errors'],
-                'data' => null
-            ];
-        }
-        
         try {
-            $apiKey = $credentials['api_key'];
-            $apiUrl = $credentials['api_endpoint'] ?? $this->defaultConfig['api_url'];
+            // Validate credentials first
+            $validation = $this->validateCredentials($credentials);
+            if (!$validation['valid']) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid credentials provided. Please provide your API Key.',
+                    'errors' => $validation['errors'],
+                ];
+            }
             
-            // Date range for test
+            // Test API connection with date range
             $startDate = now()->startOfMonth()->format('Y-m-d');
             $endDate = now()->format('Y-m-d');
             
-            // Build API URL with parameters (GlobalNetwork format - same as Digizag)
-            $endpoint = $apiUrl . '&api_key=' . $apiKey . 
-                        '&filters[Stat.date][values][]=' . $startDate . 
-                        '&filters[Stat.date][values][]=' . $endDate . 
-                        '&data_start=' . $startDate . 
-                        '&data_end=' . $endDate;
+            $testResult = $this->testApiConnection(
+                $credentials['api_key'],
+                $startDate,
+                $endDate
+            );
             
-            $response = $this->makeRequest('get', $endpoint, [
-                'headers' => [
-                    'Accept' => 'application/json'
-                ]
-            ]);
-            if ($response['success'] && $response['status'] === 200) {
-                $data = $response['data'];
-                
-                // Log the response for debugging
-                
-                // Check if response has expected structure
-                if (isset($data['response']['data']['data'])) {
-                    return [
-                        'success' => true,
-                        'message' => 'Successfully connected to GlobalNetwork!',
-                        'data' => [
-                            'status' => 'active',
-                            'api_version' => 'v3',
-                            'total_records' => count($data['response']['data']['data']),
-                            'date_range' => [
-                                'from' => $startDate,
-                                'to' => $endDate
-                            ]
-                        ]
-                    ];
-                }
-                
-                // Check for error in response
-                if (isset($data['response']['errors'])) {
-                    return [
-                        'success' => false,
-                        'message' => 'API Error: ' . ($data['response']['errors']['publicMessage'] ?? 'Unknown error'),
-                        'data' => [
-                            'error' => $data['response']['errors'],
-                            'raw_response' => $data
-                        ]
-                    ];
-                }
-                
-                // If we get here, check if there's data but different structure
-                if (isset($data['response']['data']) && is_array($data['response']['data'])) {
-                    $dataCount = isset($data['response']['data']['data']) ? 
-                        count($data['response']['data']['data']) : 
-                        count($data['response']['data']);
-                    
-                    return [
-                        'success' => true,
-                        'message' => 'Successfully connected to GlobalNetwork!',
-                        'data' => [
-                            'status' => 'active',
-                            'api_version' => 'v3',
-                            'total_records' => $dataCount,
-                            'date_range' => [
-                                'from' => $startDate,
-                                'to' => $endDate
-                            ],
-                            'response_structure' => array_keys($data['response'])
-                        ]
-                    ];
-                }
-            }
-            
-            // Handle errors
-            if (isset($response['status'])) {
-                $errorMessage = $response['data']['response']['errors']['message'] ?? 
-                               $response['error'] ?? 'Unknown error';
-                
-                switch ($response['status']) {
-                    case 401:
-                    case 403:
-                        return [
-                            'success' => false,
-                            'message' => 'Authentication failed: ' . $errorMessage . '. Please verify your API Key.',
-                            'data' => [
-                                'error_code' => $response['status'],
-                                'hint' => 'Check if your API Key is correct and active.'
-                            ]
-                        ];
-                        
-                    case 429:
-                        return [
-                            'success' => false,
-                            'message' => 'Rate limit exceeded. Please try again later.',
-                            'data' => ['error_code' => 429]
-                        ];
-                        
-                    default:
-                        return [
-                            'success' => false,
-                            'message' => 'Connection failed: ' . $errorMessage,
-                            'data' => ['error_code' => $response['status']]
-                        ];
-                }
+            if (!$testResult['success']) {
+                return [
+                    'success' => false,
+                    'message' => 'Connection failed: ' . $testResult['message'],
+                ];
             }
             
             return [
+                'success' => true,
+                'message' => 'Successfully connected to GlobalNetwork!',
+                'data' => [
+                    'status' => 'active',
+                    'api_version' => 'v3',
+                    'total_records' => $testResult['total_records'] ?? 0,
+                    'date_range' => [
+                        'from' => $startDate,
+                        'to' => $endDate
+                    ]
+                ],
+            ];
+            
+        } catch (\Exception $e) {
+            Log::error('GlobalNetwork connection test failed: ' . $e->getMessage());
+            
+            return [
                 'success' => false,
-                'message' => 'Failed to connect to GlobalNetwork: Invalid response',
-                'data' => null
+                'message' => 'Connection error: ' . $e->getMessage(),
+            ];
+        }
+    }
+    
+    /**
+     * Step 2: Test API connection with real request
+     */
+    private function testApiConnection(string $apiKey, string $startDate, string $endDate): array
+    {
+        try {
+            $endpoint = $this->buildApiUrl($apiKey, $startDate, $endDate);
+            
+            $response = Http::timeout($this->defaultConfig['timeout'])
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                ])
+                ->get($endpoint);
+            
+            if (!$response->successful()) {
+                return [
+                    'success' => false,
+                    'message' => 'API request failed with status: ' . $response->status(),
+                ];
+            }
+            
+            $data = $response->json();
+            
+            // Check for API errors
+            if (isset($data['response']['errors']) && !empty($data['response']['errors'])) {
+                $errorMsg = $data['response']['errors']['publicMessage'] ?? 
+                           $data['response']['errors']['message'] ?? 
+                           'Unknown API error';
+                
+                return [
+                    'success' => false,
+                    'message' => $errorMsg,
+                ];
+            }
+            
+            // Check if response has expected data structure
+            if (isset($data['response']['data']['data'])) {
+                return [
+                    'success' => true,
+                    'total_records' => count($data['response']['data']['data']),
+                ];
+            }
+            
+            // Alternative structure
+            if (isset($data['response']['data']) && is_array($data['response']['data'])) {
+                $dataCount = is_array($data['response']['data']) ? count($data['response']['data']) : 0;
+                return [
+                    'success' => true,
+                    'total_records' => $dataCount,
+                ];
+            }
+            
+            return [
+                'success' => true,
+                'total_records' => 0,
             ];
             
         } catch (\Exception $e) {
             return [
                 'success' => false,
                 'message' => 'Connection error: ' . $e->getMessage(),
-                'data' => ['exception' => get_class($e)]
             ];
         }
     }
     
     /**
-     * Get coupon data from GlobalNetwork API
+     * Step 3: Build API URL with parameters
      */
-    public function getDataCode(array $credentials, string $startDate, string $endDate): array
+    private function buildApiUrl(string $apiKey, string $startDate, string $endDate): string
+    {
+        $baseUrl = $this->defaultConfig['api_url'];
+        
+        return $baseUrl . 
+               '&api_key=' . $apiKey . 
+               '&filters[Stat.date][values][]=' . $startDate . 
+               '&filters[Stat.date][values][]=' . $endDate . 
+               '&data_start=' . $startDate . 
+               '&data_end=' . $endDate;
+    }
+    
+    /**
+     * Sync data from GlobalNetwork
+     */
+    public function syncData(array $credentials, array $config = []): array
     {
         try {
-            $apiKey = $credentials['api_key'];
-            $apiUrl = $this->defaultConfig['api_url'];
+            // Extract dates from config
+            $startDate = $config['date_from'] ?? now()->startOfMonth()->format('Y-m-d');
+            $endDate = $config['date_to'] ?? now()->format('Y-m-d');
             
-            // Build API URL (GlobalNetwork format - same as Digizag)
-            $endpoint = $apiUrl . '&api_key=' . $apiKey . 
-                        '&filters[Stat.date][values][]=' . $startDate . 
-                        '&filters[Stat.date][values][]=' . $endDate . 
-                        '&data_start=' . $startDate . 
-                        '&data_end=' . $endDate;
-            
-            $response = $this->makeRequest('get', $endpoint, [
-                'headers' => [
-                    'Accept' => 'application/json'
-                ]
-            ]);
-            
-            if ($response['success'] && $response['status'] === 200) {
-                $data = $response['data'];
-                
-                
-                
-                // Check if response has error (and errors is not empty array)
-                if (isset($data['response']['errors']) && !empty($data['response']['errors'])) {
-                    $errorMsg = $data['response']['errors']['publicMessage'] ?? 
-                               $data['response']['errors']['message'] ?? 
-                               'API returned error';
-                    
-                    return [
-                        'success' => false,
-                        'message' => $errorMsg,
-                        'data' => [],
-                        'error_details' => $data['response']['errors']
-                    ];
-                }
-                
-                // Check for nested response structure (response.response.data.data)
-                if (isset($data['response']['response']['data']['data'])) {
-                    $items = $data['response']['response']['data']['data'];
-                    
-                    return [
-                        'success' => true,
-                        'type' => 'coupon',
-                        'data' => $items,
-                        'total' => count($items)
-                    ];
-                }
-                
-                // Standard structure (response.data.data)
-                if (isset($data['response']['data']['data'])) {
-                    $items = $data['response']['data']['data'];
-                    
-                    return [
-                        'success' => true,
-                        'type' => 'coupon',
-                        'data' => $items,
-                        'total' => count($items)
-                    ];
-                }
-                
-                // Alternative structure
-                if (isset($data['response']['data']) && is_array($data['response']['data'])) {
-                    
-                    return [
-                        'success' => true,
-                        'type' => 'coupon',
-                        'data' => $data['response']['data'],
-                        'total' => count($data['response']['data'])
-                    ];
-                }
-                
-            
+            // Check if API key exists
+            if (empty($credentials['api_key'])) {
+                return [
+                    'success' => false,
+                    'message' => 'API Key is required. Please reconnect.',
+                ];
             }
             
-            $errorMsg = 'Failed to fetch coupon data';
-            if (isset($response['data']['response']['errors']['publicMessage'])) {
-                $errorMsg .= ': ' . $response['data']['response']['errors']['publicMessage'];
-            } elseif (isset($response['data']['response']['errors']['message'])) {
-                $errorMsg .= ': ' . $response['data']['response']['errors']['message'];
-            } elseif ($response['status'] === 401) {
-                $errorMsg .= ': Unauthorized (check API key)';
+            // Fetch performance data
+            $performanceData = $this->getPerformanceData(
+                $credentials['api_key'],
+                $startDate,
+                $endDate
+            );
+            
+            // If successful, return formatted data
+            if ($performanceData['success']) {
+                $totalRecords = count($performanceData['data'] ?? []);
+                
+                return [
+                    'success' => true,
+                    'message' => "Successfully synced {$totalRecords} records from GlobalNetwork",
+                    'data' => [
+                        'coupons' => [
+                            'campaigns' => $totalRecords,
+                            'coupons' => $totalRecords,
+                            'purchases' => 0,
+                            'total' => $totalRecords,
+                            'data' => $performanceData['data'],
+                        ],
+                    ],
+                ];
             }
+            
+            // If failed, return error
+            return [
+                'success' => false,
+                'message' => $performanceData['message'] ?? 'Failed to sync data from GlobalNetwork',
+            ];
+            
+        } catch (\Exception $e) {
+            Log::error('GlobalNetwork sync failed: ' . $e->getMessage());
             
             return [
                 'success' => false,
-                'message' => $errorMsg,
-                'status' => $response['status'] ?? 0,
-                'data' => []
+                'message' => 'Sync failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+    
+    /**
+     * Get performance data from GlobalNetwork API
+     */
+    private function getPerformanceData(string $apiKey, string $startDate, string $endDate): array
+    {
+        try {
+            $endpoint = $this->buildApiUrl($apiKey, $startDate, $endDate);
+            
+            $response = Http::timeout($this->defaultConfig['timeout'])
+                ->withHeaders([
+                    'Accept' => 'application/json',
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                ])
+                ->get($endpoint);
+            
+            if (!$response->successful()) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to fetch data. Status: ' . $response->status(),
+                ];
+            }
+            
+            $data = $response->json();
+            
+            // Check for API errors
+            if (isset($data['response']['errors']) && !empty($data['response']['errors'])) {
+                $errorMsg = $data['response']['errors']['publicMessage'] ?? 
+                           $data['response']['errors']['message'] ?? 
+                           'API returned error';
+                
+                return [
+                    'success' => false,
+                    'message' => $errorMsg,
+                ];
+            }
+            
+            // Parse data based on response structure
+            $parsedData = $this->parseApiResponse($data);
+            
+            return [
+                'success' => true,
+                'data' => $parsedData,
             ];
             
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Error fetching coupon data: ' . $e->getMessage(),
-                'data' => []
+                'message' => 'Error fetching data: ' . $e->getMessage(),
             ];
         }
     }
     
     /**
-     * Get link performance data (if GlobalNetwork supports it)
+     * Parse API response and extract data
      */
-    public function getDataLink(array $credentials, string $startDate, string $endDate): array
+    private function parseApiResponse(array $data): array
     {
-        // GlobalNetwork might not have separate link endpoint
-        // Return empty for now
-        return [
-            'success' => true,
-            'type' => 'link',
-            'data' => [],
-            'total' => 0
-        ];
-    }
-    
-    /**
-     * Sync all data
-     */
-    public function syncData(array $credentials, array $config = []): array
-    {
-        $startDate = $config['date_from'] ?? Carbon::now()->startOfMonth()->format('Y-m-d');
-        $endDate = $config['date_to'] ?? Carbon::now()->format('Y-m-d');
+        $items = [];
         
-
-        
-        $results = [
-            'coupons' => $this->getDataCode($credentials, $startDate, $endDate),
-            'links' => $this->getDataLink($credentials, $startDate, $endDate)
-        ];
-        
-
-        
-        $totalRecords = ($results['coupons']['total'] ?? 0) + ($results['links']['total'] ?? 0);
-        
-        if ($results['coupons']['success'] || $results['links']['success']) {
-            $couponTotal = $results['coupons']['total'] ?? 0;
-            $linkTotal = $results['links']['total'] ?? 0;
-            
-            // Log sample data for debugging
-            if (!empty($results['coupons']['data'])) {
-      
-                
+        try {
+            // Check for nested response structure (response.response.data.data)
+            if (isset($data['response']['response']['data']['data'])) {
+                $items = $data['response']['response']['data']['data'];
+            }
+            // Standard structure (response.data.data)
+            elseif (isset($data['response']['data']['data'])) {
+                $items = $data['response']['data']['data'];
+            }
+            // Alternative structure (response.data)
+            elseif (isset($data['response']['data']) && is_array($data['response']['data'])) {
+                $items = $data['response']['data'];
             }
             
-            return [
-                'success' => true,
-                'message' => "Successfully synced {$totalRecords} records from GlobalNetwork",
-                'data' => [
-                    'coupons' => [
-                        'campaigns' => $couponTotal + $linkTotal,
-                        'coupons' => $couponTotal + $linkTotal,
-                        'purchases' => 0,
-                        'total' => $results['coupons']['total'] ?? 0,
-                        'data' => $results['coupons']['data'] ?? []
-                    ],
-                    'links' => [
-                        'total' => $results['links']['total'] ?? 0,
-                        'data' => $results['links']['data'] ?? []
-                    ],
-                    'date_range' => [
-                        'from' => $startDate,
-                        'to' => $endDate
-                    ]
-                ]
+            // Transform data to standard format
+            return $this->transformData($items);
+            
+        } catch (\Exception $e) {
+            Log::error('Error parsing GlobalNetwork response: ' . $e->getMessage());
+            return [];
+        }
+    }
+    
+    /**
+     * Transform API data to standard format
+     */
+    private function transformData(array $items): array
+    {
+        $transformedData = [];
+        
+        foreach ($items as $item) {
+            // Extract data from API response structure
+            $campaignId = $item['Stat']['offer_id'] ?? $item['offer_id'] ?? null;
+            $campaignName = $item['Offer']['name'] ?? $item['name'] ?? 'Unknown Campaign';
+            $code = $item['Stat']['affiliate_info1'] ?? $item['affiliate_info1'] ?? '';
+            $status = $item['Stat']['conversion_status'] ?? $item['conversion_status'] ?? 'pending';
+            $payout = $item['Stat']['payout'] ?? $item['payout'] ?? 0;
+            $saleAmount = $item['Stat']['conversion_sale_amount'] ?? $item['conversion_sale_amount'] ?? 0;
+            $orderDate = $item['Stat']['datetime'] ?? $item['datetime'] ?? now()->format('Y-m-d H:i:s');
+            
+            // Skip if no campaign ID
+            if (empty($campaignId)) {
+                continue;
+            }
+            
+            // Generate code if empty
+            if (empty($code)) {
+                $code = 'GN-' . $campaignId;
+            }
+            
+            $transformedData[] = [
+                'campaign_id' => $campaignId,
+                'campaign_name' => $campaignName,
+                'code' => $code,
+                'country' => 'NA',
+                'order_id' => null,
+                'network_order_id' => $item['Stat']['id'] ?? null,
+                'order_value' => (float) $saleAmount,
+                'commission' => (float) $payout,
+                'revenue' => (float) $payout,
+                'quantity' => 1,
+                'customer_type' => 'unknown',
+                'status' => $this->normalizeStatus($status),
+                'order_date' => $orderDate,
+                'purchase_date' => $orderDate,
             ];
         }
         
-        \Log::error('GlobalNetwork sync failed', [
-            'coupons_error' => $results['coupons']['message'] ?? 'Unknown',
-            'coupons_result' => $results['coupons']
-        ]);
-        
-        return [
-            'success' => false,
-            'message' => 'Failed to sync data from GlobalNetwork. Details: ' . 
-                        ($results['coupons']['message'] ?? 'Unknown'),
-            'data' => [
-                'coupons_error' => $results['coupons']
-            ]
+        return $transformedData;
+    }
+    
+    /**
+     * Normalize conversion status
+     */
+    private function normalizeStatus(string $status): string
+    {
+        $statusMap = [
+            'approved' => 'approved',
+            'pending' => 'pending',
+            'rejected' => 'rejected',
+            'cancelled' => 'rejected',
         ];
+        
+        return $statusMap[strtolower($status)] ?? 'pending';
     }
 }
