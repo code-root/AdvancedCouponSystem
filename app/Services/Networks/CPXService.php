@@ -76,6 +76,7 @@ class CPXService extends BaseNetworkService
                                 'campaign_id' => $conversion['campaign_id'] ?? null,
                                 'campaign_name' => $conversion['advertiser'] ?? 'Unknown',
                                 'coupon_code' => $conversion['coupon_code'] ?? '',
+                                'purchase_type' => !empty($conversion['coupon_code']) ? 'coupon' : 'link', // Determine based on coupon code
                                 'country' => $conversion['country'] ?? 'Unknown',
                                 'sale_amount' => floatval($conversion['sale_amount'] ?? 0),
                                 'commission' => floatval($conversion['payout'] ?? 0),

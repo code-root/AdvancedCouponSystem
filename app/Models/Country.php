@@ -69,6 +69,6 @@ class Country extends Model
      */
     public function getTotalCommission(): float
     {
-        return $this->purchases()->sum('commission');
+        return $this->purchases()->sum('order_value');
     }
 }

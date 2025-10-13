@@ -79,6 +79,7 @@ class ICWService extends BaseNetworkService
                         'campaign_id' => $rowNumber,
                         'campaign_name' => $campaignName,
                         'coupon_code' => $couponCode,
+                        'purchase_type' => 'coupon', // ICW is typically coupon-based
                         'country' => 'N/A',
                         'sale_amount' => $saleAmount,
                         'commission' => $revenue,

@@ -150,11 +150,16 @@ class DigizagService extends BaseNetworkService
                 $data = $response['data'];
                 
                 if (isset($data['response']['data']['data'])) {
+                    $items = $data['response']['data']['data'];
+                    // Add purchase_type to each item
+                    foreach ($items as &$item) {
+                        $item['purchase_type'] = 'coupon'; // Digizag is typically coupon-based
+                    }
                     return [
                         'success' => true,
                         'type' => 'coupon',
-                        'data' => $data['response']['data']['data'],
-                        'total' => count($data['response']['data']['data'])
+                        'data' => $items,
+                        'total' => count($items)
                     ];
                 }
             }

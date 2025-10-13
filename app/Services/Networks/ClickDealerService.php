@@ -93,6 +93,11 @@ class ClickDealerService extends BaseNetworkService
             if ($response['success']) {
                 $data = $response['data']['conversions'] ?? [];
                 
+                // Add purchase_type to each item
+                foreach ($data as &$item) {
+                    $item['purchase_type'] = 'coupon'; // ClickDealer is typically coupon-based
+                }
+                
                 return [
                     'success' => true,
                     'message' => "Successfully synced data from ClickDealer",

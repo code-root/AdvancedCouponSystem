@@ -36,61 +36,102 @@ class GlobalemediaService extends BaseNetworkService
     ];
 
     /**
-     * Test connection by logging in and getting cookies
+     * Test connection by logging in and getting cookies (with retry)
      */
     public function testConnection(array $credentials): array
     {
-        try {
-            // Step 1: Get token and PHPSESSID
-            $loginData = $this->getLoginTokenAndSession();
+        $maxRetries = 2;
+        $attempt = 0;
+        $lastError = '';
+        
+        while ($attempt < $maxRetries) {
+            $attempt++;
             
-            if (!$loginData['success']) {
+            try {
+                Log::info("Globalemedia: Connection attempt #{$attempt}");
+                
+                // Step 1: Get fresh token and PHPSESSID
+                $loginData = $this->getLoginTokenAndSession();
+                
+                if (!$loginData['success']) {
+                    $lastError = $loginData['message'];
+                    Log::warning("Globalemedia: Failed to get login token on attempt #{$attempt}: {$lastError}");
+                    
+                    if ($attempt < $maxRetries) {
+                        sleep(2); // Wait 2 seconds before retry
+                        continue;
+                    }
+                    
+                    return [
+                        'success' => false,
+                        'message' => $lastError,
+                    ];
+                }
+                
+                $token = $loginData['token'];
+                $phpsessid = $loginData['phpsessid'];
+                
+                Log::info("Globalemedia: Got fresh token and session on attempt #{$attempt}");
+                
+                // Step 2: Login with credentials
+                $loginResult = $this->performLogin(
+                    $credentials['email'],
+                    $credentials['password'],
+                    $token,
+                    $phpsessid
+                );
+                
+                if (!$loginResult['success']) {
+                    $lastError = $loginResult['message'];
+                    Log::warning("Globalemedia: Login failed on attempt #{$attempt}: {$lastError}");
+                    
+                    if ($attempt < $maxRetries) {
+                        sleep(2); // Wait before retry
+                        continue;
+                    }
+                    
+                    return [
+                        'success' => false,
+                        'message' => 'Login failed: ' . $lastError,
+                    ];
+                }
+                
+                // Step 3: Store cookies for future use
+                $cookieString = $this->buildCookieString($loginResult['cookies']);
+                
+                Log::info("Globalemedia: Successfully connected on attempt #{$attempt}");
+                
+                return [
+                    'success' => true,
+                    'message' => 'Successfully connected to Globalemedia!' . ($attempt > 1 ? " (after {$attempt} attempts)" : ''),
+                    'data' => [
+                        'token' => $token,
+                        'phpsessid' => $phpsessid,
+                        'cookies' => $cookieString,
+                        'all_cookies' => $loginResult['cookies'],
+                    ],
+                ];
+                
+            } catch (\Exception $e) {
+                $lastError = $e->getMessage();
+                Log::error("Globalemedia connection attempt #{$attempt} failed: {$lastError}");
+                
+                if ($attempt < $maxRetries) {
+                    sleep(2); // Wait before retry
+                    continue;
+                }
+                
                 return [
                     'success' => false,
-                    'message' => $loginData['message'],
+                    'message' => 'Connection failed after ' . $maxRetries . ' attempts: ' . $lastError,
                 ];
             }
-            
-            $token = $loginData['token'];
-            $phpsessid = $loginData['phpsessid'];
-            
-            // Step 2: Login with credentials
-            $loginResult = $this->performLogin(
-                $credentials['email'],
-                $credentials['password'],
-                $token,
-                $phpsessid
-            );
-            
-            if (!$loginResult['success']) {
-                return [
-                    'success' => false,
-                    'message' => 'Login failed: ' . $loginResult['message'],
-                ];
-            }
-            
-            // Step 3: Store cookies for future use
-            $cookieString = $this->buildCookieString($loginResult['cookies']);
-            
-            return [
-                'success' => true,
-                'message' => 'Successfully connected to Globalemedia!',
-                'data' => [
-                    'token' => $token,
-                    'phpsessid' => $phpsessid,
-                    'cookies' => $cookieString,
-                    'all_cookies' => $loginResult['cookies'],
-                ],
-            ];
-            
-        } catch (\Exception $e) {
-            Log::error('Globalemedia connection test failed: ' . $e->getMessage());
-            
-            return [
-                'success' => false,
-                'message' => 'Connection failed: ' . $e->getMessage(),
-            ];
         }
+        
+        return [
+            'success' => false,
+            'message' => 'Connection failed after all retry attempts: ' . $lastError,
+        ];
     }
 
     /**
@@ -476,6 +517,7 @@ class GlobalemediaService extends BaseNetworkService
                     'campaign_id' => $campaign,
                     'campaign_name' => $campaign,
                     'code' => $couponCode,
+                    'purchase_type' => 'coupon', // Globalemedia is typically coupon-based
                     'country' => 'NA',
                     'order_id' => null,
                     'network_order_id' => null,
@@ -486,8 +528,8 @@ class GlobalemediaService extends BaseNetworkService
                     'quantity' => intval($conversions) > 0 ? intval($conversions) : 1,
                     'customer_type' => 'unknown',
                     'status' => 'approved',
-                    'order_date' => now()->format('Y-m-d'),
-                    'purchase_date' => now()->format('Y-m-d'),
+                    'order_date' => $this->config['date_from'] ?? now()->format('Y-m-d'), // تاريخ الطلب من التكوين
+                    'purchase_date' => $this->config['date_from'] ?? now()->format('Y-m-d'), // نفس التاريخ
                 ];
             }
             

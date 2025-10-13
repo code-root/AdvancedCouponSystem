@@ -4,6 +4,8 @@
 * Module/App: App and Layout Js
 */
 
+// Import bootstrap.js first to initialize Echo
+import './bootstrap';
 
 import $ from 'jquery'
 
@@ -11,6 +13,10 @@ window.jQuery = window.$ = $
 
 import bootstrap from 'bootstrap/dist/js/bootstrap.min.js'
 window.bootstrap = bootstrap;
+
+// Import Pusher for real-time features
+import Pusher from 'pusher-js';
+window.Pusher = Pusher;
 
 import 'simplebar'
 import 'flatpickr'

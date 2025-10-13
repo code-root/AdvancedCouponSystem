@@ -116,7 +116,7 @@ class DashboardController extends Controller
         
         return [
             'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue'),
-            'total_commission' => Purchase::where('user_id', $userId)->sum('commission'),
+            'total_commission' => Purchase::where('user_id', $userId)->sum('order_value'),
             'total_purchases' => Purchase::where('user_id', $userId)->count(),
             'total_campaigns' => Campaign::where('user_id', $userId)->count(),
             'total_coupons' => Coupon::whereHas('campaign', function($q) use ($userId) {
@@ -164,7 +164,7 @@ class DashboardController extends Controller
             $query->whereIn('network_id', $networkIds);
         }
         
-        return $query->sum('commission');
+        return $query->sum('order_value');
     }
     
     /**
@@ -252,7 +252,7 @@ class DashboardController extends Controller
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
             ->select('network_id',
                 DB::raw('SUM(revenue) as total_revenue'),
-                DB::raw('SUM(commission) as total_commission'),
+                DB::raw('SUM(order_value) as total_commission'),
                 DB::raw('COUNT(*) as total_purchases'),
                 DB::raw('AVG(revenue) as avg_revenue'))
             ->with('network:id,display_name')
@@ -310,7 +310,7 @@ class DashboardController extends Controller
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
             ->select('network_id',
                 DB::raw('SUM(revenue) as total_revenue'),
-                DB::raw('SUM(commission) as total_commission'),
+                DB::raw('SUM(order_value) as total_commission'),
                 DB::raw('COUNT(*) as total_purchases'))
             ->with('network:id,display_name')
             ->groupBy('network_id')

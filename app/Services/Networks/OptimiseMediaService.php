@@ -259,6 +259,11 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
             // Process and return data
             $totalRecords = count($responseData);
             
+            // Add purchase_type to each item
+            foreach ($responseData as &$item) {
+                $item['purchase_type'] = 'coupon'; // OptimiseMedia is typically coupon-based
+            }
+            
             return [
                 'success' => true,
                 'message' => "Successfully synced {$totalRecords} records from OptimiseMedia",

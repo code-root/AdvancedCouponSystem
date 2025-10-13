@@ -99,6 +99,7 @@ class NetworkDataProcessor
                         // Create purchase record
                         Purchase::create([
                             'coupon_id' => $coupon->id,
+                            'purchase_type' => $item['purchase_type'] ?? 'coupon', // Use purchase_type from data
                             'campaign_id' => $campaign->id,
                             'network_id' => $networkId,
                             'user_id' => $userId,
@@ -157,6 +158,7 @@ class NetworkDataProcessor
     private static function normalizeBoostinyData(array $item): array
     {
         return [
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_id' => $item['campaign_id'] ?? null,
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => $item['campaign_logo'] ?? null,
@@ -170,8 +172,8 @@ class NetworkDataProcessor
             'quantity' => $item['orders'] ?? 1,
             'customer_type' => strtolower(trim($item['customer_type'] ?? 'unknown')),
             'status' => 'approved',
-            'order_date' => $item['date'] ?? now()->format('Y-m-d'),
-            'purchase_date' => $item['last_updated_at'] ?? now()->format('Y-m-d'),
+            'order_date' => $item['date'] ?? now()->format('Y-m-d'), // تاريخ الطلب من API
+            'purchase_date' => $item['last_updated_at'] ?? now()->format('Y-m-d'), // تاريخ آخر تحديث
         ];
     }
     
@@ -185,6 +187,7 @@ class NetworkDataProcessor
         
         return [
             'campaign_id' => $stat['offer_id'] ?? null,
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $offer['name'] ?? 'Unknown',
             'campaign_logo' => null,
             'code' => $stat['affiliate_info1'] ?? 'NA',
@@ -197,8 +200,8 @@ class NetworkDataProcessor
             'quantity' => 1,
             'customer_type' => 'unknown',
             'status' => $stat['conversion_status'] ?? 'approved',
-            'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
-            'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
+            'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'), // تاريخ العملية من API
+            'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'), // نفس التاريخ
         ];
     }
     
@@ -212,6 +215,7 @@ class NetworkDataProcessor
         
         return [
             'campaign_id' => $stat['offer_id'] ?? null,
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $offer['name'] ?? 'Unknown',
             'campaign_logo' => null,
             'code' => $stat['affiliate_info1'] ?? $stat['promo_code'] ?? 'NA',
@@ -224,8 +228,8 @@ class NetworkDataProcessor
             'quantity' => 1,
             'customer_type' => 'unknown',
             'status' => $stat['conversion_status'] ?? 'approved',
-            'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
-            'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
+            'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'), // تاريخ العملية من API
+            'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'), // نفس التاريخ
         ];
     }
     
@@ -239,6 +243,7 @@ class NetworkDataProcessor
         
         return [
             'campaign_id' => $stat['offer_id'] ?? null,
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $offer['name'] ?? 'Unknown',
             'campaign_logo' => null,
             'code' => $stat['affiliate_info1'] ?? $stat['affiliate_info5'] ?? 'NA',
@@ -251,8 +256,8 @@ class NetworkDataProcessor
             'quantity' => 1,
             'customer_type' => 'unknown',
             'status' => $stat['conversion_status'] ?? 'approved',
-            'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
-            'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'),
+            'order_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'), // تاريخ العملية من API
+            'purchase_date' => isset($stat['datetime']) ? date('Y-m-d', strtotime($stat['datetime'])) : now()->format('Y-m-d'), // نفس التاريخ
         ];
     }
     
@@ -263,6 +268,7 @@ class NetworkDataProcessor
     {
         return [
             'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
             'code' => $item['coupon_code'] ?? 'NA',
@@ -275,8 +281,8 @@ class NetworkDataProcessor
             'quantity' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
             'status' => $item['status'] ?? 'approved',
-            'order_date' => $item['date'] ?? now()->format('Y-m-d'),
-            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'),
+            'order_date' => $item['date'] ?? now()->format('Y-m-d'), // تاريخ الطلب من API
+            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'), // نفس التاريخ
         ];
     }
     
@@ -287,6 +293,7 @@ class NetworkDataProcessor
     {
         return [
             'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
             'code' => $item['coupon_code'] ?? 'NA',
@@ -299,8 +306,8 @@ class NetworkDataProcessor
             'quantity' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
             'status' => $item['status'] ?? 'approved',
-            'order_date' => $item['date'] ?? now()->format('Y-m-d'),
-            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'),
+            'order_date' => $item['date'] ?? now()->format('Y-m-d'), // تاريخ الطلب من API
+            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'), // نفس التاريخ
         ];
     }
     
@@ -311,6 +318,7 @@ class NetworkDataProcessor
     {
         return [
             'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
             'code' => $item['coupon_code'] ?? 'NA',
@@ -323,8 +331,8 @@ class NetworkDataProcessor
             'quantity' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
             'status' => $item['status'] ?? 'approved',
-            'order_date' => $item['date'] ?? now()->format('Y-m-d'),
-            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'),
+            'order_date' => $item['date'] ?? now()->format('Y-m-d'), // تاريخ الطلب من API
+            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'), // نفس التاريخ
         ];
     }
     
@@ -335,6 +343,7 @@ class NetworkDataProcessor
     {
         return [
             'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
             'code' => $item['coupon_code'] ?? 'NA',
@@ -347,8 +356,8 @@ class NetworkDataProcessor
             'quantity' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
             'status' => $item['status'] ?? 'approved',
-            'order_date' => $item['date'] ?? now()->format('Y-m-d'),
-            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'),
+            'order_date' => $item['date'] ?? now()->format('Y-m-d'), // تاريخ الطلب من API
+            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'), // نفس التاريخ
         ];
     }
     
@@ -359,6 +368,7 @@ class NetworkDataProcessor
     {
         return [
             'campaign_id' => $item['campaign_id'] ?? null,
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
             'code' => $item['code'] ?? 'NA',
@@ -371,8 +381,8 @@ class NetworkDataProcessor
             'quantity' => $item['quantity'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
             'status' => $item['status'] ?? 'approved',
-            'order_date' => $item['order_date'] ?? now()->format('Y-m-d'),
-            'purchase_date' => $item['purchase_date'] ?? now()->format('Y-m-d'),
+            'order_date' => $item['order_date'] ?? now()->format('Y-m-d'), // تاريخ الطلب من API
+            'purchase_date' => $item['purchase_date'] ?? now()->format('Y-m-d'), // تاريخ الشراء من API
         ];
     }
     
@@ -407,6 +417,7 @@ class NetworkDataProcessor
         
         return [
             'campaign_id' => $item['advertiserId'] ?? null,
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['advertiserName'] ?? 'Unknown',
             'campaign_logo' => 'https://www.optimisemedia.com/assets/icons/logo-circle.svg',
             'code' => $item['voucherCode'] ?? 'NA',
@@ -419,8 +430,8 @@ class NetworkDataProcessor
             'quantity' => $countOrders > 0 ? $countOrders : 1,
             'customer_type' => strtolower(trim($item['campaignName'] ?? 'unknown')),
             'status' => $status,
-            'order_date' => isset($item['date']) ? date('Y-m-d', strtotime($item['date'])) : now()->format('Y-m-d'),
-            'purchase_date' => isset($item['date']) ? date('Y-m-d', strtotime($item['date'])) : now()->format('Y-m-d'),
+            'order_date' => isset($item['date']) ? date('Y-m-d', strtotime($item['date'])) : now()->format('Y-m-d'), // تاريخ الطلب من API
+            'purchase_date' => isset($item['date']) ? date('Y-m-d', strtotime($item['date'])) : now()->format('Y-m-d'), // نفس التاريخ
         ];
     }
     
@@ -459,6 +470,7 @@ class NetworkDataProcessor
                         
                         // Create purchase record for link
                         Purchase::create([
+                            'purchase_type' => $item['purchase_type'] ?? 'link', // Use purchase_type from data
                             'campaign_id' => $campaign->id,
                             'network_id' => $networkId,
                             'user_id' => $userId,

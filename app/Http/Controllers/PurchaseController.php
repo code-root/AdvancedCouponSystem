@@ -51,8 +51,20 @@ class PurchaseController extends Controller
             'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
             'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),
             'total_revenue' => (clone $statsQuery)->sum('revenue'),
-            'total_commission' => (clone $statsQuery)->sum('commission'),
+            'total_commission' => (clone $statsQuery)->sum('order_value'),
             'total_order_value' => (clone $statsQuery)->sum('order_value'),
+            'purchase_type_breakdown' => [
+                'coupon' => [
+                    'count' => (clone $statsQuery)->where('purchase_type', 'coupon')->count(),
+                    'revenue' => (clone $statsQuery)->where('purchase_type', 'coupon')->sum('revenue'),
+                    'order_value' => (clone $statsQuery)->where('purchase_type', 'coupon')->sum('order_value'),
+                ],
+                'link' => [
+                    'count' => (clone $statsQuery)->where('purchase_type', 'link')->count(),
+                    'revenue' => (clone $statsQuery)->where('purchase_type', 'link')->sum('revenue'),
+                    'order_value' => (clone $statsQuery)->where('purchase_type', 'link')->sum('order_value'),
+                ]
+            ]
         ];
         
         $purchases = $query->latest('order_date')->paginate($request->per_page ?? 15);
@@ -123,6 +135,11 @@ class PurchaseController extends Controller
             $query->where('customer_type', $request->customer_type);
         }
         
+        // Filter by purchase type (coupon vs direct link)
+        if ($request->purchase_type) {
+            $query->where('purchase_type', $request->purchase_type);
+        }
+        
         // Filter by date range
         if ($request->date_from) {
             $query->whereDate('order_date', '>=', $request->date_from);
@@ -165,7 +182,7 @@ class PurchaseController extends Controller
             'pending' => Purchase::where('user_id', $userId)->where('status', 'pending')->count(),
             'rejected' => Purchase::where('user_id', $userId)->where('status', 'rejected')->count(),
             'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue'),
-            'total_commission' => Purchase::where('user_id', $userId)->sum('commission'),
+            'total_commission' => Purchase::where('user_id', $userId)->sum('order_value'),
         ];
     }
 
@@ -342,6 +359,11 @@ class PurchaseController extends Controller
             }
         }
         
+        // Filter by purchase type (coupon vs direct link)
+        if ($request->filled('purchase_type')) {
+            $query->where('purchase_type', $request->purchase_type);
+        }
+        
         $stats = [
             'total_purchases' => (clone $query)->count(),
             'approved_purchases' => (clone $query)->where('status', 'approved')->count(),
@@ -349,7 +371,7 @@ class PurchaseController extends Controller
             'rejected_purchases' => (clone $query)->where('status', 'rejected')->count(),
             'paid_purchases' => (clone $query)->where('status', 'paid')->count(),
             'total_revenue' => (clone $query)->where('status', 'approved')->sum('revenue'),
-            'total_commission' => (clone $query)->where('status', 'approved')->sum('commission'),
+            'total_commission' => (clone $query)->where('status', 'approved')->sum('order_value'),
             'total_order_value' => (clone $query)->where('status', 'approved')->sum('order_value'),
             'average_purchase' => (clone $query)->where('status', 'approved')->avg('order_value') ?: 0,
             'average_revenue' => (clone $query)->where('status', 'approved')->avg('revenue') ?: 0,
@@ -365,6 +387,18 @@ class PurchaseController extends Controller
                 ->orderBy('month', 'desc')
                 ->limit(12)
                 ->get(),
+            'purchase_type_breakdown' => [
+                'coupon' => [
+                    'count' => (clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->count(),
+                    'revenue' => (clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->sum('revenue'),
+                    'order_value' => (clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->sum('order_value'),
+                ],
+                'link' => [
+                    'count' => (clone $query)->where('purchase_type', 'link')->where('status', 'approved')->count(),
+                    'revenue' => (clone $query)->where('purchase_type', 'link')->where('status', 'approved')->sum('revenue'),
+                    'order_value' => (clone $query)->where('purchase_type', 'link')->where('status', 'approved')->sum('order_value'),
+                ]
+            ]
         ];
 
         return response()->json($stats);

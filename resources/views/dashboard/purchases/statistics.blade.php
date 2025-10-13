@@ -23,12 +23,20 @@
                             <select id="networkFilter" class="form-select" multiple="multiple" data-toggle="select2">
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label class="form-label">Campaigns</label>
                             <select id="campaignFilter" class="form-select" multiple="multiple" data-toggle="select2">
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Purchase Type</label>
+                            <select id="purchaseTypeFilter" class="form-select" data-toggle="select2">
+                                <option value="">All Types</option>
+                                <option value="coupon">Coupon</option>
+                                <option value="link">Direct Link</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
                             <button type="button" id="applyFilters" class="btn btn-primary w-100">
                                 <i class="ti ti-filter me-1"></i> Apply Filters
                             </button>
@@ -153,6 +161,57 @@
         </div>
     </div>
 
+    <!-- Purchase Type Breakdown -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header border-bottom">
+                    <h4 class="card-title mb-0">Coupon Purchases</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 class="text-info mb-0" id="couponPurchases">0</h4>
+                            <p class="text-muted mb-0">Total</p>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-success mb-0" id="couponRevenue">$0</h4>
+                            <p class="text-muted mb-0">Revenue</p>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-primary mb-0" id="couponOrderValue">$0</h4>
+                            <p class="text-muted mb-0">Order Value</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header border-bottom">
+                    <h4 class="card-title mb-0">Direct Link Purchases</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h4 class="text-warning mb-0" id="directLinkPurchases">0</h4>
+                            <p class="text-muted mb-0">Total</p>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-success mb-0" id="directLinkRevenue">$0</h4>
+                            <p class="text-muted mb-0">Revenue</p>
+                        </div>
+                        <div class="col-4">
+                            <h4 class="text-primary mb-0" id="directLinkOrderValue">$0</h4>
+                            <p class="text-muted mb-0">Order Value</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Charts Row -->
     <div class="row">
         <!-- Daily Trend -->
@@ -163,6 +222,31 @@
                 </div>
                 <div class="card-body">
                     <div id="dailyTrendChart" style="min-height: 350px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase Type Comparison -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header border-bottom">
+                    <h4 class="card-title mb-0">Sales by Purchase Type</h4>
+                </div>
+                <div class="card-body">
+                    <div id="purchaseTypeSalesChart" style="min-height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header border-bottom">
+                    <h4 class="card-title mb-0">Revenue by Purchase Type</h4>
+                </div>
+                <div class="card-body">
+                    <div id="purchaseTypeRevenueChart" style="min-height: 300px;"></div>
                 </div>
             </div>
         </div>
@@ -252,12 +336,14 @@
             const dateRange = $('#dateRange').val().split(' to ');
             const networkIds = $('#networkFilter').val() || [];
             const campaignIds = $('#campaignFilter').val() || [];
+            const purchaseType = $('#purchaseTypeFilter').val();
             
             const params = {
                 date_from: dateRange[0] || '',
                 date_to: dateRange[1] || dateRange[0] || '',
                 network_ids: networkIds,
-                campaign_ids: campaignIds
+                campaign_ids: campaignIds,
+                purchase_type: purchaseType
             };
             
             $.ajax({
@@ -269,6 +355,7 @@
                     updateSummaryStats(data);
                     renderDailyTrendChart(data.daily_stats);
                     renderMonthlyChart(data.monthly_stats);
+                    renderPurchaseTypeCharts(data.purchase_type_breakdown);
                     loadNetworkComparison();
                 },
                 error: function() {
@@ -286,6 +373,17 @@
             $('#totalOrderValue').text('$' + parseFloat(data.total_order_value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             $('#averagePurchase').text('$' + parseFloat(data.average_purchase).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             $('#averageRevenue').text('$' + parseFloat(data.average_revenue).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            
+            // Update purchase type breakdown
+            if (data.purchase_type_breakdown) {
+                $('#couponPurchases').text(data.purchase_type_breakdown.coupon?.count || 0);
+                $('#couponRevenue').text('$' + parseFloat(data.purchase_type_breakdown.coupon?.revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('#couponOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.coupon?.order_value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                
+                $('#directLinkPurchases').text(data.purchase_type_breakdown.link?.count || 0);
+                $('#directLinkRevenue').text('$' + parseFloat(data.purchase_type_breakdown.link?.revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('#directLinkOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.link?.order_value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            }
         }
         
         function renderDailyTrendChart(dailyData) {
@@ -452,6 +550,84 @@
             
             monthlyChart = new ApexCharts(container, options);
             monthlyChart.render();
+        }
+        
+        function renderPurchaseTypeCharts(breakdown) {
+            if (!breakdown) return;
+            
+            // Sales by Purchase Type
+            const salesContainer = document.querySelector("#purchaseTypeSalesChart");
+            if (salesContainer) {
+                const salesData = [
+                    breakdown.coupon?.count || 0,
+                    breakdown.link?.count || 0
+                ];
+                
+                const salesOptions = {
+                    series: salesData,
+                    chart: {
+                        type: 'donut',
+                        height: 300
+                    },
+                    labels: ['Coupon', 'Direct Link'],
+                    colors: ['#6ac75a', '#ffc107'],
+                    legend: {
+                        position: 'bottom'
+                    },
+                    dataLabels: {
+                        enabled: true,
+                        formatter: function(val, opts) {
+                            return opts.w.config.series[opts.seriesIndex];
+                        }
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function(val) {
+                                return val + ' sales';
+                            }
+                        }
+                    }
+                };
+                
+                new ApexCharts(salesContainer, salesOptions).render();
+            }
+            
+            // Revenue by Purchase Type
+            const revenueContainer = document.querySelector("#purchaseTypeRevenueChart");
+            if (revenueContainer) {
+                const revenueData = [
+                    parseFloat(breakdown.coupon?.revenue || 0),
+                    parseFloat(breakdown.link?.revenue || 0)
+                ];
+                
+                const revenueOptions = {
+                    series: revenueData,
+                    chart: {
+                        type: 'donut',
+                        height: 300
+                    },
+                    labels: ['Coupon', 'Direct Link'],
+                    colors: ['#6ac75a', '#ffc107'],
+                    legend: {
+                        position: 'bottom'
+                    },
+                    dataLabels: {
+                        enabled: true,
+                        formatter: function(val) {
+                            return '$' + val.toFixed(1);
+                        }
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function(val) {
+                                return '$' + val.toFixed(2);
+                            }
+                        }
+                    }
+                };
+                
+                new ApexCharts(revenueContainer, revenueOptions).render();
+            }
         }
         
         function loadNetworkComparison() {

@@ -16,6 +16,7 @@ class Purchase extends Model
      */
     protected $fillable = [
         'coupon_id',
+        'purchase_type',
         'campaign_id',
         'network_id',
         'user_id',
@@ -51,6 +52,7 @@ class Purchase extends Model
         'order_date' => 'date',
         'purchase_date' => 'date',
         'last_updated' => 'datetime',
+        'purchase_type' => 'string',
     ];
 
     /**
@@ -156,6 +158,34 @@ class Purchase extends Model
         }
 
         return ($this->revenue / $this->order_value) * 100;
+    }
+
+    /**
+     * Check if purchase is coupon-based.
+     */
+    public function isCoupon(): bool
+    {
+        return $this->purchase_type === 'coupon';
+    }
+
+    /**
+     * Check if purchase is link-based.
+     */
+    public function isLink(): bool
+    {
+        return $this->purchase_type === 'link';
+    }
+
+    /**
+     * Get purchase type badge.
+     */
+    public function getPurchaseTypeBadge(): string
+    {
+        if ($this->isCoupon()) {
+            return '<span class="badge bg-info-subtle text-info"><i class="ti ti-ticket me-1"></i>Coupon</span>';
+        } else {
+            return '<span class="badge bg-warning-subtle text-warning"><i class="ti ti-link me-1"></i>Direct Link</span>';
+        }
     }
 }
 

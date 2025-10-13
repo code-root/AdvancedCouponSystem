@@ -205,10 +205,16 @@ class BoostinyService extends BaseNetworkService
             ]);
             
             if ($response['success'] && $response['status'] === 200) {
+                // Add purchase_type to each data item
+                $data = $response['data']['payload']['data'] ?? [];
+                foreach ($data as &$item) {
+                    $item['purchase_type'] = 'coupon'; // Boostiny is typically coupon-based
+                }
+                
                 return [
                     'success' => true,
                     'type' => 'coupon',
-                    'data' => $response['data']['payload']['data'] ?? [],
+                    'data' => $data,
                     'pagination' => $response['data']['payload']['pagination'] ?? [],
                     'total' => $response['data']['payload']['pagination']['total'] ?? 0
                 ];
@@ -267,10 +273,16 @@ class BoostinyService extends BaseNetworkService
             ]);
             
             if ($response['success'] && $response['status'] === 200) {
+                // Add purchase_type to each data item
+                $data = $response['data']['payload']['data'] ?? [];
+                foreach ($data as &$item) {
+                    $item['purchase_type'] = 'link'; // Link performance data
+                }
+                
                 return [
                     'success' => true,
                     'type' => 'link',
-                    'data' => $response['data']['payload']['data'] ?? [],
+                    'data' => $data,
                     'pagination' => $response['data']['payload']['pagination'] ?? [],
                     'total' => $response['data']['payload']['pagination']['total'] ?? 0
                 ];

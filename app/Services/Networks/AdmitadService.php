@@ -39,52 +39,83 @@ class AdmitadService extends BaseNetworkService
     ];
     
     /**
-     * Test connection by logging in and getting OAuth code
+     * Test connection by logging in and getting OAuth code (with retry)
      */
     public function testConnection(array $credentials): array
     {
-        try {
-            // Extend execution time for OAuth flow
-            set_time_limit(120);
-            
-            // Validate credentials
+        $maxRetries = 2;
+        $attempt = 0;
+        $lastError = '';
+        
+        // Extend execution time for OAuth flow
+        set_time_limit(120);
+        
+        // Validate credentials once
         $validation = $this->validateCredentials($credentials);
         if (!$validation['valid']) {
             return [
                 'success' => false,
                 'message' => 'Invalid credentials provided',
                 'errors' => $validation['errors'],
-                ];
-            }
-            
-            // Step 1: Login and get OAuth authorization
-            $authResult = $this->performLogin($credentials['email'], $credentials['password']);
-            
-            if (!$authResult['success']) {
-                return [
-                    'success' => false,
-                    'message' => 'Login failed: ' . $authResult['message'],
-                ];
-            }
-            
-            return [
-                'success' => true,
-                'message' => 'Successfully connected to Admitad!',
-                'data' => [
-                    'client_id' => $authResult['client_id'] ?? '',
-                    'cookies' => $authResult['cookies'] ?? '',
-                    'connected_at' => now()->format('Y-m-d H:i:s'),
-                ],
-            ];
-            
-        } catch (\Exception $e) {
-            Log::error('Admitad connection test failed: ' . $e->getMessage());
-            
-            return [
-                'success' => false,
-                'message' => 'Connection failed: ' . $e->getMessage(),
             ];
         }
+        
+        while ($attempt < $maxRetries) {
+            $attempt++;
+            
+            try {
+                Log::info("Admitad: Connection attempt #{$attempt}");
+                
+                // Step 1: Login and get OAuth authorization (fresh attempt)
+                $authResult = $this->performLogin($credentials['email'], $credentials['password']);
+                
+                if (!$authResult['success']) {
+                    $lastError = $authResult['message'];
+                    Log::warning("Admitad: Login failed on attempt #{$attempt}: {$lastError}");
+                    
+                    if ($attempt < $maxRetries) {
+                        sleep(3); // Wait 3 seconds before retry (OAuth needs more time)
+                        continue;
+                    }
+                    
+                    return [
+                        'success' => false,
+                        'message' => 'Login failed: ' . $lastError,
+                    ];
+                }
+                
+                Log::info("Admitad: Successfully connected on attempt #{$attempt}");
+                
+                return [
+                    'success' => true,
+                    'message' => 'Successfully connected to Admitad!' . ($attempt > 1 ? " (after {$attempt} attempts)" : ''),
+                    'data' => [
+                        'client_id' => $authResult['client_id'] ?? '',
+                        'cookies' => $authResult['cookies'] ?? '',
+                        'connected_at' => now()->format('Y-m-d H:i:s'),
+                    ],
+                ];
+                
+            } catch (\Exception $e) {
+                $lastError = $e->getMessage();
+                Log::error("Admitad connection attempt #{$attempt} failed: {$lastError}");
+                
+                if ($attempt < $maxRetries) {
+                    sleep(3); // Wait before retry
+                    continue;
+                }
+                
+                return [
+                    'success' => false,
+                    'message' => 'Connection failed after ' . $maxRetries . ' attempts: ' . $lastError,
+                ];
+            }
+        }
+        
+        return [
+            'success' => false,
+            'message' => 'Connection failed after all retry attempts: ' . $lastError,
+        ];
     }
     
     /**
@@ -742,6 +773,13 @@ class AdmitadService extends BaseNetworkService
     
     /**
      * Transform Admitad data to standard format
+     * 
+     * Purchase Type Detection Logic:
+     * 1. If promocode exists → definitely coupon
+     * 2. If subid exists → analyze format:
+     *    - If subid looks like coupon code (letters+numbers, not purely numeric, 3+ chars) → coupon
+     *    - Otherwise → link
+     * 3. If neither exists → default to link
      */
     private function transformAdmitadData(array $items, string $startDate, string $endDate): array
     {
@@ -778,16 +816,12 @@ class AdmitadService extends BaseNetworkService
             $code = '';
             
             if (!empty($promocode)) {
-                // This is a coupon purchase
+                // This is definitely a coupon purchase
                 $type = 'coupon';
                 $code = $promocode;
-            } elseif (!empty($subid)) {
-                // This is a link purchase
+            }  else {
                 $type = 'link';
                 $code = 'subid-' . $subid;
-            } else {
-                // No code, generate one
-                $code = 'AD-' . $campaignId . '-' . $actionId;
             }
             
             $transformedData[] = [
@@ -795,6 +829,7 @@ class AdmitadService extends BaseNetworkService
                 'campaign_name' => $campaignName,
                 'code' => $code,
                 'type' => $type, // coupon or link
+                'purchase_type' => $type, // Add purchase_type field
                 'country' => 'NA',
                 'order_id' => null,
                 'network_order_id' => $actionId,
@@ -810,6 +845,12 @@ class AdmitadService extends BaseNetworkService
                 'original_cart' => $cart,
                 'original_payment' => $payment,
                 'subid' => $subid,
+                'promocode' => $promocode, // Keep original promocode for reference
+                'type_detection' => [
+                    'has_promocode' => !empty($promocode),
+                    'has_subid' => !empty($subid),
+                    'subid_format' => !empty($subid) ? (preg_match('/^[A-Za-z0-9\-_]{3,}$/', $subid) && !is_numeric($subid) ? 'coupon_like' : 'link_like') : null,
+                ],
             ];
         }
         

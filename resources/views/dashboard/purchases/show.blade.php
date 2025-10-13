@@ -18,7 +18,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="text-muted small">Purchase Date</label>
-                            <p class="mb-0">{{ $purchase->purchase_date ? $purchase->purchase_date->format('Y-m-d H:i:s') : 'N/A' }}</p>
+                            <p class="mb-0">{{ $purchase->order_date ? $purchase->order_date->format('Y-m-d H:i:s') : 'N/A' }}</p>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="text-muted small">Order Date</label>
@@ -71,6 +71,20 @@
                                     </span>
                                 @else
                                     N/A
+                                @endif
+                            </p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Purchase Type</label>
+                            <p class="mb-0">
+                                @if($purchase->purchase_type === 'coupon')
+                                    <span class="badge bg-info-subtle text-info">
+                                        <i class="ti ti-ticket me-1"></i>Coupon
+                                    </span>
+                                @else
+                                    <span class="badge bg-warning-subtle text-warning">
+                                        <i class="ti ti-link me-1"></i>Direct Link
+                                    </span>
                                 @endif
                             </p>
                         </div>

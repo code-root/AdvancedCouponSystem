@@ -114,7 +114,7 @@ class NetworkController extends Controller
             
             foreach ($credentials as $key => $value) {
                 // Encrypt sensitive fields
-                if (in_array($key, ['client_secret', 'api_secret', 'password', 'token' ])) {
+                if (in_array($key, ['client_secret'])) {
                     $encryptedCredentials[$key] = encrypt($value);
                 } else {
                     $encryptedCredentials[$key] = $value;
@@ -243,7 +243,7 @@ class NetworkController extends Controller
                 foreach ($newCredentials as $key => $value) {
                     if (!empty($value)) {
                         // Encrypt sensitive fields
-                        if (in_array($key, ['client_secret', 'api_secret', 'password', 'token' ])) {
+                        if (in_array($key, ['client_secret'])) {
                             $existingCredentials[$key] = encrypt($value);
                         } else {
                             $existingCredentials[$key] = $value;
@@ -526,7 +526,7 @@ class NetworkController extends Controller
             
             foreach ($credentials as $key => $value) {
                 // Try to decrypt sensitive fields
-                if (in_array($key, ['client_secret', 'api_secret',  'token', 'access_token', 'refresh_token'])) {
+                if (in_array($key, ['client_secret'])) {
                     try {
                         $decryptedCredentials[$key] = decrypt($value);
                     } catch (\Exception $e) {
@@ -714,7 +714,7 @@ class NetworkController extends Controller
             // Encrypt sensitive credentials
             $encryptedCredentials = [];
             foreach ($validated['credentials'] as $key => $value) {
-                if (in_array($key, ['client_secret', 'api_secret', 'password', 'token', 'api_key'])) {
+                if (in_array($key, ['client_secret'])) {
                     $encryptedCredentials[$key] = encrypt($value);
                 } else {
                     $encryptedCredentials[$key] = $value;

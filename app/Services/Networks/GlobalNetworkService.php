@@ -331,6 +331,7 @@ class GlobalNetworkService extends BaseNetworkService
                 'campaign_id' => $campaignId,
                 'campaign_name' => $campaignName,
                 'code' => $code,
+                'purchase_type' => 'coupon', // GlobalNetwork is typically coupon-based
                 'country' => 'NA',
                 'order_id' => null,
                 'network_order_id' => $item['Stat']['id'] ?? null,

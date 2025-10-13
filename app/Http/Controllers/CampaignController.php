@@ -192,7 +192,7 @@ class CampaignController extends Controller
             'total_coupons' => $campaign->coupons()->count(),
             'used_coupons' => $campaign->coupons()->where('used_count', '>', 0)->count(),
             'total_revenue' => $campaign->purchases()->sum('revenue'),
-            'total_commission' => $campaign->purchases()->sum('commission'),
+            'total_commission' => $campaign->purchases()->sum('order_value'),
             'total_order_value' => $campaign->purchases()->sum('order_value'),
             'total_purchases' => $campaign->purchases()->count(),
             'approved_purchases' => $campaign->purchases()->where('status', 'approved')->count(),

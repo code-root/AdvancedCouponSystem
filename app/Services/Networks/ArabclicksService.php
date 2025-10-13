@@ -178,6 +178,10 @@ class ArabclicksService extends BaseNetworkService
                 // Standard structure (response.data.data)
                 if (isset($data['response']['data']['data'])) {
                     $items = $data['response']['data']['data'];
+                    // Add purchase_type to each item
+                    foreach ($items as &$item) {
+                        $item['purchase_type'] = 'coupon'; // Arabclicks is typically coupon-based
+                    }
                     return [
                         'success' => true,
                         'type' => 'coupon',
@@ -188,11 +192,16 @@ class ArabclicksService extends BaseNetworkService
                 
                 // Alternative structure
                 if (isset($data['response']['data']) && is_array($data['response']['data'])) {
+                    $items = $data['response']['data'];
+                    // Add purchase_type to each item
+                    foreach ($items as &$item) {
+                        $item['purchase_type'] = 'coupon'; // Arabclicks is typically coupon-based
+                    }
                     return [
                         'success' => true,
                         'type' => 'coupon',
-                        'data' => $data['response']['data'],
-                        'total' => count($data['response']['data'])
+                        'data' => $items,
+                        'total' => count($items)
                     ];
                 }
                 

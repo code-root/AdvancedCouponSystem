@@ -55,7 +55,7 @@ class CountryController extends Controller
         $stats = [
             'total_purchases' => $country->purchases()->count(),
             'total_revenue' => $country->purchases()->sum('revenue'),
-            'total_commission' => $country->purchases()->sum('commission'),
+            'total_commission' => $country->purchases()->sum('order_value'),
             'approved_purchases' => $country->purchases()->where('status', 'approved')->count(),
         ];
 
@@ -118,7 +118,7 @@ class CountryController extends Controller
         $stats = [
             'total_purchases' => $country->purchases()->count(),
             'total_revenue' => $country->purchases()->sum('revenue'),
-            'total_commission' => $country->purchases()->sum('commission'),
+            'total_commission' => $country->purchases()->sum('order_value'),
         ];
         
         return response()->json($stats);

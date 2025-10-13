@@ -202,7 +202,7 @@ class CouponController extends Controller
             'total_uses' => $coupon->used_count ?? 0,
             'remaining_uses' => $coupon->usage_limit ? ($coupon->usage_limit - $coupon->used_count) : null,
             'total_revenue' => $coupon->purchases()->sum('revenue'),
-            'total_commission' => $coupon->purchases()->sum('commission'),
+            'total_commission' => $coupon->purchases()->sum('order_value'),
             'total_order_value' => $coupon->purchases()->sum('order_value'),
             'total_purchases' => $coupon->purchases()->count(),
             'approved_purchases' => $coupon->purchases()->where('status', 'approved')->count(),

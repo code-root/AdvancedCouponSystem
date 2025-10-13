@@ -393,19 +393,31 @@ window.addEventListener('load', function() {
 function setupRealtimeUpdates() {
     // Check if Pusher is configured
     const pusherKey = '{{ config("broadcasting.connections.pusher.key") }}';
+    const pusherCluster = '{{ config("broadcasting.connections.pusher.options.cluster") }}';
+    
     if (!pusherKey || pusherKey === '') {
         console.log('Pusher not configured - real-time updates disabled');
         return;
     }
     
     try {
+        const currentSessionId = '{{ session()->getId() }}';
+        
+        // Initialize Pusher directly
         const pusher = new Pusher(pusherKey, {
-            cluster: '{{ config("broadcasting.connections.pusher.options.cluster") }}',
-            encrypted: true
+            cluster: pusherCluster,
+            encrypted: true,
+            authEndpoint: '/broadcasting/auth',
+            auth: {
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                }
+            }
         });
 
         const userChannel = pusher.subscribe('private-user.{{ auth()->id() }}');
-        const sessionChannel = pusher.subscribe('private-session.{{ session()->getId() }}');
+        const sessionChannel = pusher.subscribe('private-session.' + currentSessionId);
 
         // Listen for new session events
         userChannel.bind('session.created', function(data) {
@@ -430,6 +442,16 @@ function setupRealtimeUpdates() {
             console.log('This session was terminated:', data);
             handleSessionTerminated(data);
         });
+        
+        // Connection monitoring
+        pusher.connection.bind('connected', function() {
+            console.log('✅ Pusher connected to cluster: ' + pusherCluster);
+        });
+        
+        pusher.connection.bind('error', function(err) {
+            console.error('❌ Pusher error:', err);
+        });
+        
     } catch (error) {
         console.error('Pusher setup error:', error);
     }
@@ -481,27 +503,34 @@ function getTerminationReason(reason) {
 
 // Perform force logout
 function performForceLogout() {
-    // Clear local data
-    if (localStorage) {
-        localStorage.clear();
-    }
-    if (sessionStorage) {
-        sessionStorage.clear();
-    }
-    
-    // Submit logout form
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '{{ route("logout") }}';
-    
-    const csrfInput = document.createElement('input');
-    csrfInput.type = 'hidden';
-    csrfInput.name = '_token';
-    csrfInput.value = '{{ csrf_token() }}';
-    
-    form.appendChild(csrfInput);
-    document.body.appendChild(form);
-    form.submit();
+    // Use fetch API for logout (more reliable)
+    fetch('{{ route("logout") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(() => {
+        // Clear storage after logout
+        if (localStorage) localStorage.clear();
+        if (sessionStorage) sessionStorage.clear();
+        
+        // Redirect to login
+        window.location.href = '{{ route("login") }}';
+    })
+    .catch(error => {
+        console.error('Logout error:', error);
+        
+        // Clear storage anyway
+        if (localStorage) localStorage.clear();
+        if (sessionStorage) sessionStorage.clear();
+        
+        // Force redirect
+        window.location.href = '{{ route("login") }}';
+    });
 }
 
 // Show notification for new session

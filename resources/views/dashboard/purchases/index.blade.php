@@ -123,6 +123,16 @@
                             </select>
                         </div>
                         
+                        <!-- Purchase Type Filter -->
+                        <div class="col-md-2">
+                            <label class="form-label">Purchase Type</label>
+                            <select class="select2 form-control" id="purchaseTypeFilter" data-toggle="select2">
+                                <option value="">All Types</option>
+                                <option value="coupon">Coupon</option>
+                                <option value="link">Direct Link</option>
+                            </select>
+                        </div>
+                        
                         <!-- Date Range -->
                         <div class="col-md-3">
                             <label class="form-label">Order Date Range</label>
@@ -181,6 +191,7 @@
                                 <th class="ps-3">Order ID</th>
                                 <th>Campaign</th>
                                 <th>Network</th>
+                                <th>Type</th>
                                 <th>Coupon</th>
                                 <th>Customer</th>
                                 <th>Order Value</th>
@@ -192,7 +203,7 @@
                         </thead>
                         <tbody id="purchasesTableBody">
                             <tr>
-                                <td colspan="10" class="text-center py-4">
+                                <td colspan="11" class="text-center py-4">
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
@@ -326,6 +337,7 @@ function renderPurchases(purchases) {
     purchases.forEach(purchase => {
         const statusBadge = getStatusBadge(purchase.status);
         const customerBadge = getCustomerBadge(purchase.customer_type);
+        const purchaseTypeBadge = getPurchaseTypeBadge(purchase.purchase_type);
         
         html += `
             <tr>
@@ -341,6 +353,7 @@ function renderPurchases(purchases) {
                 <td>
                     <span class="badge bg-primary-subtle text-primary">${purchase.network?.display_name || 'N/A'}</span>
                 </td>
+                <td>${purchaseTypeBadge}</td>
                 <td>
                     ${purchase.coupon ? `<code class="text-primary">${purchase.coupon.code}</code>` : '<span class="text-muted">Direct Link</span>'}
                 </td>
@@ -367,7 +380,7 @@ function renderPurchases(purchases) {
 function showEmptyState(message = 'No purchases found') {
     document.getElementById('purchasesTableBody').innerHTML = `
         <tr>
-            <td colspan="10" class="text-center py-5">
+            <td colspan="11" class="text-center py-5">
                 <div class="py-4">
                     <i class="ti ti-shopping-cart-off fs-64 text-muted mb-3"></i>
                     <h5 class="text-muted mb-3">${message}</h5>
@@ -433,6 +446,14 @@ function getCustomerBadge(type) {
     return badges[type] || '<span class="badge bg-secondary">Unknown</span>';
 }
 
+function getPurchaseTypeBadge(purchaseType) {
+    if (purchaseType === 'coupon') {
+        return '<span class="badge bg-info-subtle text-info"><i class="ti ti-ticket me-1"></i>Coupon</span>';
+    } else {
+        return '<span class="badge bg-warning-subtle text-warning"><i class="ti ti-link me-1"></i>Direct Link</span>';
+    }
+}
+
 // Apply filters
 function applyFilters() {
     const networkIds = $('#networkFilter').val() || [];
@@ -442,6 +463,7 @@ function applyFilters() {
     filters.campaign_ids = campaignIds.length > 0 ? campaignIds : null;
     filters.status = $('#statusFilter').val();
     filters.customer_type = $('#customerTypeFilter').val();
+    filters.purchase_type = $('#purchaseTypeFilter').val();
     filters.search = document.getElementById('searchInput').value;
     filters.revenue_min = document.getElementById('revenueMin').value;
     filters.revenue_max = document.getElementById('revenueMax').value;
@@ -465,6 +487,7 @@ function resetFilters() {
     $('#campaignFilter').val(null).trigger('change');
     $('#statusFilter').val('').trigger('change');
     $('#customerTypeFilter').val('').trigger('change');
+    $('#purchaseTypeFilter').val('').trigger('change');
     $('#perPageSelect').val('15').trigger('change');
     document.getElementById('revenueMin').value = '';
     document.getElementById('revenueMax').value = '';
@@ -480,6 +503,12 @@ function updateStats(stats) {
     document.getElementById('stat-rejected').textContent = stats.rejected || 0;
     document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toFixed(2);
     document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toFixed(2);
+    
+    // Update purchase type breakdown if available
+    if (stats.purchase_type_breakdown) {
+        console.log('Purchase type breakdown:', stats.purchase_type_breakdown);
+        // You can add UI elements to display this data if needed
+    }
 }
 
 // Export purchases

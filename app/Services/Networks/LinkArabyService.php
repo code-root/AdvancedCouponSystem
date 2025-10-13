@@ -111,6 +111,7 @@ class LinkArabyService extends BaseNetworkService
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_external_id' => $item['campaign_id'] ?? 'NA',
             'coupon_code' => $item['coupon_code'] ?? '',
+            'purchase_type' => 'coupon', // LinkAraby is typically coupon-based
             'country' => $item['country'] ?? 'N/A',
             'sale_amount' => $item['sale_amount'] ?? 0,
             'commission' => $item['commission'] ?? 0,

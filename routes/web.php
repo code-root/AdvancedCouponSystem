@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
@@ -54,6 +55,9 @@ Route::middleware(['auth'])->group(function () {
     
     // Logout
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
+    
+    // Pusher Authentication for private channels
+    Broadcast::routes();
     
     // Dashboard Routes (require email verification)
     Route::get('/dashboard', [DashboardController::class, 'index'])

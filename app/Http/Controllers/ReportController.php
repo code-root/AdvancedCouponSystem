@@ -69,7 +69,7 @@ class ReportController extends Controller
             
             // Revenue
             'total_revenue' => $purchasesQuery->sum('revenue'),
-            'total_commission' => $purchasesQuery->sum('commission'),
+            'total_commission' => $purchasesQuery->sum('order_value'),
             'total_order_value' => $purchasesQuery->sum('order_value'),
             
             // Campaigns & Coupons
@@ -458,7 +458,7 @@ class ReportController extends Controller
             'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
             'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),
             'total_revenue' => (clone $statsQuery)->sum('revenue'),
-            'total_commission' => (clone $statsQuery)->sum('commission'),
+            'total_commission' => (clone $statsQuery)->sum('order_value'),
             
             // Daily trend
             'daily_trend' => $this->getDailyRevenue($request, $userId),
@@ -558,7 +558,7 @@ class ReportController extends Controller
         
         $stats = [
             'total_revenue' => $statsQuery->sum('revenue'),
-            'total_commission' => $statsQuery->sum('commission'),
+            'total_commission' => $statsQuery->sum('order_value'),
             'total_order_value' => $statsQuery->sum('order_value'),
             'avg_order_value' => $statsQuery->avg('order_value'),
             

@@ -296,6 +296,7 @@ class OmolaatService extends BaseNetworkService
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_external_id' => null,
             'coupon_code' => $item['coupon_code'] ?? '',
+            'purchase_type' => 'coupon', // Omolaat is typically coupon-based
             'country' => $item['country'] ?? 'KSA',
             'sale_amount' => $item['sale_amount'] ?? 0,
             'commission' => $item['commission'] ?? 0,

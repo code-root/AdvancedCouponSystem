@@ -24,61 +24,102 @@ class PlatformanceService extends BaseNetworkService
     ];
 
     /**
-     * Test connection by logging in and getting cookies
+     * Test connection by logging in and getting cookies (with retry)
      */
     public function testConnection(array $credentials): array
     {
-        try {
-            // Step 1: Get token and PHPSESSID
-            $loginData = $this->getLoginTokenAndSession();
+        $maxRetries = 2;
+        $attempt = 0;
+        $lastError = '';
+        
+        while ($attempt < $maxRetries) {
+            $attempt++;
             
-            if (!$loginData['success']) {
+            try {
+                Log::info("Platformance: Connection attempt #{$attempt}");
+                
+                // Step 1: Get fresh token and PHPSESSID
+                $loginData = $this->getLoginTokenAndSession();
+                
+                if (!$loginData['success']) {
+                    $lastError = $loginData['message'];
+                    Log::warning("Platformance: Failed to get login token on attempt #{$attempt}: {$lastError}");
+                    
+                    if ($attempt < $maxRetries) {
+                        sleep(2); // Wait 2 seconds before retry
+                        continue;
+                    }
+                    
+                    return [
+                        'success' => false,
+                        'message' => $lastError,
+                    ];
+                }
+                
+                $token = $loginData['token'];
+                $phpsessid = $loginData['phpsessid'];
+                
+                Log::info("Platformance: Got fresh token and session on attempt #{$attempt}");
+                
+                // Step 2: Login with credentials
+                $loginResult = $this->performLogin(
+                    $credentials['email'],
+                    $credentials['password'],
+                    $token,
+                    $phpsessid
+                );
+                
+                if (!$loginResult['success']) {
+                    $lastError = $loginResult['message'];
+                    Log::warning("Platformance: Login failed on attempt #{$attempt}: {$lastError}");
+                    
+                    if ($attempt < $maxRetries) {
+                        sleep(2); // Wait before retry
+                        continue;
+                    }
+                    
+                    return [
+                        'success' => false,
+                        'message' => 'Login failed: ' . $lastError,
+                    ];
+                }
+                
+                // Step 3: Store cookies for future use
+                $cookieString = $this->buildCookieString($loginResult['cookies']);
+                
+                Log::info("Platformance: Successfully connected on attempt #{$attempt}");
+                
+                return [
+                    'success' => true,
+                    'message' => 'Successfully connected to Platformance!' . ($attempt > 1 ? " (after {$attempt} attempts)" : ''),
+                    'data' => [
+                        'token' => $token,
+                        'phpsessid' => $phpsessid,
+                        'cookies' => $cookieString,
+                        'all_cookies' => $loginResult['cookies'],
+                    ],
+                ];
+                
+            } catch (\Exception $e) {
+                $lastError = $e->getMessage();
+                Log::error("Platformance connection attempt #{$attempt} failed: {$lastError}");
+                
+                if ($attempt < $maxRetries) {
+                    sleep(2); // Wait before retry
+                    continue;
+                }
+                
                 return [
                     'success' => false,
-                    'message' => $loginData['message'],
+                    'message' => 'Connection failed after ' . $maxRetries . ' attempts: ' . $lastError,
                 ];
             }
-            
-            $token = $loginData['token'];
-            $phpsessid = $loginData['phpsessid'];
-            
-            // Step 2: Login with credentials
-            $loginResult = $this->performLogin(
-                $credentials['email'],
-                $credentials['password'],
-                $token,
-                $phpsessid
-            );
-            
-            if (!$loginResult['success']) {
-                return [
-                    'success' => false,
-                    'message' => 'Login failed: ' . $loginResult['message'],
-                ];
-            }
-            
-            // Step 3: Store cookies for future use
-            $cookieString = $this->buildCookieString($loginResult['cookies']);
-            
-            return [
-                'success' => true,
-                'message' => 'Successfully connected to Platformance!',
-                'data' => [
-                    'token' => $token,
-                    'phpsessid' => $phpsessid,
-                    'cookies' => $cookieString,
-                    'all_cookies' => $loginResult['cookies'],
-                ],
-            ];
-            
-        } catch (\Exception $e) {
-            Log::error('Platformance connection test failed: ' . $e->getMessage());
-            
-            return [
-                'success' => false,
-                'message' => 'Connection failed: ' . $e->getMessage(),
-            ];
         }
+        
+        return [
+            'success' => false,
+            'message' => 'Connection failed after all retry attempts: ' . $lastError,
+        ];
     }
 
     /**
@@ -242,12 +283,17 @@ class PlatformanceService extends BaseNetworkService
     public function syncData(array $credentials, array $config = []): array
     {
         try {
+            $testConnection = $this->testConnection($credentials);
+            if (!$testConnection['success']) {
+                return $testConnection;
+            }
+            $cookieString = $testConnection['data']['cookies'];
             // Extract dates from config
             $startDate = $config['date_from'] ?? now()->startOfMonth()->format('Y-m-d');
             $endDate = $config['date_to'] ?? now()->format('Y-m-d');
             
             // Try with stored cookies first
-            $cookieString = $credentials['cookies'] ?? '';
+            // $cookieString = $credentials['cookies'] ?? '';
             
             if (!empty($cookieString)) {
                 // Fetch performance data
@@ -340,17 +386,14 @@ class PlatformanceService extends BaseNetworkService
      */
     private function getPerformanceData(string $cookieString, string $startDate, string $endDate): array
     {
+
         try {
             // Build query params to match original code
-    
+            
          $params = ['group' => 
-         ['adid', 'campaign_id', 'coupon', 'created'],
-          'fields' =>
+         ['adid', 'campaign_id', 'coupon', 'created'],'fields' =>
            ['grossSaleAmount', 'grossPayout', 'grossConversions', 'cr', 'saleAmount', 'extConv', 'pendingTotalConversions', 'pendingPayout'],
-            'start' => $startDate, 'end' => $endDate,
-             'report_name' => 'performance',
-             'zone' => 'Asia/Dubai'
-            ];
+            'start' => $startDate, 'end' => $endDate,'report_name' => 'performance','zone' => 'Asia/Dubai'];
             
             // Build URL with proper encoding
             $queryString = '';
@@ -380,7 +423,7 @@ class PlatformanceService extends BaseNetworkService
                 'Sec-Fetch-Site' => 'same-origin',
             ])->get($url);
             
-            // Check if redirected (session expired)
+                // Check if redirected (session expired)
             if ($response->status() === 302 || $response->redirect()) {
                 return [
                     'success' => false,
@@ -464,6 +507,7 @@ class PlatformanceService extends BaseNetworkService
                     'campaign_id' => $campaignId,
                     'campaign_name' => $campaign,
                     'code' => $code,
+                    'purchase_type' => 'coupon', // Platformance is typically coupon-based
                     'country' => 'NA',
                     'order_id' => null,
                     'network_order_id' => null,
@@ -473,8 +517,8 @@ class PlatformanceService extends BaseNetworkService
                     'quantity' => $conversions > 0 ? $conversions : 1,
                     'customer_type' => 'unknown',
                     'status' => 'approved',
-                    'order_date' => $lastUpdated ?: now()->format('Y-m-d'),
-                    'purchase_date' => $lastUpdated ?: now()->format('Y-m-d'),
+                    'order_date' => $lastUpdated ?: now()->format('Y-m-d'), // تاريخ آخر تحديث من HTML
+                    'purchase_date' => $lastUpdated ?: now()->format('Y-m-d'), // نفس التاريخ
                 ];
 
             }
