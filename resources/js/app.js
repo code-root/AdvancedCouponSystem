@@ -34,6 +34,11 @@ import Choices from 'choices.js';
 import Swal from 'sweetalert2';
 window.Swal = Swal;
 
+// Import DataTables
+import 'datatables.net';
+import 'datatables.net-bs5';
+import 'datatables.net-responsive';
+
 
 class App {
 

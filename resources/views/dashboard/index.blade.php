@@ -9,8 +9,8 @@
     <div class="col-12">
         <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column">
             <div class="flex-grow-1">
-                <h4 class="fs-18 fw-semibold m-0">مرحباً, {{ auth()->user()->name }} 👋</h4>
-                <p class="text-muted mb-0">هذا نظرة عامة على أدائك</p>
+                <h4 class="fs-18 fw-semibold m-0">Welcome, {{ auth()->user()->name }} 👋</h4>
+                <p class="text-muted mb-0">This is an overview of your performance</p>
             </div>
             <div class="mt-3 mt-sm-0">
                 <div class="row g-2 mb-0 align-items-center">
@@ -46,11 +46,24 @@
 
 <!-- Main Statistics -->
 <div class="row row-cols-xxl-6 row-cols-md-3 row-cols-1 text-center">
+
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">Orders</h5>
+                <h3 class="mb-0 fw-bold text-info" id="stat-orders">{{ number_format($stats['total_orders'] ?? 0, 0, '.', ',') }}</h3>
+                <p class="mb-0 text-muted mt-2">
+                    <span class="text-success" id="purchases-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    
     <div class="col">
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Total Revenue</h5>
-                <h3 class="mb-0 fw-bold text-primary" id="stat-revenue">${{ number_format($stats['total_revenue'] ?? 0, 2) }}</h3>
+                <h3 class="mb-0 fw-bold text-primary" id="stat-revenue">${{ number_format($stats['total_revenue'] ?? 0, 2, '.', ',') }}</h3>
                 <p class="mb-0 text-muted mt-2">
                     <span class="text-success" id="revenue-growth"><i class="ti ti-trending-up"></i> 0%</span>
                 </p>
@@ -62,7 +75,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                <h3 class="mb-0 fw-bold text-success" id="stat-commission">${{ number_format($stats['total_commission'] ?? 0, 2) }}</h3>
+                <h3 class="mb-0 fw-bold text-success" id="stat-commission">${{ number_format($stats['total_commission'] ?? 0, 2, '.', ',') }}</h3>
                 <p class="mb-0 text-muted mt-2">
                     <span class="text-nowrap">Your earnings</span>
                 </p>
@@ -70,17 +83,7 @@
         </div>
     </div>
     
-    <div class="col">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="text-muted fs-13 text-uppercase">Purchases</h5>
-                <h3 class="mb-0 fw-bold text-info" id="stat-purchases">{{ $stats['total_purchases'] ?? 0 }}</h3>
-                <p class="mb-0 text-muted mt-2">
-                    <span class="text-success" id="purchases-growth"><i class="ti ti-trending-up"></i> 0%</span>
-                </p>
-            </div>
-        </div>
-    </div>
+
     
     <div class="col">
         <div class="card">
@@ -195,7 +198,7 @@
     </div>
 </div>
 
-<!-- Recent Purchases -->
+<!-- Recent Orders -->
 <div class="row">
     <div class="col-12">
         <div class="card">
@@ -315,9 +318,9 @@ function loadDashboard() {
 }
 
 function updateStats(stats) {
-    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toFixed(2);
-    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toFixed(2);
-    document.getElementById('stat-purchases').textContent = stats.total_purchases || 0;
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-orders').textContent = (stats.total_orders || 0).toLocaleString('en-US');
     document.getElementById('stat-campaigns').textContent = stats.total_campaigns || 0;
     document.getElementById('stat-coupons').textContent = stats.total_coupons || 0;
     document.getElementById('stat-networks').textContent = stats.active_networks || 0;
@@ -341,14 +344,18 @@ function updateGrowthIndicator(elementId, growth) {
 }
 
 function renderCharts(stats) {
-    // Revenue Trend Chart
-    renderRevenueChart(stats.daily_revenue || []);
-    
-    // Status Chart
-    renderStatusChart(stats.purchase_status || []);
-    
-    // Network Comparison Chart
-    renderNetworkComparisonChart(stats.network_comparison || []);
+    try {
+        // Revenue Trend Chart
+        renderRevenueChart(stats.daily_revenue || []);
+        
+        // Status Chart
+        renderStatusChart(stats.purchase_status || []);
+        
+        // Network Comparison Chart
+        renderNetworkComparisonChart(stats.network_comparison || []);
+    } catch (error) {
+        console.error('Error rendering charts:', error);
+    }
 }
 
 function renderRevenueChart(dailyData) {
@@ -392,7 +399,7 @@ function renderRevenueChart(dailyData) {
         yaxis: {
             labels: {
                 formatter: function(val) {
-                    return '$' + val.toFixed(2);
+                    return '$' + val.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                 }
             }
         },
@@ -447,24 +454,25 @@ function renderStatusChart(statusData) {
 }
 
 function renderNetworkComparisonChart(networkData) {
-    const container = document.querySelector("#networkComparisonChart");
-    if (!container) return;
-    
-    if (networkComparisonChart) {
-        networkComparisonChart.destroy();
-        networkComparisonChart = null;
-    }
-    
-    container.innerHTML = '';
-    
-    if (!networkData || networkData.length === 0) {
-        container.innerHTML = '<p class="text-center text-muted py-5">No data available</p>';
-        return;
-    }
-    
-    const networks = networkData.map(n => n.network?.display_name || 'Unknown');
-    const revenues = networkData.map(n => parseFloat(n.total_revenue || 0));
-    const purchases = networkData.map(n => n.total_purchases || 0);
+    try {
+        const container = document.querySelector("#networkComparisonChart");
+        if (!container) return;
+        
+        if (networkComparisonChart) {
+            networkComparisonChart.destroy();
+            networkComparisonChart = null;
+        }
+        
+        container.innerHTML = '';
+        
+        if (!networkData || networkData.length === 0) {
+            container.innerHTML = '<p class="text-center text-muted py-5">No data available</p>';
+            return;
+        }
+        
+        const networks = networkData.map(n => n.network?.display_name || 'Unknown');
+        const revenues = networkData.map(n => parseFloat(n.total_revenue || 0));
+        const orders = networkData.map(n => n.total_orders || 0);
     
     const options = {
         series: [{
@@ -472,7 +480,7 @@ function renderNetworkComparisonChart(networkData) {
             data: revenues
         }, {
             name: 'Purchases',
-            data: purchases
+            data: orders
         }],
         chart: {
             type: 'bar',
@@ -497,7 +505,7 @@ function renderNetworkComparisonChart(networkData) {
             },
             labels: {
                 formatter: function(val) {
-                    return '$' + val.toFixed(0);
+                    return '$' + val.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
                 }
             }
         }, {
@@ -511,8 +519,15 @@ function renderNetworkComparisonChart(networkData) {
         }
     };
     
-    networkComparisonChart = new ApexCharts(container, options);
-    networkComparisonChart.render();
+        networkComparisonChart = new ApexCharts(container, options);
+        networkComparisonChart.render();
+    } catch (error) {
+        console.error('Error rendering network comparison chart:', error);
+        const container = document.querySelector("#networkComparisonChart");
+        if (container) {
+            container.innerHTML = '<p class="text-center text-danger py-5">Error loading chart data</p>';
+        }
+    }
 }
 
 function renderTables(stats) {
@@ -535,8 +550,8 @@ function renderTopCampaigns(campaigns) {
         html += `
             <tr>
                 <td><i class="ti ti-speakerphone text-primary me-2"></i>${c.campaign?.name || 'Unknown'}</td>
-                <td class="text-end fw-semibold text-success">$${parseFloat(c.total_revenue).toFixed(2)}</td>
-                <td class="text-end">${c.total_purchases}</td>
+                <td class="text-end fw-semibold text-success">$${parseFloat(c.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="text-end">${(c.total_orders || 0).toLocaleString('en-US')}</td>
             </tr>
         `;
     });
@@ -560,8 +575,8 @@ function renderTopNetworks(networks) {
         html += `
             <tr>
                 <td><i class="ti ti-affiliate text-info me-2"></i>${n.network?.display_name || 'Unknown'}</td>
-                <td class="text-end fw-semibold text-success">$${parseFloat(n.total_revenue).toFixed(2)}</td>
-                <td class="text-end text-primary">$${parseFloat(n.total_commission).toFixed(2)}</td>
+                <td class="text-end fw-semibold text-success">$${parseFloat(n.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="text-end text-primary">$${parseFloat(n.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
             </tr>
         `;
     });
@@ -586,10 +601,10 @@ function renderRecentPurchases(purchases) {
                 <td><code>${p.order_id || 'N/A'}</code></td>
                 <td>${p.campaign?.name || 'Unknown'}</td>
                 <td>${p.network?.display_name || 'Unknown'}</td>
-                <td>$${parseFloat(p.order_value || 0).toFixed(2)}</td>
-                <td class="text-success fw-semibold">$${parseFloat(p.revenue || 0).toFixed(2)}</td>
+                <td>$${parseFloat(p.order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="text-success fw-semibold">$${parseFloat(p.revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 <td>${statusBadge}</td>
-                <td>${new Date(p.order_date).toLocaleDateString()}</td>
+                <td>${p.order_date ? new Date(p.order_date).toLocaleDateString() : 'N/A'}</td>
             </tr>
         `;
     });

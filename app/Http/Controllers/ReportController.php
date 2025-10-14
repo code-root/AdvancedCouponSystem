@@ -62,7 +62,7 @@ class ReportController extends Controller
         // Get filtered statistics
         $stats = [
             // Purchases
-            'total_purchases' => $purchasesQuery->count(),
+            'total_orders' => $purchasesQuery->count(),
             'approved_purchases' => (clone $purchasesQuery)->where('status', 'approved')->count(),
             'pending_purchases' => (clone $purchasesQuery)->where('status', 'pending')->count(),
             'rejected_purchases' => (clone $purchasesQuery)->where('status', 'rejected')->count(),
@@ -190,7 +190,7 @@ class ReportController extends Controller
             ->select('network_id', 
                 DB::raw('SUM(revenue) as total_revenue'),
                 DB::raw('SUM(commission) as total_commission'),
-                DB::raw('COUNT(*) as total_purchases'))
+                DB::raw('COUNT(*) as total_orders'))
             ->with('network:id,display_name')
             ->groupBy('network_id');
         
@@ -213,7 +213,7 @@ class ReportController extends Controller
         $query = Purchase::where('user_id', $userId)
             ->select('campaign_id',
                 DB::raw('SUM(revenue) as total_revenue'),
-                DB::raw('COUNT(*) as total_purchases'))
+                DB::raw('COUNT(*) as total_orders'))
             ->with('campaign:id,name,network_id')
             ->groupBy('campaign_id');
         
@@ -266,7 +266,7 @@ class ReportController extends Controller
         
         return [
             'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue'),
-            'total_purchases' => Purchase::where('user_id', $userId)->count(),
+            'total_orders' => Purchase::where('user_id', $userId)->count(),
             'total_campaigns' => Campaign::where('user_id', $userId)->count(),
             'total_coupons' => Coupon::whereHas('campaign', function($q) use ($userId) {
                 $q->where('user_id', $userId);
@@ -453,7 +453,7 @@ class ReportController extends Controller
         $statsQuery = clone $query;
         
         $stats = [
-            'total_purchases' => $statsQuery->count(),
+            'total_orders' => $statsQuery->count(),
             'approved' => (clone $statsQuery)->where('status', 'approved')->count(),
             'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
             'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),

@@ -122,7 +122,7 @@
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-hover text-nowrap mb-0">
+                    <table class="table table-hover text-nowrap mb-0" id="networksTable">
                         <thead class="bg-light-subtle">
                             <tr>
                                 <th class="ps-3">Network</th>
@@ -441,6 +441,47 @@ function disconnectNetwork(connectionId) {
 }
 
 // Search functionality
+// Initialize DataTables for Networks
+$(document).ready(function() {
+    $('#networksTable').DataTable({
+        responsive: true,
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+        order: [[6, 'desc']], // Sort by Last Sync column (index 6) descending
+        columnDefs: [
+            { orderable: false, targets: [7] }, // Action column not sortable
+            { type: 'date', targets: [5, 6] }, // Date columns for Connected At and Last Sync
+            { type: 'num', targets: [4] }, // Numeric column for Connected Users
+        ],
+        language: {
+            search: "Search:",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ entries",
+            infoEmpty: "Showing 0 to 0 of 0 entries",
+            infoFiltered: "(filtered from _MAX_ total entries)",
+            paginate: {
+                first: "First",
+                last: "Last",
+                next: "Next",
+                previous: "Previous"
+            },
+            emptyTable: "No data available in table",
+            zeroRecords: "No matching records found"
+        },
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        initComplete: function() {
+            // Hide the original pagination since we're using DataTables
+            const paginationContainer = document.querySelector('.card-footer');
+            if (paginationContainer) {
+                paginationContainer.style.display = 'none';
+            }
+        }
+    });
+});
+
+// Keep the original search functionality for backward compatibility
 document.getElementById('searchConnections')?.addEventListener('input', function(e) {
     const searchTerm = e.target.value.toLowerCase();
     const rows = document.querySelectorAll('tbody tr');

@@ -6,6 +6,7 @@ use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Purchase;
 use App\Models\Country;
+use App\Enums\OmolaatCampaigns;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -35,6 +36,12 @@ class NetworkDataProcessor
                 
                 foreach ($data as $index => $item) {
                     try {
+                        // Validate item structure before processing
+                        if (!is_array($item) || empty($item)) {
+                            $processed['errors'][] = "Invalid item structure at index $index";
+                            continue;
+                        }
+
                         // Handle different network formats
                         if ($networkName === 'digizag') {
                             $item = self::normalizeDigizagData($item);
@@ -56,8 +63,16 @@ class NetworkDataProcessor
                             $item = self::normalizePlatformanceData($item); // Same format as Platformance
                         } elseif ($networkName === 'optimisemedia') {
                             $item = self::normalizeOptimiseMediaData($item);
+                        } elseif ($networkName === 'omolaat') {
+                            $item = self::normalizeOmolaatData($item);
                         } else {
                             $item = self::normalizeBoostinyData($item);
+                        }
+
+                        // Validate normalized data
+                        if (!self::validateNormalizedData($item, $index)) {
+                            $processed['errors'][] = "Invalid normalized data at index $index";
+                            continue;
                         }
                         
                         // Get or create country
@@ -123,14 +138,25 @@ class NetworkDataProcessor
                         }
                         
                     } catch (\Exception $e) {
+                        $errorMessage = "Error processing item at index $index: " . $e->getMessage();
                         $processed['errors'][] = [
+                            'index' => $index,
                             'campaign' => $item['campaign_name'] ?? 'Unknown',
                             'error' => $e->getMessage()
                         ];
-                        Log::error('Error processing coupon data: ' . $e->getMessage(), [
+                        
+                        Log::error('Error processing coupon data', [
+                            'index' => $index,
                             'item' => $item,
-                            'network' => $networkName
+                            'network' => $networkName,
+                            'user_id' => $userId,
+                            'network_id' => $networkId,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
                         ]);
+                        
+                        // Continue processing other items instead of failing completely
+                        continue;
                     }
                 }
             }, 2);
@@ -433,6 +459,244 @@ class NetworkDataProcessor
             'order_date' => isset($item['date']) ? date('Y-m-d', strtotime($item['date'])) : now()->format('Y-m-d'), // تاريخ الطلب من API
             'purchase_date' => isset($item['date']) ? date('Y-m-d', strtotime($item['date'])) : now()->format('Y-m-d'), // نفس التاريخ
         ];
+    }
+
+    /**
+     * Normalize Omolaat Elasticsearch hit to standard format
+     * Improved date handling and data validation
+     */
+    private static function normalizeOmolaatData(array $hit): array
+    {
+        $src = $hit['_source'] ?? [];
+        
+        // Extract campaign ID from store_custom_services_stores and find campaign info
+        $storeLookup = $src['store1_custom_services_stores'] ?? $src['store_custom_services_stores'] ?? null;
+        $campaignId = self::extractCampaignIdFromLookup($storeLookup);
+        $campaignName = 'Unknown';
+        $campaignLogo = null;
+        
+        // Find campaign in enum if ID was extracted
+        if ($campaignId) {
+            $campaign = OmolaatCampaigns::findById($campaignId);
+            if ($campaign) {
+                $campaignName = $campaign->getClientName();
+                $campaignLogo = $campaign->getLogoUrl();
+            }
+        }
+        
+        // Extract coupon code from sales_id_text (first part before first dash)
+        $salesId = $src['sales_id_text'] ?? '';
+        $code = self::extractCouponCode($salesId);
+
+        // Improved date handling with validation
+        $orderDateMs = $src['order_date_date'] ?? null;
+        $createdDateMs = $src['Created Date'] ?? null;
+        
+        // Validate and convert dates
+        $orderDate = self::convertOmolaatDate($orderDateMs);
+        $purchaseDate = self::convertOmolaatDate($createdDateMs);
+
+        // Validate numeric values
+        $orderValue = self::validateNumericValue($src['order_amount_number'] ?? 0);
+        $commission = self::validateNumericValue($src['affiliate_amount_number'] ?? 0);
+        $quantity = self::validateIntegerValue($src['quantity_number'] ?? 1);
+
+        return [
+            'campaign_id' => is_string($campaignId) ? $campaignId : (string) ($campaignId ?? ''),
+            'purchase_type' => 'coupon',
+            'campaign_name' => is_string($campaignName) ? $campaignName : 'Unknown',
+            'campaign_logo' => $campaignLogo,
+            'code' => is_string($code) ? $code : 'NA',
+            'country_code' => $src['country_text'] ?? 'NA',
+            'order_id' => $hit['pos_order_id_text'] ?? null,
+            'network_order_id' => $src['pos_order_id_text'] ?? null,
+            'order_value' => $orderValue,
+            'commission' => $commission,
+            'revenue' => $commission, // Same as commission for Omolaat
+            'quantity' => $quantity,
+            'customer_type' => strtolower(trim((string) ($src['customer_type_text'] ?? 'unknown'))),
+            'status' => (string) ($src['status_option_opt__order_status'] ?? 'approved'),
+            'order_date' => $orderDate,
+            'purchase_date' => $purchaseDate,
+        ];
+    }
+
+    /**
+     * Convert Omolaat date (milliseconds) to Y-m-d format with validation
+     */
+    private static function convertOmolaatDate($dateMs): string
+    {
+        if ($dateMs === null || $dateMs === '') {
+            return now()->format('Y-m-d');
+        }
+
+        // Handle both string and numeric values
+        $ms = is_numeric($dateMs) ? (int) $dateMs : 0;
+        
+        // Validate timestamp range (reasonable date range)
+        if ($ms < 1000000000000) { // Less than year 2001
+            return now()->format('Y-m-d');
+        }
+        
+        if ($ms > 4102444800000) { // Greater than year 2100
+            return now()->format('Y-m-d');
+        }
+
+        try {
+            $timestamp = (int) ($ms / 1000);
+            $date = date('Y-m-d', $timestamp);
+            
+            // Validate the generated date
+            if ($date === '1970-01-01' || $date === false) {
+                return now()->format('Y-m-d');
+            }
+            
+            return $date;
+        } catch (\Throwable $e) {
+            Log::warning('Invalid Omolaat date conversion: ' . $e->getMessage(), ['dateMs' => $dateMs]);
+            return now()->format('Y-m-d');
+        }
+    }
+
+    /**
+     * Validate and convert numeric value
+     */
+    private static function validateNumericValue($value): float
+    {
+        if (is_numeric($value)) {
+            $floatValue = (float) $value;
+            // Ensure reasonable range
+            return max(0, min($floatValue, 999999999)); // Max 999M
+        }
+        return 0.0;
+    }
+
+    /**
+     * Validate and convert integer value
+     */
+    private static function validateIntegerValue($value): int
+    {
+        if (is_numeric($value)) {
+            $intValue = (int) $value;
+            // Ensure reasonable range
+            return max(1, min($intValue, 999999)); // Max 999K
+        }
+        return 1;
+    }
+
+    /**
+     * Extract coupon code from sales_id_text (first part before first dash)
+     * استخراج كود الكوبون من sales_id_text (الجزء الأول قبل الشرطة الأولى)
+     * 
+     * @param string $salesId The sales_id_text value
+     * @return string The extracted coupon code
+     */
+    private static function extractCouponCode(string $salesId): string
+    {
+        if (empty($salesId)) {
+            return 'NA';
+        }
+
+        // Split by dash and take the first part
+        $parts = explode('-', $salesId, 2);
+        $couponCode = trim($parts[0]);
+
+        // Validate the extracted code
+        if (empty($couponCode)) {
+            return 'NA';
+        }
+
+     
+        return $couponCode;
+    }
+
+    /**
+     * Extract campaign ID from store lookup string
+     * استخراج معرف الحملة من نص store_custom_services_stores
+     * 
+     * @param string|null $storeLookup The store lookup string
+     * @return string|null The extracted campaign ID
+     */
+    private static function extractCampaignIdFromLookup(?string $storeLookup): ?string
+    {
+        if (empty($storeLookup)) {
+            return null;
+        }
+
+        // Look for pattern: "1348695171700984260__LOOKUP__1747810598320x156968070750276060"
+        if (preg_match('/__LOOKUP__(.+)$/', $storeLookup, $matches)) {
+            $campaignId = trim($matches[1]);
+            
+            // Validate the extracted ID format (should contain 'x' and be reasonable length)
+            if (!empty($campaignId) && strpos($campaignId, 'x') !== false && strlen($campaignId) > 10) {
+                return $campaignId;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Validate normalized data structure
+     */
+    private static function validateNormalizedData(array $item, int $index): bool
+    {
+        $requiredFields = [
+            'campaign_id',
+            'campaign_name',
+            'order_date',
+            'purchase_date',
+            'order_value',
+            'commission',
+            'revenue',
+            'status'
+        ];
+
+        foreach ($requiredFields as $field) {
+            if (!isset($item[$field]) || $item[$field] === null || $item[$field] === '') {
+                Log::warning("Missing required field '$field' in normalized data at index $index", [
+                    'item' => $item,
+                    'index' => $index
+                ]);
+                return false;
+            }
+        }
+
+        // Validate date format
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $item['order_date'])) {
+            Log::warning("Invalid order_date format in normalized data at index $index", [
+                'order_date' => $item['order_date'],
+                'index' => $index
+            ]);
+            return false;
+        }
+
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $item['purchase_date'])) {
+            Log::warning("Invalid purchase_date format in normalized data at index $index", [
+                'purchase_date' => $item['purchase_date'],
+                'index' => $index
+            ]);
+            return false;
+        }
+
+        // Validate numeric values
+        if (!is_numeric($item['order_value']) || $item['order_value'] < 0) {
+            Log::warning("Invalid order_value in normalized data at index $index", [
+                'order_value' => $item['order_value'],
+                'index' => $index
+            ]);
+            return false;
+        }
+
+        if (!is_numeric($item['commission']) || $item['commission'] < 0) {
+            Log::warning("Invalid commission in normalized data at index $index", [
+                'commission' => $item['commission'],
+                'index' => $index
+            ]);
+            return false;
+        }
+
+        return true;
     }
     
     /**

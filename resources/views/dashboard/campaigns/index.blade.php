@@ -150,7 +150,7 @@
                                 <th>Network</th>
                                 <th>Type</th>
                                 <th>Coupons</th>
-                                <th>Purchases</th>
+                                <th>Orders</th>
                                 <th>Revenue</th>
                                 <th>Status</th>
                                 <th class="text-center pe-3" style="width: 120px;">Action</th>
@@ -290,7 +290,7 @@ function renderCampaigns(campaigns) {
                 <td>${typeBadge}</td>
                 <td><span class="badge bg-info">${campaign.coupons?.length || 0}</span></td>
                 <td><span class="badge bg-success">${campaign.purchases_count || 0}</span></td>
-                <td><strong class="text-success">$${parseFloat(campaign.total_revenue || 0).toFixed(2)}</strong></td>
+                <td><strong class="text-success">$${parseFloat(campaign.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
                 <td>${statusBadge}</td>
                 <td class="pe-3 text-center">
                     <div class="hstack gap-1 justify-content-center">

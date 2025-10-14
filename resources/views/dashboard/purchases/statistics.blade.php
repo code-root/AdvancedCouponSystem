@@ -365,24 +365,24 @@
         }
         
         function updateSummaryStats(data) {
-            $('#totalPurchases').text(data.total_purchases.toLocaleString());
-            $('#approvedPurchases').text(data.approved_purchases.toLocaleString());
-            $('#pendingPurchases').text(data.pending_purchases.toLocaleString());
-            $('#rejectedPurchases').text(data.rejected_purchases.toLocaleString());
-            $('#totalRevenue').text('$' + parseFloat(data.total_revenue).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-            $('#totalOrderValue').text('$' + parseFloat(data.total_order_value).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-            $('#averagePurchase').text('$' + parseFloat(data.average_purchase).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-            $('#averageRevenue').text('$' + parseFloat(data.average_revenue).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            $('#totalPurchases').text((data.total_orders || 0).toLocaleString('en-US'));
+            $('#approvedPurchases').text((data.approved_purchases || 0).toLocaleString('en-US'));
+            $('#pendingPurchases').text((data.pending_purchases || 0).toLocaleString('en-US'));
+            $('#rejectedPurchases').text((data.rejected_purchases || 0).toLocaleString('en-US'));
+            $('#totalRevenue').text('$' + parseFloat(data.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            $('#totalOrderValue').text('$' + parseFloat(data.total_order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            $('#averagePurchase').text('$' + parseFloat(data.average_purchase || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            $('#averageRevenue').text('$' + parseFloat(data.average_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             
             // Update purchase type breakdown
             if (data.purchase_type_breakdown) {
-                $('#couponPurchases').text(data.purchase_type_breakdown.coupon?.count || 0);
-                $('#couponRevenue').text('$' + parseFloat(data.purchase_type_breakdown.coupon?.revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                $('#couponOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.coupon?.order_value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('#couponPurchases').text((data.purchase_type_breakdown.coupon?.count || 0).toLocaleString('en-US'));
+                $('#couponRevenue').text('$' + parseFloat(data.purchase_type_breakdown.coupon?.revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('#couponOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.coupon?.order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                 
-                $('#directLinkPurchases').text(data.purchase_type_breakdown.link?.count || 0);
-                $('#directLinkRevenue').text('$' + parseFloat(data.purchase_type_breakdown.link?.revenue || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                $('#directLinkOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.link?.order_value || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('#directLinkPurchases').text((data.purchase_type_breakdown.link?.count || 0).toLocaleString('en-US'));
+                $('#directLinkRevenue').text('$' + parseFloat(data.purchase_type_breakdown.link?.revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('#directLinkOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.link?.order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             }
         }
         

@@ -5,12 +5,11 @@ namespace App\Services\Networks;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use DOMDocument;
-use DOMXPath;
+use Exception;
 
-class GlobalemediaService extends BaseNetworkService
+class OmolaatService extends BaseNetworkService
 {
-    protected string $networkName = 'globalemedia';
+    protected string $networkName = 'omolaat';
     
     protected array $requiredFields = [
         'email' => [
@@ -18,22 +17,28 @@ class GlobalemediaService extends BaseNetworkService
             'type' => 'email',
             'required' => true,
             'placeholder' => 'your.email@example.com',
-            'help' => 'Your Globalemedia account email',
+            'help' => 'Your Omolaat account email',
         ],
         'password' => [
             'label' => 'Password',
             'type' => 'password',
             'required' => true,
             'placeholder' => 'Enter your password',
-            'help' => 'Your Globalemedia account password',
+            'help' => 'Your Omolaat account password',
         ],
     ];
     
     protected array $defaultConfig = [
-        'base_url' => 'https://login.globalemedia.net',
-        'login_url' => 'https://login.globalemedia.net/login.html',
-        'api_url' => 'https://login.globalemedia.net/publisher/performance.html',
+        'base_url' => 'https://my.omolaat.com',
+        'login_url' => 'https://my.omolaat.com/workflow/start',
+        'search_url' => 'https://my.omolaat.com/elasticsearch/msearch',
+        'init_url' => 'https://my.omolaat.com/api/1.1/init/data',
+        'user_hi_url' => 'https://my.omolaat.com/user/hi',
     ];
+
+    // Fixed IVs used by Bubble.io (same as Python version)
+    private const FIXED_IV_Y = 'po9';
+    private const FIXED_IV_X = 'fl1';
 
     /**
      * Test connection by logging in and getting cookies (with retry)

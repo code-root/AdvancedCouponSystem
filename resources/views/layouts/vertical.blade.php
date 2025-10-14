@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html @yield('html-attribute')>
+<html lang="en" dir="ltr" @yield('html-attribute')>
 
 <head>
     @include('layouts.partials.title-meta', ['title' => $title ?? 'Dashboard'])

@@ -194,7 +194,7 @@ class CampaignController extends Controller
             'total_revenue' => $campaign->purchases()->sum('revenue'),
             'total_commission' => $campaign->purchases()->sum('order_value'),
             'total_order_value' => $campaign->purchases()->sum('order_value'),
-            'total_purchases' => $campaign->purchases()->count(),
+            'total_orders' => $campaign->purchases()->count(),
             'approved_purchases' => $campaign->purchases()->where('status', 'approved')->count(),
         ];
 
@@ -288,7 +288,7 @@ class CampaignController extends Controller
             'active_coupons' => $campaign->coupons()->where('is_active', true)->count(),
             'used_coupons' => $campaign->coupons()->where('times_used', '>', 0)->count(),
             'total_uses' => $campaign->coupons()->sum('times_used'),
-            'total_purchases' => $campaign->purchases()->count(),
+            'total_orders' => $campaign->purchases()->count(),
             'completed_purchases' => $campaign->purchases()->where('status', 'completed')->count(),
             'total_revenue' => $campaign->purchases()->where('status', 'completed')->sum('amount'),
             'average_purchase' => $campaign->purchases()->where('status', 'completed')->avg('amount'),

@@ -86,10 +86,10 @@ class AdmitadService extends BaseNetworkService
                 
                 Log::info("Admitad: Successfully connected on attempt #{$attempt}");
                 
-                return [
-                    'success' => true,
+            return [
+                'success' => true,
                     'message' => 'Successfully connected to Admitad!' . ($attempt > 1 ? " (after {$attempt} attempts)" : ''),
-                    'data' => [
+                'data' => [
                         'client_id' => $authResult['client_id'] ?? '',
                         'cookies' => $authResult['cookies'] ?? '',
                         'connected_at' => now()->format('Y-m-d H:i:s'),

@@ -148,7 +148,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Total Revenue</h5>
-                    <h3 class="mb-0 fw-bold text-primary" id="stat-revenue">${{ number_format($stats['total_revenue'] ?? 0, 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-primary" id="stat-revenue">${{ number_format($stats['total_revenue'] ?? 0, 2, '.', ',') }}</h3>
                 </div>
             </div>
         </div>
@@ -156,15 +156,15 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                    <h3 class="mb-0 fw-bold text-success" id="stat-commission">${{ number_format($stats['total_revenue'] ?? 0, 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-success" id="stat-commission">${{ number_format($stats['total_commission'] ?? 0, 2, '.', ',') }}</h3>
                 </div>
             </div>
         </div>
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Purchases</h5>
-                    <h3 class="mb-0 fw-bold text-info" id="stat-purchases">{{ $stats['total_purchases'] ?? 0 }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Orders</h5>
+                    <h3 class="mb-0 fw-bold text-info" id="stat-orders">{{ number_format($stats['total_orders'] ?? 0, 0, '.', ',') }}</h3>
                 </div>
             </div>
         </div>
@@ -356,9 +356,9 @@ function loadReports() {
 
 // Update statistics
 function updateStats(stats) {
-    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toFixed(2);
-    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toFixed(2);
-    document.getElementById('stat-purchases').textContent = stats.total_purchases || 0;
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-orders').textContent = (stats.total_orders || 0).toLocaleString('en-US');
     document.getElementById('stat-approved').textContent = stats.approved_purchases || 0;
     document.getElementById('stat-campaigns').textContent = stats.total_campaigns || 0;
     document.getElementById('stat-coupons').textContent = stats.total_coupons || 0;
@@ -483,8 +483,8 @@ function renderTopCampaigns(campaigns) {
                         <span>${campaign.campaign?.name || 'Unknown'}</span>
                     </div>
                 </td>
-                <td class="text-end fw-semibold text-success">$${parseFloat(campaign.total_revenue).toFixed(2)}</td>
-                <td class="text-end">${campaign.total_purchases}</td>
+                <td class="text-end fw-semibold text-success">$${parseFloat(campaign.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="text-end">${(campaign.total_orders || 0).toLocaleString('en-US')}</td>
             </tr>
         `;
     });
@@ -521,8 +521,8 @@ function renderTopNetworks(networks) {
                         <span>${network.network?.display_name || 'Unknown'}</span>
                     </div>
                 </td>
-                <td class="text-end fw-semibold text-success">$${parseFloat(network.total_revenue).toFixed(2)}</td>
-                <td class="text-end">${network.total_purchases}</td>
+                <td class="text-end fw-semibold text-success">$${parseFloat(network.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="text-end">${(network.total_orders || 0).toLocaleString('en-US')}</td>
             </tr>
         `;
     });

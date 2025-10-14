@@ -56,7 +56,7 @@
                                     Coupons Only
                                 </option>
                                 <option value="purchases" {{ old('sync_type') == 'purchases' ? 'selected' : '' }}>
-                                    Purchases Only
+                                    Orders Only
                                 </option>
                             </select>
                             @error('sync_type')

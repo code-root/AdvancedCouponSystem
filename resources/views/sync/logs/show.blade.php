@@ -134,7 +134,7 @@
                                 <div class="text-center p-3 bg-info-subtle rounded">
                                     <i class="ti ti-shopping-cart fs-1 text-info"></i>
                                     <h3 class="mt-2 mb-0">{{ $log->purchases_count }}</h3>
-                                    <p class="text-muted mb-0 small">Purchases</p>
+                                    <p class="text-muted mb-0 small">Orders</p>
                                 </div>
                             </div>
                         </div>

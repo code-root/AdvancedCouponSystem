@@ -53,7 +53,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Total Revenue</h5>
-                    <h3 class="mb-0 fw-bold text-success">${{ number_format($stats['total_revenue'] ?? 0, 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-success">${{ number_format($stats['total_revenue'] ?? 0, 2, '.', ',') }}</h3>
                 </div>
             </div>
         </div>
@@ -61,7 +61,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                    <h3 class="mb-0 fw-bold text-primary">${{ number_format($stats['total_commission'] ?? 0, 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-primary">${{ number_format($stats['total_commission'] ?? 0, 2, '.', ',') }}</h3>
                 </div>
             </div>
         </div>
@@ -69,15 +69,15 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Order Value</h5>
-                    <h3 class="mb-0 fw-bold text-info">${{ number_format($stats['total_order_value'] ?? 0, 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-info">${{ number_format($stats['total_order_value'] ?? 0, 2, '.', ',') }}</h3>
                 </div>
             </div>
         </div>
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Purchases</h5>
-                    <h3 class="mb-0 fw-bold">{{ $stats['total_purchases'] ?? 0 }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Orders</h5>
+                    <h3 class="mb-0 fw-bold">{{ number_format($stats['total_orders'] ?? 0, 0, '.', ',') }}</h3>
                     <small class="text-success">{{ $stats['approved_purchases'] ?? 0 }} Approved</small>
                 </div>
             </div>
@@ -298,7 +298,7 @@ function renderCouponsTable(coupons) {
     let html = '';
     coupons.forEach(coupon => {
         const revenue = parseFloat(coupon.total_revenue || 0);
-        const orders = coupon.total_orders || 0;
+        const orders = (coupon.total_orders || 0).toLocaleString('en-US');
         const avgOrder = orders > 0 ? (revenue / orders) : 0;
         
         const statusBadge = coupon.status === 'active' 
@@ -334,7 +334,7 @@ function renderTopCouponsChart(coupons) {
     
     const codes = topCoupons.map(c => c.code);
     const revenues = topCoupons.map(c => parseFloat(c.total_revenue || 0));
-    const orders = topCoupons.map(c => c.total_orders || 0);
+    const orders = topCoupons.map(c => (c.total_orders || 0).toLocaleString('en-US'));
     
     const options = {
         series: [{

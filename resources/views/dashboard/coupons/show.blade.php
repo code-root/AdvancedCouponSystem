@@ -54,7 +54,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Total Revenue</h5>
-                    <h3 class="mb-0 fw-bold text-success">${{ number_format($stats['total_revenue'] ?? 0, 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-success">${{ number_format($stats['total_revenue'] ?? 0, 2, '.', ',') }}</h3>
                 </div>
             </div>
         </div>
@@ -62,7 +62,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Total Purchases</h5>
-                    <h3 class="mb-0 fw-bold text-primary">{{ $stats['total_purchases'] ?? 0 }}</h3>
+                    <h3 class="mb-0 fw-bold text-primary">{{ number_format($stats['total_orders'] ?? 0, 0, '.', ',') }}</h3>
                     <small class="text-success">{{ $stats['approved_purchases'] ?? 0 }} Approved</small>
                 </div>
             </div>
@@ -105,10 +105,10 @@
     <!-- Details Row -->
     <div class="row">
         <div class="col-lg-8">
-            <!-- All Purchases -->
+            <!-- All Orders -->
             <div class="card">
                 <div class="card-header border-bottom">
-                    <h4 class="card-title mb-0">All Purchases ({{ $coupon->purchases->count() }})</h4>
+                    <h4 class="card-title mb-0">All Orders ({{ $coupon->purchases->count() }})</h4>
                 </div>
                 <div class="card-body">
                     @if($coupon->purchases->count() > 0)
@@ -147,7 +147,7 @@
                     @else
                         <div class="text-center py-5">
                             <i class="ti ti-shopping-cart-off fs-48 text-muted"></i>
-                            <p class="text-muted mt-3">No purchases yet for this coupon</p>
+                            <p class="text-muted mt-3">No Orders yet for this coupon</p>
                         </div>
                     @endif
                 </div>
@@ -279,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 search: "Search purchases:",
                 lengthMenu: "Show _MENU_ purchases",
                 info: "Showing _START_ to _END_ of _TOTAL_ purchases",
-                infoEmpty: "No purchases available",
+                infoEmpty: "No Orders available",
                 infoFiltered: "(filtered from _MAX_ total purchases)",
                 paginate: {
                     first: "First",

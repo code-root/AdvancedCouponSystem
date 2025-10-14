@@ -37,7 +37,7 @@
                                 <th>Email</th>
                                 <th class="text-center">Networks</th>
                                 <th class="text-center">Campaigns</th>
-                                <th class="text-center">Purchases</th>
+                                <th class="text-center">Orders</th>
                                 <th>Joined</th>
                                 <th class="text-center pe-3" style="width: 120px;">Action</th>
                             </tr>

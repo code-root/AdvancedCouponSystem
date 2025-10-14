@@ -14,7 +14,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="text-muted small">Order ID</label>
-                            <p class="mb-0"><strong>{{ $purchase->order_id ?? 'N/A' }}</strong></p>
+                            <p class="mb-0"><strong>{{ $purchase->network_order_id ?: $purchase->order_id ?: $purchase->id ?: 'N/A' }}</strong></p>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="text-muted small">Purchase Date</label>

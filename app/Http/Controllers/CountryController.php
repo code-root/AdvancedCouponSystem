@@ -53,7 +53,7 @@ class CountryController extends Controller
     public function show(Country $country)
     {
         $stats = [
-            'total_purchases' => $country->purchases()->count(),
+            'total_orders' => $country->purchases()->count(),
             'total_revenue' => $country->purchases()->sum('revenue'),
             'total_commission' => $country->purchases()->sum('order_value'),
             'approved_purchases' => $country->purchases()->where('status', 'approved')->count(),
@@ -116,7 +116,7 @@ class CountryController extends Controller
     {
         // Return country statistics instead
         $stats = [
-            'total_purchases' => $country->purchases()->count(),
+            'total_orders' => $country->purchases()->count(),
             'total_revenue' => $country->purchases()->sum('revenue'),
             'total_commission' => $country->purchases()->sum('order_value'),
         ];

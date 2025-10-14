@@ -192,12 +192,12 @@ function loadReport() {
 }
 
 function updateStats(stats) {
-    document.getElementById('stat-total').textContent = stats.total_purchases || 0;
+    document.getElementById('stat-total').textContent = (stats.total_orders || 0).toLocaleString('en-US');
     document.getElementById('stat-approved').textContent = stats.approved || 0;
     document.getElementById('stat-pending').textContent = stats.pending || 0;
     document.getElementById('stat-rejected').textContent = stats.rejected || 0;
-    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toFixed(2);
-    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toFixed(2);
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 
 function renderCharts(stats) {

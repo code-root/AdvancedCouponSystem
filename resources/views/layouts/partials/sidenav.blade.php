@@ -108,11 +108,11 @@
                 </div>
             </li>
 
-            <!-- Purchases Section -->
+            <!-- Orders Section -->
             <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarPurchases" aria-expanded="false" aria-controls="sidebarPurchases" class="side-nav-link {{ request()->is('purchases*') ? 'active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-shopping-cart"></i></span>
-                    <span class="menu-text"> Purchases </span>
+                    <span class="menu-text"> Orders </span>
                     <span class="menu-arrow"></span>
                 </a>
                 <div class="collapse {{ request()->is('purchases*') ? 'show' : '' }}" id="sidebarPurchases">

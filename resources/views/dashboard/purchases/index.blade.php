@@ -55,7 +55,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Revenue</h5>
-                    <h3 class="mb-0 fw-bold text-primary" id="stat-revenue">${{ number_format($stats['total_revenue'], 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-primary" id="stat-revenue">${{ $stats['total_revenue'] ?? '0.00' }}</h3>
                 </div>
             </div>
         </div>
@@ -63,7 +63,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                    <h3 class="mb-0 fw-bold text-info" id="stat-commission">${{ number_format($stats['total_commission'], 2) }}</h3>
+                    <h3 class="mb-0 fw-bold text-info" id="stat-commission">${{ $stats['total_commission'] ?? '0.00' }}</h3>
                 </div>
             </div>
         </div>
@@ -78,7 +78,7 @@
                         <!-- Search -->
                         <div class="col-md-3">
                             <label class="form-label">Search</label>
-                            <input type="text" class="form-control" id="searchInput" placeholder="Order ID...">
+                            <input type="text" class="form-control" id="searchInput" placeholder="Search by Order ID, Campaign, Network, Coupon...">
                         </div>
                         
                         <!-- Network Filter -->
@@ -163,10 +163,10 @@
                         
                         <!-- Actions -->
                         <div class="col-12 d-flex gap-2 justify-content-end">
-                            <button type="button" class="btn btn-primary" onclick="applyFilters()">
+                            <button type="button" class="btn btn-primary" onclick="applyFilters()" id="applyFiltersBtn">
                                 <i class="ti ti-filter me-1"></i> Apply Filters
                             </button>
-                            <button type="button" class="btn btn-light" onclick="resetFilters()">
+                            <button type="button" class="btn btn-light" onclick="resetFilters()" id="resetFiltersBtn">
                                 <i class="ti ti-x me-1"></i> Reset
                             </button>
                         </div>
@@ -176,7 +176,7 @@
         </div>
     </div>
 
-    <!-- Purchases Table -->
+    <!-- Orders Table -->
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -226,6 +226,13 @@
 let currentPage = 1;
 let filters = {};
 
+// Helper function to format date without timezone issues
+function formatDate(date) {
+    return date.getFullYear() + '-' + 
+        String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+        String(date.getDate()).padStart(2, '0');
+}
+
 // Wait for window to fully load (including Vite assets)
 window.addEventListener('load', function() {
     // Initialize Select2 explicitly
@@ -234,150 +241,113 @@ window.addEventListener('load', function() {
     }
     
     // Initialize Flatpickr
-    flatpickr("#dateRange", {
+    window.flatpickrInstance = flatpickr("#dateRange", {
         mode: "range",
         dateFormat: "Y-m-d",
         defaultDate: [
             new Date(new Date().getFullYear(), new Date().getMonth(), 1),
             new Date()
         ],
+        // Ensure dates are displayed correctly
+        parseDate: function(datestr, format) {
+            return new Date(datestr);
+        },
         onChange: function(selectedDates, dateStr, instance) {
             if (selectedDates.length === 2) {
-                filters.date_from = selectedDates[0].toISOString().split('T')[0];
-                filters.date_to = selectedDates[1].toISOString().split('T')[0];
+                // Format dates correctly without timezone issues
+                filters.date_from = formatDate(selectedDates[0]);
+                filters.date_to = formatDate(selectedDates[1]);
+                // Auto-apply filters when date range changes
+                applyFilters();
+            } else if (selectedDates.length === 0) {
+                // Clear date filters if no dates selected
+                delete filters.date_from;
+                delete filters.date_to;
             }
         }
     });
     
     // Set default date range
-    filters.date_from = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-    filters.date_to = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    // Load purchases
-    loadPurchases();
+    filters.date_from = formatDate(firstDayOfMonth);
+    filters.date_to = formatDate(today);
+    
+    // Initialize DataTable
+    initializeDataTable();
     
     // Search with debounce
     let searchTimeout;
     document.getElementById('searchInput').addEventListener('input', function(e) {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
-            filters.search = e.target.value;
-            applyFilters();
+            const searchValue = e.target.value.trim();
+            if (searchValue !== filters.search_text) {
+                filters.search_text = searchValue;
+                applyFilters();
+            }
         }, 500);
     });
     
     // Per page change
     $('#perPageSelect').on('change', function() {
         filters.per_page = $(this).val();
-        loadPurchases(1);
+        reloadDataTable();
+    });
+    
+    // Auto-apply filters on change
+    $('#networkFilter, #campaignFilter, #statusFilter, #customerTypeFilter, #purchaseTypeFilter').on('change', function() {
+        applyFilters();
+    });
+    
+    // Revenue range filters with debounce
+    let revenueTimeout;
+    $('#revenueMin, #revenueMax').on('input', function() {
+        clearTimeout(revenueTimeout);
+        revenueTimeout = setTimeout(() => {
+            applyFilters();
+        }, 1000);
     });
 });
 
-// Load purchases
-function loadPurchases(page = 1) {
-    currentPage = page;
-    
-    // Prepare params with proper array handling
-    const params = new URLSearchParams();
-    params.append('page', currentPage);
-    
-    // Add filters
-    Object.keys(filters).forEach(key => {
-        const value = filters[key];
-        
-        if (value === null || value === undefined || value === '') {
-            return; // Skip empty values
-        }
-        
-        // Handle arrays (network_ids, campaign_ids)
-        if (Array.isArray(value)) {
-            value.forEach(item => {
-                if (item) {
-                    params.append(key + '[]', item);
-                }
-            });
-        } else {
-            params.append(key, value);
-        }
-    });
-    
-    console.log('Sending params:', params.toString());
-    
-    $.ajax({
-        url: '{{ route("purchases.index") }}?' + params.toString(),
-        method: 'GET',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        },
-        success: function(data) {
-            if (data.success) {
-                renderPurchases(data.data.data);
-                renderPagination(data.data);
-                updateStats(data.stats);
-            }
-        },
-        error: function(error) {
-            console.error('Error:', error);
-            showEmptyState('Error loading purchases');
-        }
-    });
+// Helper functions for loading states
+function showLoading() {
+    const tbody = document.getElementById('purchasesTableBody');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="11" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-2">Loading purchases...</p>
+                </td>
+            </tr>
+        `;
+    }
 }
 
-// Render purchases
-function renderPurchases(purchases) {
+function showError(message) {
     const tbody = document.getElementById('purchasesTableBody');
-    
-    if (purchases.length === 0) {
-        showEmptyState('No purchases found');
-        return;
-    }
-    
-    let html = '';
-    purchases.forEach(purchase => {
-        const statusBadge = getStatusBadge(purchase.status);
-        const customerBadge = getCustomerBadge(purchase.customer_type);
-        const purchaseTypeBadge = getPurchaseTypeBadge(purchase.purchase_type);
-        
-        html += `
+    if (tbody) {
+        tbody.innerHTML = `
             <tr>
-                <td class="ps-3">
-                    <div>
-                        <h6 class="mb-0 fs-14 fw-semibold">#${purchase.order_id || purchase.id}</h6>
-                        ${purchase.network_order_id ? `<small class="text-muted">Network: ${purchase.network_order_id}</small>` : ''}
-                    </div>
-                </td>
-                <td>
-                    <span class="text-muted">${purchase.campaign?.name || 'N/A'}</span>
-                </td>
-                <td>
-                    <span class="badge bg-primary-subtle text-primary">${purchase.network?.display_name || 'N/A'}</span>
-                </td>
-                <td>${purchaseTypeBadge}</td>
-                <td>
-                    ${purchase.coupon ? `<code class="text-primary">${purchase.coupon.code}</code>` : '<span class="text-muted">Direct Link</span>'}
-                </td>
-                <td>${customerBadge}</td>
-                <td><strong>$${parseFloat(purchase.order_value || 0).toFixed(2)}</strong></td>
-                <td><strong class="text-success">$${parseFloat(purchase.revenue || 0).toFixed(2)}</strong></td>
-                <td>${new Date(purchase.order_date).toLocaleDateString()}</td>
-                <td>${statusBadge}</td>
-                <td class="pe-3 text-center">
-                    <div class="hstack gap-1 justify-content-center">
-                        <a href="/purchases/${purchase.id}" class="btn btn-soft-info btn-icon btn-sm rounded-circle" title="View">
-                            <i class="ti ti-eye"></i>
-                        </a>
+                <td colspan="11" class="text-center py-4">
+                    <div class="alert alert-danger" role="alert">
+                        <i class="ti ti-alert-circle me-2"></i>
+                        ${message}
                     </div>
                 </td>
             </tr>
         `;
-    });
-    
-    tbody.innerHTML = html;
+    }
 }
 
+// This function is replaced by renderPurchasesDataTable for DataTables
+
 // Show empty state
-function showEmptyState(message = 'No purchases found') {
+function showEmptyState(message = 'No Orders found') {
     document.getElementById('purchasesTableBody').innerHTML = `
         <tr>
             <td colspan="11" class="text-center py-5">
@@ -391,41 +361,7 @@ function showEmptyState(message = 'No purchases found') {
     `;
 }
 
-// Render pagination
-function renderPagination(data) {
-    const container = document.getElementById('paginationContainer');
-    
-    if (data.last_page <= 1) {
-        container.innerHTML = '';
-        return;
-    }
-    
-    let html = '<nav><ul class="pagination justify-content-end mb-0">';
-    
-    // Previous
-    html += `<li class="page-item ${data.current_page === 1 ? 'disabled' : ''}">
-        <a class="page-link" href="#" onclick="loadPurchases(${data.current_page - 1}); return false;">Previous</a>
-    </li>`;
-    
-    // Pages
-    for (let i = 1; i <= data.last_page; i++) {
-        if (i === 1 || i === data.last_page || (i >= data.current_page - 2 && i <= data.current_page + 2)) {
-            html += `<li class="page-item ${i === data.current_page ? 'active' : ''}">
-                <a class="page-link" href="#" onclick="loadPurchases(${i}); return false;">${i}</a>
-            </li>`;
-        } else if (i === data.current_page - 3 || i === data.current_page + 3) {
-            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-        }
-    }
-    
-    // Next
-    html += `<li class="page-item ${data.current_page === data.last_page ? 'disabled' : ''}">
-        <a class="page-link" href="#" onclick="loadPurchases(${data.current_page + 1}); return false;">Next</a>
-    </li>`;
-    
-    html += '</ul></nav>';
-    container.innerHTML = html;
-}
+// Pagination is now handled by DataTables
 
 // Helper functions
 function getStatusBadge(status) {
@@ -456,30 +392,80 @@ function getPurchaseTypeBadge(purchaseType) {
 
 // Apply filters
 function applyFilters() {
+    // Show loading state
+    const applyBtn = document.getElementById('applyFiltersBtn');
+    const originalText = applyBtn.innerHTML;
+    applyBtn.innerHTML = '<i class="ti ti-loader me-1"></i> Applying...';
+    applyBtn.disabled = true;
+    
     const networkIds = $('#networkFilter').val() || [];
     const campaignIds = $('#campaignFilter').val() || [];
     
-    filters.network_ids = networkIds.length > 0 ? networkIds : null;
-    filters.campaign_ids = campaignIds.length > 0 ? campaignIds : null;
-    filters.status = $('#statusFilter').val();
-    filters.customer_type = $('#customerTypeFilter').val();
-    filters.purchase_type = $('#purchaseTypeFilter').val();
-    filters.search = document.getElementById('searchInput').value;
-    filters.revenue_min = document.getElementById('revenueMin').value;
-    filters.revenue_max = document.getElementById('revenueMax').value;
+    // Clear previous filters
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    loadPurchases(1);
+    filters = {
+        date_from: filters.date_from || formatDate(firstDayOfMonth),
+        date_to: filters.date_to || formatDate(today)
+    };
+    
+    // Apply new filters
+    if (networkIds.length > 0) {
+        filters.network_ids = networkIds;
+    }
+    if (campaignIds.length > 0) {
+        filters.campaign_ids = campaignIds;
+    }
+    
+    const status = $('#statusFilter').val();
+    if (status) {
+        filters.status = status;
+    }
+    
+    const customerType = $('#customerTypeFilter').val();
+    if (customerType) {
+        filters.customer_type = customerType;
+    }
+    
+    const purchaseType = $('#purchaseTypeFilter').val();
+    if (purchaseType) {
+        filters.purchase_type = purchaseType;
+    }
+    
+    const searchText = document.getElementById('searchInput').value.trim();
+    if (searchText) {
+        filters.search_text = searchText;
+    }
+    
+    const revenueMin = document.getElementById('revenueMin').value;
+    if (revenueMin) {
+        filters.revenue_min = parseFloat(revenueMin);
+    }
+    
+    const revenueMax = document.getElementById('revenueMax').value;
+    if (revenueMax) {
+        filters.revenue_max = parseFloat(revenueMax);
+    }
+    
+    reloadDataTable();
+    
+    // Reset button state
+    setTimeout(() => {
+        applyBtn.innerHTML = originalText;
+        applyBtn.disabled = false;
+    }, 1000);
 }
 
 // Reset filters
 function resetFilters() {
     // Keep default date range
-    const defaultDateFrom = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-    const defaultDateTo = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
     filters = {
-        date_from: defaultDateFrom,
-        date_to: defaultDateTo
+        date_from: formatDate(firstDayOfMonth),
+        date_to: formatDate(today)
     };
     
     document.getElementById('searchInput').value = '';
@@ -492,23 +478,43 @@ function resetFilters() {
     document.getElementById('revenueMin').value = '';
     document.getElementById('revenueMax').value = '';
     
-    loadPurchases(1);
+    // Reset date range picker
+    if (typeof flatpickrInstance !== 'undefined' && flatpickrInstance) {
+        const today = new Date();
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        flatpickrInstance.setDate([firstDayOfMonth, today]);
+    }
+    
+    reloadDataTable();
 }
 
 // Update statistics
 function updateStats(stats) {
+    if (!stats) return;
+    
+    // Update main statistics
     document.getElementById('stat-total').textContent = stats.total || 0;
     document.getElementById('stat-approved').textContent = stats.approved || 0;
     document.getElementById('stat-pending').textContent = stats.pending || 0;
     document.getElementById('stat-rejected').textContent = stats.rejected || 0;
-    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toFixed(2);
-    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toFixed(2);
+    document.getElementById('stat-revenue').textContent = '$' + (stats.total_revenue || '0.00');
+    document.getElementById('stat-commission').textContent = '$' + (stats.total_commission || '0.00');
     
     // Update purchase type breakdown if available
     if (stats.purchase_type_breakdown) {
         console.log('Purchase type breakdown:', stats.purchase_type_breakdown);
         // You can add UI elements to display this data if needed
     }
+    
+    // Add visual feedback for updated stats
+    const statsCards = document.querySelectorAll('#statsCards .card');
+    statsCards.forEach(card => {
+        card.style.transition = 'all 0.3s ease';
+        card.style.transform = 'scale(1.02)';
+        setTimeout(() => {
+            card.style.transform = 'scale(1)';
+        }, 200);
+    });
 }
 
 // Export purchases
@@ -516,5 +522,235 @@ function exportPurchases() {
     const params = new URLSearchParams(filters);
     window.location.href = `{{ route('purchases.export') }}?${params}`;
 }
+
+// Initialize DataTables
+let purchasesDataTable = null;
+
+function initializeDataTable() {
+    if (purchasesDataTable) {
+        purchasesDataTable.destroy();
+    }
+    
+    purchasesDataTable = $('#purchasesTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: '{{ route("purchases.index") }}',
+            type: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            timeout: 30000, // 30 seconds timeout
+            error: function(xhr, error, thrown) {
+                console.error('DataTables AJAX error:', error, thrown);
+                showError('Error loading data. Please try again.');
+            },
+            data: function(d) {
+                // Add custom filters
+                if (filters.network_ids) {
+                    d.network_ids = filters.network_ids;
+                }
+                if (filters.campaign_ids) {
+                    d.campaign_ids = filters.campaign_ids;
+                }
+                if (filters.status) {
+                    d.status = filters.status;
+                }
+                if (filters.purchase_type) {
+                    d.purchase_type = filters.purchase_type;
+                }
+                if (filters.customer_type) {
+                    d.customer_type = filters.customer_type;
+                }
+                if (filters.date_from) {
+                    d.date_from = filters.date_from;
+                }
+                if (filters.date_to) {
+                    d.date_to = filters.date_to;
+                }
+                if (filters.search_text) {
+                    d.search_text = filters.search_text;
+                }
+                if (filters.revenue_min) {
+                    d.revenue_min = filters.revenue_min;
+                }
+                if (filters.revenue_max) {
+                    d.revenue_max = filters.revenue_max;
+                }
+            },
+            dataSrc: function(json) {
+                // Update stats when data is loaded
+                if (json.stats) {
+                    updateStats(json.stats);
+                }
+                return json.data;
+            }
+        },
+        columns: [
+            { 
+                data: 'order_id',
+                name: 'order_id',
+                title: 'Order ID',
+                render: function(data, type, row) {
+                    return `<span class="fw-bold text-primary" title="Order ID: ${data}">${data}</span>`;
+                }
+            },
+            { 
+                data: 'campaign',
+                name: 'campaign.name',
+                title: 'Campaign',
+                render: function(data, type, row) {
+                    return `
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <img src="${data.logo_url}" class="avatar-xs rounded">
+                            </div>
+                            <div class="flex-grow-1 ms-2">
+                                <h6 class="mb-0">${data.name}</h6>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            { 
+                data: 'network',
+                name: 'networks.display_name',
+                title: 'Network',
+                render: function(data, type, row) {
+                    return `<span class="badge bg-primary-subtle text-primary">${data}</span>`;
+                }
+            },
+            { 
+                data: 'purchase_type',
+                name: 'purchase_type',
+                title: 'Type',
+                render: function(data, type, row) {
+                    return getPurchaseTypeBadge(data);
+                }
+            },
+            { 
+                data: 'coupon_code',
+                name: 'coupons.code',
+                title: 'Coupon',
+                render: function(data, type, row) {
+                    return `<code class="text-muted">${data}</code>`;
+                }
+            },
+            { 
+                data: 'customer_type',
+                name: 'customer_type',
+                title: 'Customer',
+                render: function(data, type, row) {
+                    return getCustomerBadge(data);
+                }
+            },
+            { 
+                data: 'order_value',
+                name: 'order_value',
+                title: 'Order Value',
+                render: function(data, type, row) {
+                    return `$${data}`;
+                }
+            },
+            { 
+                data: 'commission',
+                name: 'commission',
+                title: 'Commission',
+                render: function(data, type, row) {
+                    return `$${data}`;
+                }
+            },
+            { 
+                data: 'order_date',
+                name: 'order_date',
+                title: 'Date',
+                render: function(data, type, row) {
+                    return new Date(data).toLocaleDateString('en-US');
+                }
+            },
+            { 
+                data: 'status',
+                name: 'status',
+                title: 'Status',
+                render: function(data, type, row) {
+                    return getStatusBadge(data);
+                }
+            },
+            { 
+                data: 'id',
+                name: 'action',
+                title: 'Action',
+                orderable: false,
+                searchable: false,
+                render: function(data, type, row) {
+                    return `
+                        <div class="dropdown">
+                            <button class="btn btn-soft-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="ti ti-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="/purchases/${data}"><i class="ti ti-eye me-2"></i>View Details</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><span class="dropdown-item-text text-muted small">Order ID: ${row.order_id}</span></li>
+                            </ul>
+                        </div>
+                    `;
+                }
+            }
+        ],
+        responsive: true,
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+        order: [[8, 'desc']], // Sort by date column (index 8) descending
+        deferRender: true, // Defer rendering for better performance
+        stateSave: true, // Save table state
+        columnDefs: [
+            { type: 'date', targets: [8] }, // Date column
+            { type: 'num', targets: [6, 7] }, // Numeric columns for Order Value, Commission
+        ],
+        language: {
+            search: "Search:",
+            lengthMenu: "Show _MENU_ entries",
+            info: "Showing _START_ to _END_ of _TOTAL_ entries",
+            infoEmpty: "Showing 0 to 0 of 0 entries",
+            infoFiltered: "(filtered from _MAX_ total entries)",
+            paginate: {
+                first: "First",
+                last: "Last",
+                next: "Next",
+                previous: "Previous"
+            },
+            emptyTable: "No data available in table",
+            zeroRecords: "No matching records found",
+            processing: "Loading..."
+        },
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        initComplete: function() {
+            // Hide the original pagination since we're using DataTables
+            document.getElementById('paginationContainer').style.display = 'none';
+            
+            // Add loading indicator
+            this.api().on('processing.dt', function(e, settings, processing) {
+                if (processing) {
+                    showLoading();
+                }
+            });
+        }
+    });
+}
+
+// Reload DataTable with new filters
+function reloadDataTable() {
+    if (purchasesDataTable) {
+        // Show loading state
+        showLoading();
+        purchasesDataTable.ajax.reload(null, false); // false = stay on current page
+    }
+}
+
+// DataTable is initialized in the window load event above
 </script>
 @endsection

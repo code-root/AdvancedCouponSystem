@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use App\Models\Campaign;
 use App\Helpers\UserHelper;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class PurchaseController extends Controller
 {
@@ -23,55 +25,119 @@ class PurchaseController extends Controller
         }
         
         // For web requests
-        $networks = auth()->user()->connectedNetworks;
-        $campaigns = Campaign::where('user_id', auth()->id())->get();
+        $user = Auth::user();
+        $networks = $user ? $user->connectedNetworks : collect();
+        $campaigns = Campaign::where('user_id', $user ? $user->id : 0)->get();
         $stats = $this->getPurchaseStats();
         
         return view('dashboard.purchases.index', compact('networks', 'campaigns', 'stats'));
     }
     
     /**
-     * Get purchases data with filters (AJAX)
+     * Get purchases data with filters (AJAX) - DataTables Server-side Processing
      */
     private function getPurchasesData(Request $request)
     {
-        $query = Purchase::where('user_id', auth()->id())
-            ->with(['coupon', 'campaign', 'network']);
+        $user = Auth::user();
+        $userId = $user ? $user->id : 0;
+        
+        // Base query with optimized relationships
+        $query = Purchase::where('user_id', $userId)
+            ->with([
+                'coupon:id,code,campaign_id',
+                'campaign:id,name,logo_url',
+                'network:id,display_name'
+            ]);
         
         // Apply filters
         $this->applyPurchaseFilters($query, $request);
         
-        // Clone query for stats (before pagination)
-        $statsQuery = clone $query;
+        // Get filtered statistics efficiently
+        $filteredStats = $this->getFilteredStats($query);
         
-        // Get filtered statistics
-        $filteredStats = [
-            'total' => $statsQuery->count(),
-            'approved' => (clone $statsQuery)->where('status', 'approved')->count(),
-            'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
-            'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),
-            'total_revenue' => (clone $statsQuery)->sum('revenue'),
-            'total_commission' => (clone $statsQuery)->sum('order_value'),
-            'total_order_value' => (clone $statsQuery)->sum('order_value'),
-            'purchase_type_breakdown' => [
-                'coupon' => [
-                    'count' => (clone $statsQuery)->where('purchase_type', 'coupon')->count(),
-                    'revenue' => (clone $statsQuery)->where('purchase_type', 'coupon')->sum('revenue'),
-                    'order_value' => (clone $statsQuery)->where('purchase_type', 'coupon')->sum('order_value'),
+        // DataTables Server-side Processing
+        $totalRecords = Purchase::where('user_id', $userId)->count();
+        $filteredRecords = $query->count();
+        
+        // Ordering
+        if ($request->has('order')) {
+            $orderColumn = $request->order[0]['column'];
+            $orderDir = $request->order[0]['dir'];
+            
+            $dateColumn = Schema::hasColumn('purchases', 'order_date') ? 'order_date' : 'created_at';
+            $columns = [
+                0 => 'order_id',
+                1 => 'campaigns.name',
+                2 => 'networks.display_name',
+                3 => 'purchase_type',
+                4 => 'coupons.code',
+                5 => 'customer_type',
+                6 => 'order_value',
+                7 => 'commission',
+                8 => $dateColumn,
+                9 => 'status'
+            ];
+            
+            if (isset($columns[$orderColumn])) {
+                $query->orderBy($columns[$orderColumn], $orderDir);
+            }
+        } else {
+            $dateColumn = Schema::hasColumn('purchases', 'order_date') ? 'order_date' : 'created_at';
+            $query->orderBy($dateColumn, 'desc');
+        }
+        
+        // Pagination
+        $start = $request->start ?? 0;
+        $length = $request->length ?? 10;
+        
+        // Handle -1 length (get all records) by setting a reasonable limit
+        if ($length == -1) {
+            $length = 1000; // Reduced from 10000 to 1000 for better performance
+        }
+        
+        try {
+            $purchases = $query->skip($start)->take($length)->get();
+        } catch (\Exception $e) {
+            Log::error('Error fetching purchases: ' . $e->getMessage(), [
+                'user_id' => $user ? $user->id : 0,
+                'request_params' => $request->all()
+            ]);
+            
+            return response()->json([
+                'draw' => intval($request->draw),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'error' => 'Error fetching data'
+            ]);
+        }
+        
+        // Format data for DataTables
+        $data = $purchases->map(function($purchase) {
+            return [
+                'DT_RowId' => 'row_' . $purchase->id,
+                'order_id' => $purchase->network_order_id ?: $purchase->order_id ?: $purchase->id ?: 'N/A',
+                'campaign' => [
+                    'name' => $purchase->campaign->name ?? 'N/A',
+                    'logo_url' => $purchase->campaign->logo_url ?? '/images/placeholder.png'
                 ],
-                'link' => [
-                    'count' => (clone $statsQuery)->where('purchase_type', 'link')->count(),
-                    'revenue' => (clone $statsQuery)->where('purchase_type', 'link')->sum('revenue'),
-                    'order_value' => (clone $statsQuery)->where('purchase_type', 'link')->sum('order_value'),
-                ]
-            ]
-        ];
-        
-        $purchases = $query->latest('order_date')->paginate($request->per_page ?? 15);
+                'network' => $purchase->network->display_name ?? 'N/A',
+                'purchase_type' => $purchase->purchase_type ?? 'coupon',
+                'coupon_code' => $purchase->coupon->code ?? 'N/A',
+                'customer_type' => $purchase->customer_type ?? 'new',
+                'order_value' => number_format($purchase->order_value ?? 0, 2, '.', ','),
+                'commission' => number_format($purchase->commission ?? 0, 2, '.', ','),
+                'order_date' => $purchase->order_date ? $purchase->order_date->format('Y-m-d') : ($purchase->created_at ? $purchase->created_at->format('Y-m-d') : 'N/A'),
+                'status' => $purchase->status ?? 'pending',
+                'id' => $purchase->id
+            ];
+        });
         
         return response()->json([
-            'success' => true,
-            'data' => $purchases,
+            'draw' => intval($request->draw),
+            'recordsTotal' => $totalRecords,
+            'recordsFiltered' => $filteredRecords,
+            'data' => $data,
             'stats' => $filteredStats
         ]);
     }
@@ -140,13 +206,15 @@ class PurchaseController extends Controller
             $query->where('purchase_type', $request->purchase_type);
         }
         
-        // Filter by date range
+        // Filter by date range - use order_date if exists, otherwise created_at
+        $dateColumn = Schema::hasColumn('purchases', 'order_date') ? 'order_date' : 'created_at';
+        
         if ($request->date_from) {
-            $query->whereDate('order_date', '>=', $request->date_from);
+            $query->where($dateColumn, '>=', $request->date_from . ' 00:00:00');
         }
         
         if ($request->date_to) {
-            $query->whereDate('order_date', '<=', $request->date_to);
+            $query->where($dateColumn, '<=', $request->date_to . ' 23:59:59');
         }
         
         // Filter by revenue range
@@ -158,11 +226,35 @@ class PurchaseController extends Controller
             $query->where('revenue', '<=', $request->revenue_max);
         }
         
-        // Search
-        if ($request->search) {
-            $query->where(function($q) use ($request) {
-                $q->where('order_id', 'like', '%' . $request->search . '%')
-                  ->orWhere('network_order_id', 'like', '%' . $request->search . '%');
+        // Search - handle both DataTables search and custom search
+        $searchValue = null;
+        
+        // DataTables search
+        if ($request->has('search') && is_array($request->search) && isset($request->search['value'])) {
+            $searchValue = $request->search['value'];
+        }
+        // Custom search
+        elseif ($request->has('search_text') && $request->search_text) {
+            $searchValue = $request->search_text;
+        }
+        
+        if ($searchValue) {
+            $query->where(function($q) use ($searchValue) {
+                $q->where('order_id', 'like', "%{$searchValue}%")
+                  ->orWhere('network_order_id', 'like', "%{$searchValue}%")
+                  ->orWhere('id', 'like', "%{$searchValue}%")
+                  ->orWhere('status', 'like', "%{$searchValue}%")
+                  ->orWhere('customer_type', 'like', "%{$searchValue}%")
+                  ->orWhere('purchase_type', 'like', "%{$searchValue}%")
+                  ->orWhereHas('campaign', function($campaignQuery) use ($searchValue) {
+                      $campaignQuery->where('name', 'like', "%{$searchValue}%");
+                  })
+                  ->orWhereHas('network', function($networkQuery) use ($searchValue) {
+                      $networkQuery->where('display_name', 'like', "%{$searchValue}%");
+                  })
+                  ->orWhereHas('coupon', function($couponQuery) use ($searchValue) {
+                      $couponQuery->where('code', 'like', "%{$searchValue}%");
+                  });
             });
         }
         
@@ -174,15 +266,66 @@ class PurchaseController extends Controller
      */
     private function getPurchaseStats()
     {
-        $userId = auth()->id();
+        $user = Auth::user();
+        $userId = $user ? $user->id : 0;
         
         return [
             'total' => Purchase::where('user_id', $userId)->count(),
             'approved' => Purchase::where('user_id', $userId)->where('status', 'approved')->count(),
             'pending' => Purchase::where('user_id', $userId)->where('status', 'pending')->count(),
             'rejected' => Purchase::where('user_id', $userId)->where('status', 'rejected')->count(),
-            'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue'),
-            'total_commission' => Purchase::where('user_id', $userId)->sum('order_value'),
+            'total_revenue' => number_format(Purchase::where('user_id', $userId)->sum('revenue'), 2, '.', ','),
+            'total_commission' => number_format(Purchase::where('user_id', $userId)->sum('commission'), 2, '.', ','),
+        ];
+    }
+    
+    /**
+     * Get filtered statistics efficiently
+     */
+    private function getFilteredStats($query)
+    {
+        // Clone the query for stats calculation
+        $statsQuery = clone $query;
+        
+        // Get all stats in one query using aggregation
+        $stats = $statsQuery->selectRaw('
+            COUNT(*) as total,
+            SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved,
+            SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN status = "rejected" THEN 1 ELSE 0 END) as rejected,
+            SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid,
+            COALESCE(SUM(revenue), 0) as total_revenue,
+            COALESCE(SUM(commission), 0) as total_commission,
+            COALESCE(SUM(order_value), 0) as total_order_value,
+            SUM(CASE WHEN purchase_type = "coupon" THEN 1 ELSE 0 END) as coupon_count,
+            SUM(CASE WHEN purchase_type = "link" THEN 1 ELSE 0 END) as link_count,
+            SUM(CASE WHEN purchase_type = "coupon" THEN COALESCE(revenue, 0) ELSE 0 END) as coupon_revenue,
+            SUM(CASE WHEN purchase_type = "link" THEN COALESCE(revenue, 0) ELSE 0 END) as link_revenue,
+            SUM(CASE WHEN purchase_type = "coupon" THEN COALESCE(order_value, 0) ELSE 0 END) as coupon_order_value,
+            SUM(CASE WHEN purchase_type = "link" THEN COALESCE(order_value, 0) ELSE 0 END) as link_order_value
+        ')->first();
+        
+        return [
+            'total' => $stats->total ?? 0,
+            'approved' => $stats->approved ?? 0,
+            'pending' => $stats->pending ?? 0,
+            'rejected' => $stats->rejected ?? 0,
+            'paid' => $stats->paid ?? 0,
+            'total_revenue' => number_format($stats->total_revenue ?? 0, 2, '.', ','),
+            'total_commission' => number_format($stats->total_commission ?? 0, 2, '.', ','),
+            'total_order_value' => number_format($stats->total_order_value ?? 0, 2, '.', ','),
+            'purchase_type_breakdown' => [
+                'coupon' => [
+                    'count' => $stats->coupon_count ?? 0,
+                    'revenue' => number_format($stats->coupon_revenue ?? 0, 2, '.', ','),
+                    'order_value' => number_format($stats->coupon_order_value ?? 0, 2, '.', ','),
+                ],
+                'link' => [
+                    'count' => $stats->link_count ?? 0,
+                    'revenue' => number_format($stats->link_revenue ?? 0, 2, '.', ','),
+                    'order_value' => number_format($stats->link_order_value ?? 0, 2, '.', ','),
+                ]
+            ]
         ];
     }
 
@@ -336,11 +479,12 @@ class PurchaseController extends Controller
         $query = Purchase::where('user_id', $targetUserId);
         
         // Apply filters
+        $dateColumn = Schema::hasColumn('purchases', 'order_date') ? 'order_date' : 'created_at';
         if ($request->filled('date_from')) {
-            $query->where('order_date', '>=', $request->date_from);
+            $query->where($dateColumn, '>=', (string) $request->date_from);
         }
         if ($request->filled('date_to')) {
-            $query->where('order_date', '<=', $request->date_to);
+            $query->where($dateColumn, '<=', (string) $request->date_to . ' 23:59:59');
         }
         
         // Support multiple network IDs
@@ -365,23 +509,23 @@ class PurchaseController extends Controller
         }
         
         $stats = [
-            'total_purchases' => (clone $query)->count(),
+            'total_orders' => (clone $query)->count(),
             'approved_purchases' => (clone $query)->where('status', 'approved')->count(),
             'pending_purchases' => (clone $query)->where('status', 'pending')->count(),
             'rejected_purchases' => (clone $query)->where('status', 'rejected')->count(),
             'paid_purchases' => (clone $query)->where('status', 'paid')->count(),
-            'total_revenue' => (clone $query)->where('status', 'approved')->sum('revenue'),
-            'total_commission' => (clone $query)->where('status', 'approved')->sum('order_value'),
-            'total_order_value' => (clone $query)->where('status', 'approved')->sum('order_value'),
-            'average_purchase' => (clone $query)->where('status', 'approved')->avg('order_value') ?: 0,
-            'average_revenue' => (clone $query)->where('status', 'approved')->avg('revenue') ?: 0,
-            'daily_stats' => (clone $query)->selectRaw('DATE(order_date) as date, COUNT(*) as count, SUM(order_value) as order_value, SUM(revenue) as revenue, SUM(commission) as commission')
+            'total_revenue' => number_format((clone $query)->where('status', 'approved')->sum('revenue'), 2, '.', ','),
+            'total_commission' => number_format((clone $query)->where('status', 'approved')->sum('order_value'), 2, '.', ','),
+            'total_order_value' => number_format((clone $query)->where('status', 'approved')->sum('order_value'), 2, '.', ','),
+            'average_purchase' => number_format((clone $query)->where('status', 'approved')->avg('order_value') ?: 0, 2, '.', ','),
+            'average_revenue' => number_format((clone $query)->where('status', 'approved')->avg('revenue') ?: 0, 2, '.', ','),
+            'daily_stats' => (clone $query)->selectRaw("DATE($dateColumn) as date, COUNT(*) as count, FORMAT(SUM(order_value), 2) as order_value, FORMAT(SUM(revenue), 2) as revenue, FORMAT(SUM(commission), 2) as commission")
                 ->where('status', 'approved')
                 ->groupBy('date')
                 ->orderBy('date', 'desc')
                 ->limit(30)
                 ->get(),
-            'monthly_stats' => (clone $query)->selectRaw('DATE_FORMAT(order_date, "%Y-%m") as month, COUNT(*) as count, SUM(order_value) as order_value, SUM(revenue) as revenue, SUM(commission) as commission')
+            'monthly_stats' => (clone $query)->selectRaw("DATE_FORMAT($dateColumn, '%Y-%m') as month, COUNT(*) as count, FORMAT(SUM(order_value), 2) as order_value, FORMAT(SUM(revenue), 2) as revenue, FORMAT(SUM(commission), 2) as commission")
                 ->where('status', 'approved')
                 ->groupBy('month')
                 ->orderBy('month', 'desc')
@@ -390,13 +534,13 @@ class PurchaseController extends Controller
             'purchase_type_breakdown' => [
                 'coupon' => [
                     'count' => (clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->count(),
-                    'revenue' => (clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->sum('revenue'),
-                    'order_value' => (clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->sum('order_value'),
+                    'revenue' => number_format((clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->sum('revenue'), 2, '.', ','),
+                    'order_value' => number_format((clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->sum('order_value'), 2, '.', ','),
                 ],
                 'link' => [
                     'count' => (clone $query)->where('purchase_type', 'link')->where('status', 'approved')->count(),
-                    'revenue' => (clone $query)->where('purchase_type', 'link')->where('status', 'approved')->sum('revenue'),
-                    'order_value' => (clone $query)->where('purchase_type', 'link')->where('status', 'approved')->sum('order_value'),
+                    'revenue' => number_format((clone $query)->where('purchase_type', 'link')->where('status', 'approved')->sum('revenue'), 2, '.', ','),
+                    'order_value' => number_format((clone $query)->where('purchase_type', 'link')->where('status', 'approved')->sum('order_value'), 2, '.', ','),
                 ]
             ]
         ];
@@ -456,8 +600,27 @@ class PurchaseController extends Controller
 
         $purchases = $query->get();
 
-        // Implementation depends on export format (CSV, Excel, etc.)
-        return response()->json($purchases);
+        // Format data for export with proper order_id
+        $formattedPurchases = $purchases->map(function($purchase) {
+            return [
+                'id' => $purchase->id,
+                'order_id' => $purchase->network_order_id ?: $purchase->order_id ?: $purchase->id,
+                'network_order_id' => $purchase->network_order_id,
+                'campaign_name' => $purchase->campaign->name ?? 'N/A',
+                'network_name' => $purchase->network->display_name ?? 'N/A',
+                'coupon_code' => $purchase->coupon->code ?? 'N/A',
+                'purchase_type' => $purchase->purchase_type,
+                'customer_type' => $purchase->customer_type,
+                'order_value' => $purchase->order_value,
+                'commission' => $purchase->commission,
+                'revenue' => $purchase->revenue,
+                'status' => $purchase->status,
+                'order_date' => $purchase->order_date,
+                'created_at' => $purchase->created_at,
+            ];
+        });
+
+        return response()->json($formattedPurchases);
     }
 }
 

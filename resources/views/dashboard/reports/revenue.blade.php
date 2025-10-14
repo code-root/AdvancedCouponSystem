@@ -191,10 +191,10 @@ function loadReport() {
 }
 
 function updateStats(stats) {
-    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toFixed(2);
-    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toFixed(2);
-    document.getElementById('stat-order-value').textContent = '$' + parseFloat(stats.total_order_value || 0).toFixed(2);
-    document.getElementById('stat-avg-order').textContent = '$' + parseFloat(stats.avg_order_value || 0).toFixed(2);
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-order-value').textContent = '$' + parseFloat(stats.total_order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-avg-order').textContent = '$' + parseFloat(stats.avg_order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 
 function renderCharts(stats) {

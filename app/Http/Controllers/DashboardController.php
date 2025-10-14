@@ -75,7 +75,7 @@ class DashboardController extends Controller
             // Overview stats
             'total_revenue' => $this->getTotalRevenue($userId, $dateRange, $networkIds),
             'total_commission' => $this->getTotalCommission($userId, $dateRange, $networkIds),
-            'total_purchases' => $this->getTotalPurchases($userId, $dateRange, $networkIds),
+            'total_orders' => $this->getTotalPurchases($userId, $dateRange, $networkIds),
             'total_campaigns' => $this->getTotalCampaigns($userId, $networkIds),
             'total_coupons' => $this->getTotalCoupons($userId, $networkIds),
             'active_networks' => $user->networkConnections()->where('is_connected', true)->count(),
@@ -117,7 +117,7 @@ class DashboardController extends Controller
         return [
             'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue'),
             'total_commission' => Purchase::where('user_id', $userId)->sum('order_value'),
-            'total_purchases' => Purchase::where('user_id', $userId)->count(),
+            'total_orders' => Purchase::where('user_id', $userId)->count(),
             'total_campaigns' => Campaign::where('user_id', $userId)->count(),
             'total_coupons' => Coupon::whereHas('campaign', function($q) use ($userId) {
                 $q->where('user_id', $userId);
@@ -253,7 +253,7 @@ class DashboardController extends Controller
             ->select('network_id',
                 DB::raw('SUM(revenue) as total_revenue'),
                 DB::raw('SUM(order_value) as total_commission'),
-                DB::raw('COUNT(*) as total_purchases'),
+                DB::raw('COUNT(*) as total_orders'),
                 DB::raw('AVG(revenue) as avg_revenue'))
             ->with('network:id,display_name')
             ->groupBy('network_id')
@@ -290,7 +290,7 @@ class DashboardController extends Controller
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
             ->select('campaign_id',
                 DB::raw('SUM(revenue) as total_revenue'),
-                DB::raw('COUNT(*) as total_purchases'))
+                DB::raw('COUNT(*) as total_orders'))
             ->with('campaign:id,name,network_id')
             ->groupBy('campaign_id');
         
@@ -311,7 +311,7 @@ class DashboardController extends Controller
             ->select('network_id',
                 DB::raw('SUM(revenue) as total_revenue'),
                 DB::raw('SUM(order_value) as total_commission'),
-                DB::raw('COUNT(*) as total_purchases'))
+                DB::raw('COUNT(*) as total_orders'))
             ->with('network:id,display_name')
             ->groupBy('network_id')
             ->orderByDesc('total_revenue')

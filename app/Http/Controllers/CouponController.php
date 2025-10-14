@@ -204,7 +204,7 @@ class CouponController extends Controller
             'total_revenue' => $coupon->purchases()->sum('revenue'),
             'total_commission' => $coupon->purchases()->sum('order_value'),
             'total_order_value' => $coupon->purchases()->sum('order_value'),
-            'total_purchases' => $coupon->purchases()->count(),
+            'total_orders' => $coupon->purchases()->count(),
             'approved_purchases' => $coupon->purchases()->where('status', 'approved')->count(),
             'unique_users' => $coupon->purchases()->distinct('user_id')->count('user_id'),
         ];

@@ -14,6 +14,7 @@ class Coupon extends Model
      *
      * @var array<int, string>
      */
+    
     protected $fillable = [
         'campaign_id',
         'code',

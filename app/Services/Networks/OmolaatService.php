@@ -1,378 +1,464 @@
 <?php
 
 namespace App\Services\Networks;
-
-use Carbon\Carbon;
-use App\Models\NetworkConnection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
-use Revolution\Google\Sheets\Facades\Sheets;
+use Carbon\Carbon;
+use Exception;
+use App\Services\Networks\Omolaat\Client as OmClient;
+use App\Services\Networks\Omolaat\Crypto as OmCrypto;
 
 class OmolaatService extends BaseNetworkService
 {
-    protected string $networkName = 'Omolaat';
+    protected string $networkName = 'omolaat';
 
     protected array $requiredFields = [
-        'mapping_sheet_id' => [
-            'label' => 'Campaign Mapping Sheet ID',
-            'type' => 'text',
+        'email' => [
+            'label' => 'Email',
+            'type' => 'email',
             'required' => true,
-            'placeholder' => '198PFR-xO0QESiCNuFvH84rLgZCqEPoWeB4uy8ysWlo4',
-            'help' => 'Google Sheets ID for Arabic to English campaign name mapping - Share with: swaqny@swaqnydeveloper.iam.gserviceaccount.com',
+            'placeholder' => 'your.email@example.com',
+            'help' => 'Your Omolaat account email',
+        ],
+        'password' => [
+            'label' => 'Password',
+            'type' => 'password',
+            'required' => true,
+            'placeholder' => 'Enter your password',
+            'help' => 'Your Omolaat account password',
         ],
     ];
-
-    /**
-     * Campaign name mapping from Arabic to English
-     * Can be loaded from Google Sheets or static array
-     */
-    protected array $campaignNameMapping = [
-        'الحواج للصناعات الغذائية' => 'Alhawwaj',
-        'الحواج' => 'Alhawwaj',
-        'Eseven Store' => 'Eseven',
-        'فيافي ديرتي' => 'Fayafi Dirati',
-        'الركن السويسري' => 'Swiss Corner',
-        'ريفال' => 'Ryefal',
-        'شيفت' => 'Shift',
-        'ريبون العالمية للتجارة' => 'Rebune',
-        'فون زون' => 'Phone Zone',
-        'سيزون - SEASON' => 'Season',
-        'البارو - Albaroo' => 'Albaroo',
-        'متجر تام' => 'Taam',
-        'تريجر ايلاند' => 'Treasure Island',
-        'مزيد' => 'Mazeed',
-        'WADI' => 'WADI',
-        'X44' => 'X44',
+    
+    protected array $defaultConfig = [
+        'base_url' => 'https://my.omolaat.com',
+        'login_url' => 'https://my.omolaat.com/workflow/start',
+        'search_url' => 'https://my.omolaat.com/elasticsearch/msearch',
+        'init_url' => 'https://my.omolaat.com/api/1.1/init/data',
+        'user_hi_url' => 'https://my.omolaat.com/user/hi',
     ];
 
-    /**
-     * Fetch data from Omolaat (accepts data from Chrome Extension)
-     * This service is primarily used via API endpoint to receive extension data
-     */
-    public function fetchData($connection, Carbon $startDate, Carbon $endDate): array
-    {
-        // Omolaat uses Chrome Extension to send data
-        // Data is received via API endpoint: /api/networks/omolaat/receive-data
-        // This method returns empty as data comes from external source
-        
-        Log::info("Omolaat: Data is pushed from Chrome Extension, not pulled from API");
-        
-        return [];
-    }
+    // Fixed IVs used by Bubble.io (same as Python version)
+    private const FIXED_IV_Y = 'po9';
+    private const FIXED_IV_X = 'fl1';
 
     /**
-     * Process data received from Chrome Extension
+     * Test connection by logging in and getting session (with retry mechanism)
      */
-    public function processExtensionData(array $extensionData, $connection): array
+    public function testConnection(array $credentials): array
     {
-        try {
-            $processedData = [];
-            $orders = $extensionData['orders'] ?? [];
-
-            // Load campaign name mapping
-            $mapping = $this->fetchCampaignNamesFromSheets($connection);
-
-            foreach ($orders as $order) {
-                $processedOrder = $this->processOrderData($order, $mapping);
-                
-                if ($processedOrder !== null) {
-                    $processedData[] = $processedOrder;
-                }
-            }
-
-            return $processedData;
-
-        } catch (\Exception $e) {
-            Log::error("Omolaat: Error processing extension data: {$e->getMessage()}");
-            throw $e;
-        }
-    }
-
-    /**
-     * Process individual order from extension
-     */
-    protected function processOrderData(array $order, array $mapping): ?array
-    {
-        // Validate required fields
-        if (empty($order['posOrderId']) && empty($order['orderId'])) {
-            return null;
-        }
-
-        // Extract and clean store name
-        $arabicStoreName = $this->extractAndCleanStoreName($order['storeName'] ?? '');
-        
-        // Convert to English
-        $englishCampaignName = $this->convertCampaignName($arabicStoreName, $mapping);
-        
-        $transactionId = $order['orderId'] ?? $order['posOrderId'] ?? '';
-        
-        if (empty($transactionId)) {
-            return null;
-        }
-
-        return [
-            'campaign_name' => $englishCampaignName,
-            'coupon_code' => $order['marketingCode'] ?? '',
-            'country' => 'KSA',
-            'sale_amount' => $this->processExtensionNumber($order['orderAmount'] ?? 0) / 3.75, // AED to SAR
-            'commission' => $this->processExtensionNumber($order['commission'] ?? 0) / 3.75,
-            'clicks' => 0,
-            'conversions' => 1,
-            'customer_type' => 'new',
-            'transaction_id' => $transactionId,
-            'date' => $this->parseOrderDate($order['orderDate'] ?? ''),
-            'status' => 'approved',
-        ];
-    }
-
-    /**
-     * Fetch campaign name mapping from Google Sheets
-     */
-    protected function fetchCampaignNamesFromSheets($connection): array
-    {
-        $cacheKey = 'omolaat_campaign_mapping_v2';
-        $cachedData = Cache::get($cacheKey);
-        
-        if ($cachedData && is_array($cachedData)) {
-            return $cachedData;
+        $validation = $this->validateCredentials($credentials);
+        if (!$validation['valid']) {
+            return [
+                'success' => false,
+                'message' => 'Missing required credentials',
+                'errors' => $validation['errors'],
+            ];
         }
 
         try {
-            // Google Sheets ID from credentials
-            $sheetId = $connection->credentials['mapping_sheet_id'] ?? '198PFR-xO0QESiCNuFvH84rLgZCqEPoWeB4uy8ysWlo4';
-            $sheetName = '0';
-            
-            $values = Sheets::spreadsheet($sheetId)->sheet($sheetName)->all();
-            
-            if (empty($values)) {
-                return $this->campaignNameMapping;
-            }
+            $client = new OmClient();
+            $loginRes = $client->login((string) $credentials['email'], (string) $credentials['password']);
 
-            $mapping = [];
-            $headerSkipped = false;
-
-            foreach ($values as $row) {
-                if (empty($row) || !is_array($row)) {
-                    continue;
-                }
-
-                if (!$headerSkipped) {
-                    $headerSkipped = true;
-                    continue;
-                }
-
-                if (count($row) >= 2 && isset($row[0]) && isset($row[1])) {
-                    $arabicName = trim($row[0] ?? '');
-                    $englishName = trim($row[1] ?? '');
-                    
-                    if (!empty($arabicName) && !empty($englishName)) {
-                        $mapping[$arabicName] = $englishName;
+            // استخراج user_id من الكوكيز
+            $userId = null;
+            foreach ($loginRes['cookies'] as $ck => $cv) {
+                if ($ck === 'omolaat_live_u2main') {
+                    $parts = explode('|', $cv);
+                    if (count($parts) > 1) {
+                        $userId = $parts[1];
                     }
                 }
             }
 
-            // Cache for 1 hour
-            Cache::put($cacheKey, $mapping, 3600);
-            
-            return $mapping;
-
-        } catch (\Exception $e) {
-            Log::error("Failed to fetch Omolaat campaign mapping: {$e->getMessage()}");
-            return $this->campaignNameMapping;
+            return [
+                'success' => true,
+                'message' => 'Successfully connected to Omolaat',
+                'data' => [
+                    'cookies' => $this->cookiesArrayToHeader($loginRes['cookies'] ?? []),
+                    'user_id' => $userId,
+                ],
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Omolaat testConnection error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
         }
     }
 
-    /**
-     * Clean store name
-     */
-    protected function extractAndCleanStoreName(string $storeName): string
-    {
-        if (empty($storeName)) {
-            return 'Unknown Store';
-        }
 
-        $cleanName = strip_tags($storeName);
-        $cleanName = preg_replace('/\s+/', ' ', trim($cleanName));
-        $cleanName = preg_replace('/^(اسم المتجر|اسم|متجر|store|Store)\s*:?\s*/i', '', $cleanName);
-        $cleanName = preg_replace('/\s*(store|Store|متجر)$/i', '', $cleanName);
-        $cleanName = preg_replace('/[^\p{L}\p{N}\s\-\.]/u', '', $cleanName);
-        $cleanName = trim($cleanName);
-
-        return empty($cleanName) ? trim($storeName) : $cleanName;
-    }
 
     /**
-     * Convert Arabic campaign name to English
-     */
-    protected function convertCampaignName(string $arabicName, array $mapping): string
-    {
-        $cleanName = trim($arabicName);
-        
-        if (empty($cleanName)) {
-            return 'Unknown Store';
-        }
-
-        // Direct match
-        if (isset($mapping[$cleanName])) {
-            return $mapping[$cleanName];
-        }
-
-        // Case-insensitive match
-        $lowerCleanName = mb_strtolower($cleanName, 'UTF-8');
-        foreach ($mapping as $arabic => $english) {
-            if (mb_strtolower($arabic, 'UTF-8') === $lowerCleanName) {
-                return $english;
-            }
-        }
-
-        // Partial matching
-        foreach ($mapping as $arabic => $english) {
-            if (strpos($cleanName, $arabic) !== false || strpos($arabic, $cleanName) !== false) {
-                return $english;
-            }
-        }
-
-        // Return original if no mapping found
-        return $cleanName;
-    }
-
-    /**
-     * Parse Arabic date format
-     */
-    protected function parseOrderDate(string $dateString): string
-    {
-        if (empty($dateString)) {
-            return now()->format('Y-m-d');
-        }
-
-        $arabicMonths = [
-            'يناير' => 'January', 'فبراير' => 'February', 'مارس' => 'March',
-            'أبريل' => 'April', 'مايو' => 'May', 'يونيو' => 'June',
-            'يوليو' => 'July', 'أغسطس' => 'August', 'سبتمبر' => 'September',
-            'أكتوبر' => 'October', 'نوفمبر' => 'November', 'ديسمبر' => 'December'
-        ];
-
-        try {
-            $englishDateString = strtr($dateString, $arabicMonths);
-            return Carbon::parse($englishDateString)->format('Y-m-d');
-        } catch (\Exception $e) {
-            return now()->format('Y-m-d');
-        }
-    }
-
-    /**
-     * Process number from extension
-     */
-    protected function processExtensionNumber($value): float
-    {
-        if (empty($value)) {
-            return 0;
-        }
-
-        if (is_numeric($value)) {
-            return floatval($value);
-        }
-
-        if (is_string($value)) {
-            $cleanValue = preg_replace('/[^\d.,]/', '', $value);
-            $cleanValue = str_replace(',', '', $cleanValue);
-            
-            if (is_numeric($cleanValue)) {
-                return floatval($cleanValue);
-            }
-        }
-
-        return 0;
-    }
-
-    /**
-     * Transform Omolaat data to standard format
-     */
-    protected function transformData(array $item, $connection): array
-    {
-        return [
-            'network_id' => $connection->network_id,
-            'campaign_name' => $item['campaign_name'] ?? 'Unknown',
-            'campaign_external_id' => null,
-            'coupon_code' => $item['coupon_code'] ?? '',
-            'purchase_type' => 'coupon', // Omolaat is typically coupon-based
-            'country' => $item['country'] ?? 'KSA',
-            'sale_amount' => $item['sale_amount'] ?? 0,
-            'commission' => $item['commission'] ?? 0,
-            'clicks' => $item['clicks'] ?? 0,
-            'conversions' => $item['conversions'] ?? 1,
-            'customer_type' => $item['customer_type'] ?? 'new',
-            'transaction_id' => $item['transaction_id'] ?? '',
-            'date' => $item['date'] ?? now()->format('Y-m-d'),
-            'status' => $item['status'] ?? 'approved',
-        ];
-    }
-
-    /**
-     * Test Omolaat connection
-     */
-    public function testConnection(array $credentials): array
-    {
-        try {
-            $sheetId = $credentials['mapping_sheet_id'] ?? '198PFR-xO0QESiCNuFvH84rLgZCqEPoWeB4uy8ysWlo4';
-            $sheets = Sheets::spreadsheet($sheetId)->sheetList();
-
-            if (!empty($sheets)) {
-                return ['success' => true, 'message' => 'Mapping sheet accessible', 'data' => ['sheets' => $sheets]];
-            }
-
-            return ['success' => false, 'message' => 'Cannot access mapping sheet', 'data' => null];
-
-        } catch (\Exception $e) {
-            return ['success' => false, 'message' => $e->getMessage(), 'data' => null];
-        }
-    }
-
-    /**
-     * Sync data from Omolaat (Extension-based)
+     * Sync data from Omolaat using encrypted search (with re-authentication)
      */
     public function syncData(array $credentials, array $config = []): array
     {
-        return [
-            'success' => true,
-            'message' => 'Omolaat uses Chrome Extension - data is pushed, not pulled',
-            'data' => [],
-            'count' => 0,
-        ];
-    }
-    
-    /**
-     * Validate Omolaat connection
-     */
-    public function validateConnection($connection): bool
-    {
-        // Omolaat uses Chrome Extension, so validate Google Sheets access for mapping
+        $validation = $this->validateCredentials($credentials);
+        if (!$validation['valid']) {
+            return [
+                'success' => false,
+                'message' => 'Missing required credentials',
+                'errors' => $validation['errors'],
+            ];
+        }
+
         try {
-            $sheetId = $connection->credentials['mapping_sheet_id'] ?? '198PFR-xO0QESiCNuFvH84rLgZCqEPoWeB4uy8ysWlo4';
-            $sheets = Sheets::spreadsheet($sheetId)->sheetList();
+            // استدعاء سكربت CLI المرجعي مباشرة وأخذ الرد
+            $cli = $this->runOmolaatCli($credentials, $config);
+            if (!$cli['success']) {
+                return $cli;
+            }
 
-            return !empty($sheets);
+            $responses = $cli['responses'];
 
-        } catch (\Exception $e) {
-            Log::error("Omolaat connection validation failed: {$e->getMessage()}");
-            return false;
+            // استخراج hits وتفريغها من النتائج الجديدة (يوم بيوم)
+            $flat = [];
+            $total = 0;
+            foreach ($responses as $dayResult) {
+                if (!is_array($dayResult) || !isset($dayResult['data'])) continue;
+                
+                foreach ($dayResult['data'] as $resp) {
+                    if (!is_array($resp)) continue;
+                    foreach ($resp['responses'] ?? [] as $r) {
+                        $hits = $r['hits']['hits'] ?? [];
+                        if (is_array($hits)) {
+                            foreach ($hits as $h) { 
+                                // Add day information to each hit
+                                $h['_day_info'] = [
+                                    'date' => $dayResult['date'] ?? null,
+                                    'day_start_ms' => $dayResult['day_start_ms'] ?? null,
+                                    'day_end_ms' => $dayResult['day_end_ms'] ?? null,
+                                ];
+                                $flat[] = $h; 
+                            }
+                            $total += count($hits);
+                        }
+                    }
+                }
+            }
+
+            // Create detailed message based on completion status
+            $debug = $cli['debug'] ?? [];
+            $isComplete = $debug['is_complete'] ?? false;
+            $completionPercentage = $debug['completion_percentage'] ?? 100;
+            $totalExpected = $debug['total_expected'] ?? null;
+            
+            $daysProcessed = $debug['total_days_processed'] ?? 0;
+            $daysWithData = $debug['days_with_data'] ?? 0;
+            
+            $message = 'Successfully synced from Omolaat (day-by-day)';
+            if ($isComplete) {
+                $message .= " - Complete data fetch ({$completionPercentage}%)";
+            } else {
+                $message .= " - Partial data fetch ({$completionPercentage}%)";
+                if ($totalExpected) {
+                    $message .= " - Expected: {$totalExpected}, Got: {$total}";
+                }
+            }
+            $message .= " - Processed {$daysProcessed} days, {$daysWithData} with data";
+
+            return [
+                'success' => true,
+                'message' => $message,
+                'data' => [
+                    'coupons' => [
+                        'total' => $total,
+                        'data' => $flat,
+                    ],
+                    'raw' => $responses,
+                    'debug' => $cli['debug'] ?? null,
+                ],
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Omolaat syncData error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
         }
     }
 
     /**
-     * Convert string to decimal
+     * Execute Omolaat data fetching directly without CLI
+     * Improved performance by eliminating shell_exec overhead
      */
-    protected function convertToDecimal($value): float
+    private function runOmolaatCli(array $credentials, array $config): array
     {
-        if (is_numeric($value)) {
-            return floatval($value);
+        try {
+            $email = (string) ($credentials['email'] ?? '');
+            $password = (string) ($credentials['password'] ?? '');
+            $from = (string) ($config['date_from'] ?? '');
+            $to = (string) ($config['date_to'] ?? '');
+            $maxPages = (int) ($config['max_pages'] ?? 50);
+
+            // Initialize client and login
+            $client = new OmClient();
+            $loginResult = $client->login($email, $password);
+
+            // Build search payload with date filters
+            $payload = $this->buildSearchPayload($from, $to);
+            
+            // Encrypt payload
+            $timestamp = '1760377533394';
+            $ivHex = '302e36373832353033343936303138313938';
+            $ivBytes = hex2bin($ivHex);
+            $encrypted = OmCrypto::encryptBubblePayload('omolaat', $payload, $timestamp, $ivBytes);
+
+            $encMinimal = [
+                'x' => $encrypted['x'],
+                'y' => $encrypted['y'],
+                'z' => $encrypted['z'],
+            ];
+
+            // Execute day-by-day search instead of bulk search
+            $responses = $client->fetchDataDayByDay('omolaat', $encMinimal, $from, $to, $maxPages);
+
+            // Calculate total hits and validate completeness for day-by-day results
+            $totalHits = 0;
+            $totalExpected = null;
+            $pagesWithData = 0;
+            $daysWithData = 0;
+            
+            foreach ($responses as $dayResult) {
+                if (isset($dayResult['data']) && is_array($dayResult['data'])) {
+                    $dayHits = $dayResult['hits_count'] ?? 0;
+                    $totalHits += $dayHits;
+                    
+                    if ($dayHits > 0) {
+                        $daysWithData++;
+                    }
+                    
+                    // Count pages with data for this day
+                    foreach ($dayResult['data'] as $response) {
+                        if (isset($response['responses']) && is_array($response['responses'])) {
+                            foreach ($response['responses'] as $resp) {
+                                $hits = $resp['hits']['hits'] ?? [];
+                                $currentHits = is_countable($hits) ? count($hits) : 0;
+                                
+                                if ($currentHits > 0) {
+                                    $pagesWithData++;
+                                }
+                                
+                                // Get total expected from first response
+                                if ($totalExpected === null && isset($resp['hits']['total'])) {
+                                    $totalExpected = is_array($resp['hits']['total']) 
+                                        ? ($resp['hits']['total']['value'] ?? $resp['hits']['total']) 
+                                        : $resp['hits']['total'];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Check if we got all expected data
+            $isComplete = $totalExpected === null || $totalHits >= $totalExpected;
+            $completionPercentage = $totalExpected > 0 ? round(($totalHits / $totalExpected) * 100, 2) : 100;
+            
+            Log::info('Omolaat day-by-day data fetch completed', [
+                'total_days_processed' => count($responses),
+                'days_with_data' => $daysWithData,
+                'total_pages_fetched' => $pagesWithData,
+                'total_hits' => $totalHits,
+                'total_expected' => $totalExpected,
+                'is_complete' => $isComplete,
+                'completion_percentage' => $completionPercentage,
+                'max_pages_per_day' => $maxPages,
+                'date_range' => ['from' => $from, 'to' => $to],
+                'fetch_method' => 'day_by_day'
+            ]);
+
+            return [
+                'success' => true,
+                'responses' => $responses,
+                'debug' => [
+                    'total_days_processed' => count($responses),
+                    'days_with_data' => $daysWithData,
+                    'total_pages_fetched' => $pagesWithData,
+                    'total_hits' => $totalHits,
+                    'total_expected' => $totalExpected,
+                    'is_complete' => $isComplete,
+                    'completion_percentage' => $completionPercentage,
+                    'max_pages_per_day' => $maxPages,
+                    'date_range' => ['from' => $from, 'to' => $to],
+                    'fetch_method' => 'day_by_day'
+                ],
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Omolaat direct execution error: ' . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Build search payload with date filters
+     * Optimized payload structure for better performance
+     */
+    private function buildSearchPayload(string $from, string $to): array
+    {
+        // Parse date filters
+        $fromMs = $this->parseDateToMs($from, false);
+        $toMs = $this->parseDateToMs($to, true);
+
+        // Default payload structure
+        $payload = [
+            'appname' => 'omolaat',
+            'app_version' => 'live',
+            'searches' => [
+                [
+                    'appname' => 'omolaat',
+                    'app_version' => 'live',
+                    'type' => 'custom.coupon1',
+                    'constraints' => [
+                        [
+                            'key' => 'affiliate_id_custom_affiliate',
+                            'value' => '1348695171700984260__LOOKUP__1738240965542x460877641088237600',
+                            'constraint_type' => 'equals',
+                        ],
+                    ],
+                    'sorts_list' => [
+                        [
+                            'sort_field' => 'order_date_date',
+                            'descending' => true,
+                        ],
+                    ],
+                    'from' => 0,
+                    'search_path' => '{"constructor_name":"DataSource","args":[{"type":"json","value":"%ed.bTJRt.%el.bTaTB2.%el.bTaTT2.%p.%ds"},{"type":"node","value":{"constructor_name":"Element","args":[{"type":"json","value":"%ed.bTJRt.%el.bTaTB2.%el.bTaTT2"}]}},{"type":"raw","value":"Search"}]}',
+                    'columns' => ['_id', '_version', 'order_date_date'],
+                    'situation' => 'initial search',
+                    'n' => 10,
+                ],
+                [
+                    'appname' => 'omolaat',
+                    'app_version' => 'live',
+                    'type' => 'custom.coupon1',
+                    'constraints' => [
+                        [
+                            'key' => 'affiliate_id_custom_affiliate',
+                            'value' => '1348695171700984260__LOOKUP__1738240965542x460877641088237600',
+                            'constraint_type' => 'equals',
+                        ],
+                    ],
+                    'sorts_list' => [
+                        [
+                            'sort_field' => 'order_date_date',
+                            'descending' => true,
+                        ],
+                    ],
+                    'from' => 0,
+                    'search_path' => '{"constructor_name":"DataSource","args":[{"type":"json","value":"%ed.bTJRt.%el.bTaTB2.%el.bTaTT2.%p.%ds"},{"type":"node","value":{"constructor_name":"Element","args":[{"type":"json","value":"%ed.bTJRt.%el.bTaTB2.%el.bTaTT2"}]}},{"type":"raw","value":"Search"}]}',
+                    'situation' => 'initial search',
+                    'n' => 10,
+                ],
+            ],
+        ];
+
+        // Apply date range filters if provided
+        if ($fromMs !== null || $toMs !== null) {
+            foreach ($payload['searches'] as &$searchObj) {
+                if (!isset($searchObj['constraints']) || !is_array($searchObj['constraints'])) {
+                    $searchObj['constraints'] = [];
+                }
+                
+                $hasGte = false;
+                $hasLt = false;
+                
+                // Update existing date constraints
+                foreach ($searchObj['constraints'] as &$constraint) {
+                    if (($constraint['key'] ?? '') === 'order_date_date') {
+                        if (($constraint['constraint_type'] ?? '') === 'gte' && $fromMs !== null) {
+                            $constraint['value'] = $fromMs;
+                            $hasGte = true;
+                        }
+                        if (($constraint['constraint_type'] ?? '') === 'less than' && $toMs !== null) {
+                            $constraint['value'] = $toMs;
+                            $hasLt = true;
+                        }
+                    }
+                }
+                unset($constraint);
+                
+                // Add missing date constraints
+                if ($fromMs !== null && !$hasGte) {
+                    $searchObj['constraints'][] = [
+                        'key' => 'order_date_date',
+                        'value' => $fromMs,
+                        'constraint_type' => 'gte',
+                    ];
+                }
+                if ($toMs !== null && !$hasLt) {
+                    $searchObj['constraints'][] = [
+                        'key' => 'order_date_date',
+                        'value' => $toMs,
+                        'constraint_type' => 'less than',
+                    ];
+                }
+            }
+            unset($searchObj);
         }
 
-        $cleaned = preg_replace('/[^\d.,\-]/', '', $value);
-        $cleaned = str_replace(',', '', $cleaned);
-
-        return is_numeric($cleaned) ? floatval($cleaned) : 0;
+        return $payload;
     }
-}
 
+    /**
+     * Parse date value to milliseconds timestamp
+     * Optimized for better performance with early returns
+     * 
+     * @param string|null $val Date value (epoch ms or YYYY-MM-DD)
+     * @param bool $end Whether this is an end date (exclusive)
+     * @return int|null Milliseconds timestamp or null if invalid
+     */
+    private function parseDateToMs(?string $val, bool $end = false): ?int
+    {
+        if ($val === null || $val === '') {
+            return null;
+        }
+
+        // Fast path for numeric epoch timestamps
+        if (ctype_digit($val)) {
+            $ms = (int) $val;
+            // Convert seconds to milliseconds if needed
+            return $ms < 1000000000000 ? $ms * 1000 : $ms;
+        }
+
+        // Parse date string YYYY-MM-DD
+        $timestamp = strtotime($val);
+        if ($timestamp === false) {
+            return null;
+        }
+
+        if ($end) {
+            // For end date, add 23 hours, 59 minutes, 59 seconds to include the entire day
+            $timestamp += 86399; // 23:59:59
+        }
+        
+        return (int) ($timestamp * 1000);
+    }
+
+    /**
+     * Convert cookies array to HTTP header string
+     * Optimized for better performance
+     * 
+     * @param array $cookies Cookies array
+     * @return string Cookie header string
+     */
+    private function cookiesArrayToHeader(array $cookies): string
+    {
+        if (empty($cookies)) {
+            return '';
+        }
+        
+        // Use array_map for better performance than foreach loop
+        return implode('; ', array_map(
+            fn($k, $v) => $k . '=' . $v,
+            array_keys($cookies),
+            array_values($cookies)
+        ));
+    }
+    // No persistence here: storage is handled centrally via NetworkDataProcessor in NetworkController
+}
+ 
