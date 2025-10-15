@@ -292,6 +292,33 @@ class NetworksSeeder extends Seeder
                 'last_sync' => null,
                 'supported_features' => ['chrome_extension', 'arabic_names', 'google_sheets_mapping'],
             ],
+            [
+                'name' => 'marketeers',
+                'display_name' => 'Marketeers Network',
+                'description' => 'Performance marketing network with comprehensive coupon conversion tracking and reporting.',
+                'logo_url' => '/images/networks/marketeers-logo.png',
+                'api_url' => 'https://marketeers-backend-prod-oci.ollkom.com',
+                'auth_url' => 'https://marketeers.ollkom.com',
+                'callback_url' => null,
+                'client_id' => null,
+                'client_secret' => null,
+                'contact_id' => null,
+                'agency_id' => null,
+                'credentials' => [],
+                'api_settings' => [
+                    'frontend_url' => 'https://marketeers.ollkom.com',
+                    'backend_url' => 'https://marketeers-backend-prod-oci.ollkom.com',
+                    'rate_limit' => 1000,
+                    'timeout' => 30,
+                    'retry_attempts' => 2,
+                    'request_delay' => 0.1,
+                    'verify_ssl' => false,
+                ],
+                'is_active' => true,
+                'is_connected' => false,
+                'last_sync' => null,
+                'supported_features' => ['coupon_conversions', 'campaigns', 'publisher_performance', 'reports', 'multi_currency'],
+            ],
         ];
 
         foreach ($networks as $network) {

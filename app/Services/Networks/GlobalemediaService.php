@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Exception;
 
-class OmolaatService extends BaseNetworkService
+class GlobalemediaService extends BaseNetworkService
 {
-    protected string $networkName = 'omolaat';
+    protected string $networkName = 'globalemedia';
     
     protected array $requiredFields = [
         'email' => [

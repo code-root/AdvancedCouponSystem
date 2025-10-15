@@ -49,6 +49,7 @@ class NetworkServiceFactory
             'globalemedia' => 'GlobalemediaService',
             'mediamak' => 'MediaMakService',
             'omolaat' => 'OmolaatService',
+            'marketeers' => 'MarketeersService',
         ];
         
         $normalizedName = strtolower($networkName);
@@ -97,6 +98,7 @@ class NetworkServiceFactory
             'globalemedia' => GlobalemediaService::class,
             'mediamak' => MediaMakService::class,
             'omolaat' => OmolaatService::class,
+            'marketeers' => MarketeersService::class,
             // Add more networks as needed
         ];
     }

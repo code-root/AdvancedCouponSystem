@@ -67,12 +67,18 @@ abstract class BaseNetworkService implements NetworkServiceInterface
     }
     
     /**
-     * Make HTTP request with error handling
+     * Make HTTP request with error handling and performance optimization
      */
     protected function makeRequest(string $method, string $url, array $options = []): array
     {
         try {
-            $http = Http::timeout(30);
+            // Use timeout from config for better performance
+            $timeout = $this->defaultConfig['timeout'] ?? 30;
+            $http = Http::timeout($timeout);
+            // Respect SSL verification setting if provided by service defaultConfig
+            if (isset($this->defaultConfig['verify_ssl']) && $this->defaultConfig['verify_ssl'] === false) {
+                $http = $http->withoutVerifying();
+            }
             
             // Add headers if provided
             if (isset($options['headers'])) {
@@ -80,17 +86,18 @@ abstract class BaseNetworkService implements NetworkServiceInterface
                 unset($options['headers']);
             }
             
-            // Handle query parameters
+            // Handle query parameters efficiently
             if (isset($options['query'])) {
-                $url .= '?' . http_build_query($options['query']);
+                $url .= '?' . http_build_query($options['query'], '', '&', PHP_QUERY_RFC3986);
                 unset($options['query']);
             }
             
-            // Make request based on method
-            if (strtolower($method) === 'get') {
+            // Make request based on method with optimized handling
+            $method = strtolower($method);
+            if ($method === 'get') {
                 $response = $http->get($url);
-            } elseif (strtolower($method) === 'post') {
-                // Handle form_params or json
+            } elseif ($method === 'post') {
+                // Handle form_params or json efficiently
                 if (isset($options['form_params'])) {
                     $response = $http->asForm()->post($url, $options['form_params']);
                 } else {
@@ -100,10 +107,21 @@ abstract class BaseNetworkService implements NetworkServiceInterface
                 $response = $http->$method($url, $options);
             }
             
+            // Optimize response handling
+            $responseData = null;
+            if ($response->successful()) {
+                try {
+                    $responseData = $response->json();
+                } catch (\Exception $e) {
+                    // Fallback to body if JSON parsing fails
+                    $responseData = $response->body();
+                }
+            }
+            
             return [
                 'success' => $response->successful(),
                 'status' => $response->status(),
-                'data' => $response->json(),
+                'data' => $responseData,
                 'body' => $response->body()
             ];
         } catch (\Exception $e) {
