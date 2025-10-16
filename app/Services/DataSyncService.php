@@ -100,7 +100,7 @@ class DataSyncService
                 $totalRecords += $result['total_records'] ?? 0;
                 $totalCampaigns += $result['campaigns_count'] ?? 0;
                 $totalCoupons += $result['coupons_count'] ?? 0;
-                $totalPurchases += $result['purchases_count'] ?? 0;
+                $totalPurchases += $result['orders_count'] ?? 0;
             }
         }
 
@@ -110,7 +110,7 @@ class DataSyncService
             'total_records' => $totalRecords,
             'campaigns_count' => $totalCampaigns,
             'coupons_count' => $totalCoupons,
-            'purchases_count' => $totalPurchases,
+            'orders_count' => $totalPurchases,
             'results' => $results,
         ];
     }
@@ -179,7 +179,7 @@ class DataSyncService
             'total_records' => $totalRecords,
             'campaigns_count' => $couponStats['campaigns'] ?? 0,
             'coupons_count' => $couponStats['coupons'] ?? 0,
-            'purchases_count' => $couponStats['purchases'] ?? 0,
+            'orders_count' => $couponStats['purchases'] ?? 0,
             'metadata' => [
                 'coupon_stats' => $couponStats,
                 'link_stats' => $linkStats,

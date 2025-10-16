@@ -78,7 +78,7 @@
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Orders</h5>
                     <h3 class="mb-0 fw-bold">{{ number_format($stats['total_orders'] ?? 0, 0, '.', ',') }}</h3>
-                    <small class="text-success">{{ $stats['approved_purchases'] ?? 0 }} Approved</small>
+                    <small class="text-success">{{ $stats['approved_orders'] ?? 0 }} Approved</small>
                 </div>
             </div>
         </div>
@@ -218,7 +218,7 @@
                         <a href="{{ route('coupons.create') }}?campaign_id={{ $campaign->id }}" class="btn btn-primary">
                             <i class="ti ti-plus me-1"></i> Add Coupon
                         </a>
-                        <a href="{{ route('purchases.index') }}?campaign_id={{ $campaign->id }}" class="btn btn-info">
+                        <a href="{{ route('orders.index') }}?campaign_id={{ $campaign->id }}" class="btn btn-info">
                             <i class="ti ti-shopping-cart me-1"></i> View Purchases
                         </a>
                         @if($campaign->status === 'active')

@@ -9,8 +9,7 @@ class BoostinyService extends BaseNetworkService
     protected string $networkName = 'Boostiny';
     
     protected array $requiredFields = [
-        'api_key',
-        'api_secret'
+        'api_key'
     ];
     
     protected array $defaultConfig = [
@@ -30,7 +29,7 @@ class BoostinyService extends BaseNetworkService
         if (!$validation['valid']) {
             return [
                 'success' => false,
-                'message' => 'Invalid credentials provided. Please provide your API Key and API Secret.',
+                'message' => 'Invalid credentials provided. Please provide your API Key.',
                 'errors' => $validation['errors'],
                 'data' => null
             ];

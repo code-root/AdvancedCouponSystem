@@ -10,7 +10,9 @@
 </head>
 
 <body>
-
+<style>
+   .select2-container--default .select2-selection--multiple .select2-selection__choice {background-color: #232e51 !important;}
+</style>
     <div class="wrapper">
 
         @include('layouts.partials.sidenav')

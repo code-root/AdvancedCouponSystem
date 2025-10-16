@@ -9,7 +9,7 @@ use DOMDocument;
 use DOMXPath;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
-
+use Illuminate\Support\Facades\Log;
 class GlobalemediaService extends BaseNetworkService
 {
     protected string $networkName = 'globalemedia';
@@ -468,20 +468,15 @@ class GlobalemediaService extends BaseNetworkService
             
             $client = new Client($clientConfig);
             
-            // Build query parameters
+            // Build query parameters (updated per requested query)
             $params = [
                 'group' => ['adid', 'coupon'],
                 'fields' => [
-                    'totalClicks',
-                    'totalConversions',
-                    'payout',
-                    'cr',
-                    'saleAmount',
-                    'extConv',
-                    'pendingTotalConversions',
-                    'pendingPayout',
-                    'cancelledConversions'
+                    'grossConversions',
+                    'grossPayout',
+                    'grossSaleAmount',
                 ],
+                'cr_checkbox' => 'use_pen_conversion',
                 'start' => $startDate,
                 'end' => $endDate,
                 'report_name' => 'performance',
@@ -593,27 +588,41 @@ class GlobalemediaService extends BaseNetworkService
             libxml_use_internal_errors(true);
             $dom->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
             libxml_clear_errors();
-            
             $xpath = new DOMXPath($dom);
             $rows = $xpath->query('//tbody/tr');
             $currentDate = now()->format('Y-m-d');
-            
             foreach ($rows as $row) {
                 if (!$row instanceof \DOMElement) {
                     continue;
                 }
                 $columns = $row->getElementsByTagName('td');
-                
-                if ($columns->length < 13) {
+                if ($columns->length < 2) {
                     continue;
                 }
                 
-                $campaign = trim($columns->item(0)->nodeValue ?? '');
-                $couponCode = trim($columns->item(1)->nodeValue ?? '');
-                $clicks = trim($columns->item(2)->nodeValue ?? '0');
-                $conversions = trim($columns->item(3)->nodeValue ?? '0');
-                $payout = trim($columns->item(4)->nodeValue ?? '0');
-                $saleAmount = trim($columns->item(12)->nodeValue ?? '0');
+                // Column 0: Campaign (may contain <a>)
+                $campaign = trim($columns->item(0)->textContent ?? '');
+                // Column 1: Coupon Code
+                $couponCode = trim($columns->item(1)->textContent ?? '');
+                
+                // New structure uses data-field attributes
+                $grossConversionsNode = $xpath->query(".//td[@data-field='grossConversions']", $row)->item(0);
+                $grossPayoutNode = $xpath->query(".//td[@data-field='grossPayout']", $row)->item(0);
+                $grossSaleAmountNode = $xpath->query(".//td[@data-field='grossSaleAmount']", $row)->item(0);
+                
+                $conversions = '0';
+                $payout = '0';
+                $saleAmount = '0';
+                
+                if ($grossConversionsNode instanceof \DOMElement) {
+                    $conversions = $grossConversionsNode->getAttribute('data-numericval') ?: trim($grossConversionsNode->textContent);
+                }
+                if ($grossPayoutNode instanceof \DOMElement) {
+                    $payout = $grossPayoutNode->getAttribute('data-numericval') ?: trim($grossPayoutNode->textContent);
+                }
+                if ($grossSaleAmountNode instanceof \DOMElement) {
+                    $saleAmount = $grossSaleAmountNode->getAttribute('data-numericval') ?: trim($grossSaleAmountNode->textContent);
+                }
                 
                 if (empty($campaign) || empty($couponCode)) {
                     continue;
@@ -630,13 +639,13 @@ class GlobalemediaService extends BaseNetworkService
                     'order_value' => $this->convertToDecimal($saleAmount),
                     'commission' => $this->convertToDecimal($payout),
                     'revenue' => $this->convertToDecimal($payout),
-                    'clicks' => intval($clicks),
-                    'quantity' => intval($conversions) > 0 ? intval($conversions) : 1,
+                    'quantity' => max(1, (int) $this->convertToDecimal($conversions)),
                     'customer_type' => 'unknown',
                     'status' => 'approved',
                     'order_date' => $currentDate,
                     'purchase_date' => $currentDate,
                 ];
+                // Log::info($data);
             }
             
         } catch (\Exception $e) {

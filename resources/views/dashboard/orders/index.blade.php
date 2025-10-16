@@ -1,11 +1,12 @@
-@extends('layouts.vertical', ['title' => 'Purchases'])
+@extends('layouts.vertical', ['title' => 'Orders'])
 
 @section('css')
     @vite(['node_modules/flatpickr/dist/flatpickr.min.css'])
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Sales', 'title' => 'Purchases'])
+    @include('layouts.partials.page-title', ['subtitle' => 'Sales', 'title' => 'Orders'])
 
     <div class="row">
         <div class="col-12 mb-3">
@@ -22,32 +23,44 @@
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Total</h5>
-                    <h3 class="mb-0 fw-bold" id="stat-total">{{ $stats['total'] }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Networks</h5>
+                    <h3 class="mb-0 fw-bold" id="stat-networks">{{ $stats['networks'] ?? 0 }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="networks-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Approved</h5>
-                    <h3 class="mb-0 fw-bold text-success" id="stat-approved">{{ $stats['approved'] }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Campaigns</h5>
+                    <h3 class="mb-0 fw-bold text-primary" id="stat-campaigns">{{ $stats['campaigns'] ?? 0 }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="campaigns-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Pending</h5>
-                    <h3 class="mb-0 fw-bold text-warning" id="stat-pending">{{ $stats['pending'] }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Coupons</h5>
+                    <h3 class="mb-0 fw-bold text-info" id="stat-coupons">{{ $stats['coupons'] ?? 0 }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="coupons-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Rejected</h5>
-                    <h3 class="mb-0 fw-bold text-danger" id="stat-rejected">{{ $stats['rejected'] }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Orders</h5>
+                    <h3 class="mb-0 fw-bold text-danger" id="stat-orders">{{ $stats['total'] ?? 0 }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="orders-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>
@@ -55,20 +68,27 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Revenue</h5>
-                    <h3 class="mb-0 fw-bold text-primary" id="stat-revenue">${{ $stats['total_revenue'] ?? '0.00' }}</h3>
+                    <h3 class="mb-0 fw-bold text-success" id="stat-revenue">${{ $stats['total_revenue'] ?? '0.00' }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="revenue-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                    <h3 class="mb-0 fw-bold text-info" id="stat-commission">${{ $stats['total_commission'] ?? '0.00' }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Sales Amount</h5>
+                    <h3 class="mb-0 fw-bold text-warning" id="stat-sales-amount">${{ $stats['total_sales'] ?? '0.00' }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="sales-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 
+    
     <!-- Filters Card -->
     <div class="row">
         <div class="col-12">
@@ -76,10 +96,10 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <!-- Search -->
-                        <div class="col-md-3">
+                        {{-- <div class="col-md-3">
                             <label class="form-label">Search</label>
                             <input type="text" class="form-control" id="searchInput" placeholder="Search by Order ID, Campaign, Network, Coupon...">
-                        </div>
+                        </div> --}}
                         
                         <!-- Network Filter -->
                         <div class="col-md-2">
@@ -113,7 +133,7 @@
                             </select>
                         </div>
                         
-                        <!-- Customer Type Filter -->
+                        {{-- <!-- Customer Type Filter -->
                         <div class="col-md-2">
                             <label class="form-label">Customer</label>
                             <select class="select2 form-control" id="customerTypeFilter" data-toggle="select2">
@@ -121,7 +141,7 @@
                                 <option value="new">New</option>
                                 <option value="returning">Returning</option>
                             </select>
-                        </div>
+                        </div> --}}
                         
                         <!-- Purchase Type Filter -->
                         <div class="col-md-2">
@@ -139,18 +159,18 @@
                             <input type="text" class="form-control" id="dateRange" placeholder="Select date range">
                         </div>
                         
-                        <!-- Revenue Range -->
+                        {{-- <!-- Revenue Range -->
                         <div class="col-md-2">
                             <label class="form-label">Min Revenue ($)</label>
                             <input type="number" step="0.01" class="form-control" id="revenueMin" placeholder="0.00">
-                        </div>
+                        </div> --}}
                         
-                        <div class="col-md-2">
+                        {{-- <div class="col-md-2">
                             <label class="form-label">Max Revenue ($)</label>
                             <input type="number" step="0.01" class="form-control" id="revenueMax" placeholder="1000.00">
-                        </div>
+                        </div> --}}
                         
-                        <!-- Per Page -->
+                        {{-- <!-- Per Page -->
                         <div class="col-md-2">
                             <label class="form-label">Per Page</label>
                             <select class="select2 form-control" id="perPageSelect" data-toggle="select2">
@@ -160,7 +180,7 @@
                                 <option value="100">100</option>
                             </select>
                         </div>
-                        
+                         --}}
                         <!-- Actions -->
                         <div class="col-12 d-flex gap-2 justify-content-end">
                             <button type="button" class="btn btn-primary" onclick="applyFilters()" id="applyFiltersBtn">
@@ -181,7 +201,7 @@
         <div class="col-12">
             <div class="card">
                 <div class="card-header border-bottom border-light">
-                    <h4 class="header-title mb-0">All Purchases</h4>
+                    <h4 class="header-title mb-0">All Orders</h4>
                 </div>
 
                 <div class="table-responsive">
@@ -207,7 +227,7 @@
                                     <div class="spinner-border text-primary" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
-                                    <p class="text-muted mt-2">Loading purchases...</p>
+                                    <p class="text-muted mt-2">Loading Orders ...</p>
                                 </td>
                             </tr>
                         </tbody>
@@ -277,6 +297,11 @@ window.addEventListener('load', function() {
     // Initialize DataTable
     initializeDataTable();
     
+    // Initialize chart after other components
+    setTimeout(() => {
+        initializeSalesChart();
+    }, 500);
+    
     // Search with debounce
     let searchTimeout;
     document.getElementById('searchInput').addEventListener('input', function(e) {
@@ -321,7 +346,7 @@ function showLoading() {
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
                     </div>
-                    <p class="text-muted mt-2">Loading purchases...</p>
+                    <p class="text-muted mt-2">Loading orders...</p>
                 </td>
             </tr>
         `;
@@ -492,18 +517,25 @@ function resetFilters() {
 function updateStats(stats) {
     if (!stats) return;
     
-    // Update main statistics
-    document.getElementById('stat-total').textContent = stats.total || 0;
-    document.getElementById('stat-approved').textContent = stats.approved || 0;
-    document.getElementById('stat-pending').textContent = stats.pending || 0;
-    document.getElementById('stat-rejected').textContent = stats.rejected || 0;
+    // Update main statistics with new order
+    document.getElementById('stat-networks').textContent = stats.networks || 0;
+    document.getElementById('stat-campaigns').textContent = stats.campaigns || 0;
+    document.getElementById('stat-coupons').textContent = stats.coupons || 0;
+    document.getElementById('stat-orders').textContent = stats.total || 0;
     document.getElementById('stat-revenue').textContent = '$' + (stats.total_revenue || '0.00');
-    document.getElementById('stat-commission').textContent = '$' + (stats.total_commission || '0.00');
+    document.getElementById('stat-sales-amount').textContent = '$' + (stats.total_sales || '0.00');
     
-    // Update purchase type breakdown if available
-    if (stats.purchase_type_breakdown) {
-        console.log('Purchase type breakdown:', stats.purchase_type_breakdown);
-        // You can add UI elements to display this data if needed
+    // Update growth percentages
+    updateGrowthPercentage('networks-growth', stats.networks_growth || 0);
+    updateGrowthPercentage('campaigns-growth', stats.campaigns_growth || 0);
+    updateGrowthPercentage('coupons-growth', stats.coupons_growth || 0);
+    updateGrowthPercentage('orders-growth', stats.orders_growth || 0);
+    updateGrowthPercentage('revenue-growth', stats.revenue_growth || 0);
+    updateGrowthPercentage('sales-growth', stats.sales_growth || 0);
+    
+    // Update chart if data available
+    if (stats.chart_data) {
+        updateSalesChart(stats.chart_data);
     }
     
     // Add visual feedback for updated stats
@@ -517,10 +549,23 @@ function updateStats(stats) {
     });
 }
 
+// Update growth percentage with proper styling
+function updateGrowthPercentage(elementId, percentage) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    const isPositive = percentage >= 0;
+    const icon = isPositive ? 'ti-trending-up' : 'ti-trending-down';
+    const colorClass = isPositive ? 'text-success' : 'text-danger';
+    
+    element.innerHTML = `<i class="ti ${icon}"></i> ${Math.abs(percentage).toFixed(1)}%`;
+    element.className = `mb-0 text-muted mt-2 ${colorClass}`;
+}
+
 // Export purchases
 function exportPurchases() {
     const params = new URLSearchParams(filters);
-    window.location.href = `{{ route('purchases.export') }}?${params}`;
+    window.location.href = `{{ route('orders.export') }}?${params}`;
 }
 
 // Initialize DataTables
@@ -535,7 +580,7 @@ function initializeDataTable() {
         processing: true,
         serverSide: true,
         ajax: {
-            url: '{{ route("purchases.index") }}',
+            url: '{{ route("orders.index") }}',
             type: 'GET',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -749,6 +794,71 @@ function reloadDataTable() {
         showLoading();
         purchasesDataTable.ajax.reload(null, false); // false = stay on current page
     }
+}
+
+// Sales Chart
+let salesChart = null;
+
+function initializeSalesChart() {
+    const ctx = document.getElementById('salesChart').getContext('2d');
+    
+    salesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Sales Amount ($)',
+                data: [],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.4,
+                fill: true
+            }, {
+                label: 'Revenue ($)',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Daily Sales Trend'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(2);
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+function updateSalesChart(chartData) {
+    if (!salesChart || !chartData) return;
+    
+    salesChart.data.labels = chartData.labels || [];
+    salesChart.data.datasets[0].data = chartData.sales_amount || [];
+    salesChart.data.datasets[1].data = chartData.revenue || [];
+    salesChart.update();
 }
 
 // DataTable is initialized in the window load event above

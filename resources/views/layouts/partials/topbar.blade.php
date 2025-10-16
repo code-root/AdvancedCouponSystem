@@ -6,7 +6,7 @@
             <!-- Brand Logo -->
             <a href="{{ route('dashboard') }}" class="logo">
                 <span class="logo-light">
-                    <span class="logo-lg"><img src="/images/logo.png" alt="logo"></span>
+                    <span class="logo-lg"><img src="/images/logo-tr.png" alt="logo"></span>
                     <span class="logo-sm"><img src="/images/logo-sm.png" alt="small logo"></span>
                 </span>
 
@@ -29,7 +29,7 @@
             <!-- Button Trigger Search Modal -->
             <div class="topbar-search text-muted d-none d-xl-flex gap-2 align-items-center" data-bs-toggle="modal" data-bs-target="#searchModal" type="button">
                 <i class="ti ti-search fs-18"></i>
-                <span class="me-2">Search brokers, coupons, campaigns...</span>
+                <span class="me-2">Search<span>
                 <span class="ms-auto fw-medium">⌘K</span>
             </div>
 
@@ -193,7 +193,7 @@
                             <a href="{{ route('coupons.index') }}" class="list-group-item list-group-item-action">
                                 <i class="ti ti-ticket me-2"></i> Coupons
                             </a>
-                            <a href="{{ route('purchases.index') }}" class="list-group-item list-group-item-action">
+                            <a href="{{ route('orders.index') }}" class="list-group-item list-group-item-action">
                                 <i class="ti ti-shopping-cart me-2"></i> Purchases
                             </a>
                         </div>

@@ -82,7 +82,7 @@ class DashboardController extends Controller
             
             // Comparison with previous period
             'revenue_growth' => $this->getGrowthPercentage($userId, 'revenue', $dateRange, $networkIds),
-            'purchases_growth' => $this->getGrowthPercentage($userId, 'purchases', $dateRange, $networkIds),
+            'orders_growth' => $this->getGrowthPercentage($userId, 'purchases', $dateRange, $networkIds),
             
             // Network comparison
             'network_comparison' => $this->getNetworkComparison($userId, $dateRange),
@@ -95,7 +95,7 @@ class DashboardController extends Controller
             'top_networks' => $this->getTopNetworks($userId, $dateRange),
             
             // Recent activities
-            'recent_purchases' => $this->getRecentPurchases($userId, $networkIds),
+            'recent_orders' => $this->getRecentPurchases($userId, $networkIds),
             
             // Status breakdown
             'purchase_status' => $this->getPurchaseStatusBreakdown($userId, $dateRange, $networkIds),
@@ -179,7 +179,7 @@ class DashboardController extends Controller
             $query->whereIn('network_id', $networkIds);
         }
         
-        return $query->count();
+        return $query->sum('quantity');
     }
     
     /**

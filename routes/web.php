@@ -16,7 +16,7 @@ use App\Http\Controllers\CountryController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\NotificationController;
-
+use Illuminate\Support\Facades\Artisan;
 // Public Routes
 Route::get('/', function () {
     return view('welcome');
@@ -159,7 +159,7 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Purchase Management Routes
-    Route::prefix('purchases')->name('purchases.')->group(function () {
+    Route::prefix('orders')->name('orders.')->group(function () {
         Route::get('/', [PurchaseController::class, 'index'])->name('index');
         Route::get('statistics', [PurchaseController::class, 'statisticsPage'])->name('statistics');
         Route::get('statistics-data', [PurchaseController::class, 'statistics'])->name('statistics-data');
@@ -240,4 +240,13 @@ Route::middleware(['auth'])->group(function () {
         Route::put('{user}', [DashboardController::class, 'updateUser'])->name('update');
         Route::delete('{user}', [DashboardController::class, 'destroyUser'])->name('destroy');
     });
+});
+
+Route::get('/clear', function () {
+    Artisan::call('cache:clear');
+    Artisan::call('config:clear');
+    Artisan::call('config:cache');
+    Artisan::call('view:clear');
+    Artisan::call('optimize:clear');
+    return "Cleared cach , config , view , optimize !";
 });

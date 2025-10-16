@@ -63,9 +63,9 @@ class ReportController extends Controller
         $stats = [
             // Purchases
             'total_orders' => $purchasesQuery->count(),
-            'approved_purchases' => (clone $purchasesQuery)->where('status', 'approved')->count(),
-            'pending_purchases' => (clone $purchasesQuery)->where('status', 'pending')->count(),
-            'rejected_purchases' => (clone $purchasesQuery)->where('status', 'rejected')->count(),
+            'approved_orders' => (clone $purchasesQuery)->where('status', 'approved')->count(),
+            'pending_orders' => (clone $purchasesQuery)->where('status', 'pending')->count(),
+            'rejected_orders' => (clone $purchasesQuery)->where('status', 'rejected')->count(),
             
             // Revenue
             'total_revenue' => $purchasesQuery->sum('revenue'),
@@ -276,7 +276,7 @@ class ReportController extends Controller
             'month_revenue' => Purchase::where('user_id', $userId)
                 ->where('order_date', '>=', $currentMonth)
                 ->sum('revenue'),
-            'month_purchases' => Purchase::where('user_id', $userId)
+            'month_orders' => Purchase::where('user_id', $userId)
                 ->where('order_date', '>=', $currentMonth)
                 ->count(),
         ];

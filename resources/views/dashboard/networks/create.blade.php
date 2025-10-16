@@ -99,7 +99,7 @@
                             <!-- Auto Connect -->
                             <div class="col-12">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="is_connected" id="isConnected" value="1" {{ old('is_connected') ? 'checked' : '' }}>
+                                    <input class="form-check-input" type="checkbox" name="is_connected" id="isConnected" value="1" checked>
                                     <label class="form-check-label" for="isConnected">
                                         Mark as connected immediately
                                     </label>

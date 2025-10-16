@@ -176,10 +176,10 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ route('purchases.index') }}" class="btn btn-light">
+                        <a href="{{ route('orders.index') }}" class="btn btn-light">
                             <i class="ti ti-arrow-left me-1"></i> Back to Purchases
                         </a>
-                        <a href="{{ route('purchases.edit', $purchase->id) }}" class="btn btn-primary">
+                        <a href="{{ route('orders.edit', $purchase->id) }}" class="btn btn-primary">
                             <i class="ti ti-pencil me-1"></i> Edit Purchase
                         </a>
                         <button type="button" class="btn btn-danger" onclick="deletePurchase({{ $purchase->id }})">
@@ -265,7 +265,7 @@ function deletePurchase(id) {
         })
         .then(response => {
             if (response.ok) {
-                window.location.href = '{{ route("purchases.index") }}';
+                window.location.href = '{{ route("orders.index") }}';
             } else {
                 alert('Failed to delete purchase');
             }

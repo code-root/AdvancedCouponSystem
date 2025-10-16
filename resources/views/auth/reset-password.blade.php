@@ -15,7 +15,7 @@
                 <div class="card overflow-hidden text-center h-100 p-xxl-4 p-3 mb-0">
                     <a href="{{ route('home') }}" class="auth-brand mb-3">
                         <img src="/images/logo-dark.png" alt="dark logo" height="24" class="logo-dark">
-                        <img src="/images/logo.png" alt="logo light" height="24" class="logo-light">
+                        <img src="/images/logo-tr.png" alt="logo light" height="24" class="logo-light">
                     </a>
 
                     <h3 class="fw-semibold mb-2">Create New Password</h3>

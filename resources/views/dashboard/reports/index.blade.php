@@ -359,7 +359,7 @@ function updateStats(stats) {
     document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('stat-orders').textContent = (stats.total_orders || 0).toLocaleString('en-US');
-    document.getElementById('stat-approved').textContent = stats.approved_purchases || 0;
+    document.getElementById('stat-approved').textContent = stats.approved_orders || 0;
     document.getElementById('stat-campaigns').textContent = stats.total_campaigns || 0;
     document.getElementById('stat-coupons').textContent = stats.total_coupons || 0;
 }

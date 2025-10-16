@@ -63,7 +63,7 @@
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Total Purchases</h5>
                     <h3 class="mb-0 fw-bold text-primary">{{ number_format($stats['total_orders'] ?? 0, 0, '.', ',') }}</h3>
-                    <small class="text-success">{{ $stats['approved_purchases'] ?? 0 }} Approved</small>
+                    <small class="text-success">{{ $stats['approved_orders'] ?? 0 }} Approved</small>
                 </div>
             </div>
         </div>
@@ -223,7 +223,7 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{{ route('purchases.index') }}?coupon_id={{ $coupon->id }}" class="btn btn-info">
+                        <a href="{{ route('orders.index') }}?coupon_id={{ $coupon->id }}" class="btn btn-info">
                             <i class="ti ti-shopping-cart me-1"></i> View All Purchases
                         </a>
                         @if($coupon->status === 'active')

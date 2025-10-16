@@ -71,15 +71,15 @@ Route::middleware(['auth:sanctum'])->group(function () {
     
     // Purchase Routes
     Route::apiResource('purchases', \App\Http\Controllers\PurchaseController::class)->names([
-        'index' => 'api.purchases.index',
-        'store' => 'api.purchases.store',
-        'show' => 'api.purchases.show',
-        'update' => 'api.purchases.update',
-        'destroy' => 'api.purchases.destroy',
+        'index' => 'api.orders.index',
+        'store' => 'api.orders.store',
+        'show' => 'api.orders.show',
+        'update' => 'api.orders.update',
+        'destroy' => 'api.orders.destroy',
     ]);
-    Route::post('purchases/{purchase}/confirm', [\App\Http\Controllers\PurchaseController::class, 'confirm'])->name('api.purchases.confirm');
-    Route::post('purchases/{purchase}/cancel', [\App\Http\Controllers\PurchaseController::class, 'cancel'])->name('api.purchases.cancel');
-    Route::get('purchases/statistics', [\App\Http\Controllers\PurchaseController::class, 'statistics'])->name('api.purchases.statistics');
+    Route::post('purchases/{purchase}/confirm', [\App\Http\Controllers\PurchaseController::class, 'confirm'])->name('api.orders.confirm');
+    Route::post('purchases/{purchase}/cancel', [\App\Http\Controllers\PurchaseController::class, 'cancel'])->name('api.orders.cancel');
+    Route::get('purchases/statistics', [\App\Http\Controllers\PurchaseController::class, 'statistics'])->name('api.orders.statistics');
     
     // Country Routes
     Route::apiResource('countries', \App\Http\Controllers\CountryController::class)->names([

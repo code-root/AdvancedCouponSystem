@@ -17,37 +17,27 @@
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row row-cols-xxl-6 row-cols-md-3 row-cols-1 text-center mb-3">
+    <!-- Statistics Cards (aligned with Orders page) -->
+    <div class="row row-cols-xxl-6 row-cols-md-3 row-cols-1 text-center mb-3" id="statsCards">
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Total</h5>
-                    <h3 class="mb-0 fw-bold" id="stat-total">{{ $stats['total'] }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Networks</h5>
+                    <h3 class="mb-0 fw-bold" id="stat-networks">{{ $stats['networks'] ?? 0 }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="networks-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Active</h5>
-                    <h3 class="mb-0 fw-bold text-success" id="stat-active">{{ $stats['active'] }}</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Paused</h5>
-                    <h3 class="mb-0 fw-bold text-warning" id="stat-paused">{{ $stats['paused'] }}</h3>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Inactive</h5>
-                    <h3 class="mb-0 fw-bold text-danger" id="stat-inactive">{{ $stats['inactive'] }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Campaigns</h5>
+                    <h3 class="mb-0 fw-bold text-primary" id="stat-campaigns">{{ $stats['campaigns'] ?? 0 }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="campaigns-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>
@@ -55,15 +45,43 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Coupons</h5>
-                    <h3 class="mb-0 fw-bold text-primary" id="stat-coupon">{{ $stats['coupon_type'] }}</h3>
+                    <h3 class="mb-0 fw-bold text-info" id="stat-coupons">{{ $stats['coupons'] ?? 0 }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="coupons-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Links</h5>
-                    <h3 class="mb-0 fw-bold text-info" id="stat-link">{{ $stats['link_type'] }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">Orders</h5>
+                    <h3 class="mb-0 fw-bold text-success" id="stat-orders">{{ $stats['total'] ?? 0 }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="orders-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="text-muted fs-13 text-uppercase">Revenue</h5>
+                    <h3 class="mb-0 fw-bold text-warning" id="stat-revenue">${{ $stats['total_revenue'] ?? '0.00' }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="revenue-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="text-muted fs-13 text-uppercase">Sales Amount</h5>
+                    <h3 class="mb-0 fw-bold text-danger" id="stat-sales-amount">${{ $stats['total_sales'] ?? '0.00' }}</h3>
+                    <p class="mb-0 text-muted mt-2">
+                        <span class="text-success" id="sales-growth"><i class="ti ti-trending-up"></i> 0%</span>
+                    </p>
                 </div>
             </div>
         </div>

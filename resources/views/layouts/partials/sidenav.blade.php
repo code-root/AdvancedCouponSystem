@@ -4,7 +4,7 @@
     <!-- Brand Logo -->
     <a href="{{ route('dashboard') }}" class="logo">
         <span class="logo-light">
-            <span class="logo-lg"><img src="/images/logo.png" alt="logo"></span>
+            <span class="logo-lg"><img src="/images/logo-tr.png" alt="logo"></span>
             <span class="logo-sm"><img src="/images/logo-sm.png" alt="small logo"></span>
         </span>
 
@@ -76,11 +76,7 @@
                                 <span class="menu-text">All Campaigns</span>
                             </a>
                         </li>
-                        <li class="side-nav-item">
-                            <a href="{{ route('campaigns.create') }}" class="side-nav-link {{ request()->routeIs('campaigns.create') ? 'active' : '' }}">
-                                <span class="menu-text">Create Campaign</span>
-                            </a>
-                        </li>
+
                     </ul>
                 </div>
             </li>
@@ -99,11 +95,7 @@
                                 <span class="menu-text">All Coupons</span>
                             </a>
                         </li>
-                        <li class="side-nav-item">
-                            <a href="{{ route('coupons.create') }}" class="side-nav-link {{ request()->routeIs('coupons.create') ? 'active' : '' }}">
-                                <span class="menu-text">Create Coupon</span>
-                            </a>
-                        </li>
+                      
                     </ul>
                 </div>
             </li>
@@ -115,21 +107,17 @@
                     <span class="menu-text"> Orders </span>
                     <span class="menu-arrow"></span>
                 </a>
-                <div class="collapse {{ request()->is('purchases*') ? 'show' : '' }}" id="sidebarPurchases">
+                <div class="collapse {{ request()->is('orders*') ? 'show' : '' }}" id="sidebarPurchases">
                     <ul class="sub-menu">
                         <li class="side-nav-item">
-                            <a href="{{ route('purchases.index') }}" class="side-nav-link {{ request()->routeIs('purchases.index') ? 'active' : '' }}">
-                                <span class="menu-text">All Purchases</span>
+                            <a href="{{ route('orders.index') }}" class="side-nav-link {{ request()->routeIs('orders.index') ? 'active' : '' }}">
+                                <span class="menu-text">All Orders</span>
                             </a>
                         </li>
+                
                         <li class="side-nav-item">
-                            <a href="{{ route('purchases.create') }}" class="side-nav-link {{ request()->routeIs('purchases.create') ? 'active' : '' }}">
-                                <span class="menu-text">New Purchase</span>
-                            </a>
-                        </li>
-                        <li class="side-nav-item">
-                            <a href="{{ route('purchases.statistics') }}" class="side-nav-link {{ request()->routeIs('purchases.statistics') ? 'active' : '' }}">
-                                <span class="menu-text">Statistics</span>
+                            <a href="{{ route('orders.statistics') }}" class="side-nav-link {{ request()->routeIs('orders.statistics') ? 'active' : '' }}">
+                                <span class="menu-text">Order Statistics</span>
                             </a>
                         </li>
                     </ul>

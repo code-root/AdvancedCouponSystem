@@ -219,7 +219,7 @@ class OmolaatService extends BaseNetworkService
             $totalExpected = null;
             $pagesWithData = 0;
             $daysWithData = 0;
-            
+            Log::info('responses: -' . json_encode($responses));
             foreach ($responses as $dayResult) {
                 if (isset($dayResult['data']) && is_array($dayResult['data'])) {
                     $dayHits = $dayResult['hits_count'] ?? 0;

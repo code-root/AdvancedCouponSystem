@@ -55,6 +55,8 @@ class NetworkDataProcessor
                             $item = self::normalizeICWData($item);
                         } elseif ($networkName === 'mediamak') {
                             $item = self::normalizeMediaMakData($item);
+                        } elseif ($networkName === 'marketeers') {
+                            $item = self::normalizeMarketeersData($item);
                         } elseif ($networkName === 'cpx') {
                             $item = self::normalizeCPXData($item);
                         } elseif ($networkName === 'platformance') {
@@ -133,10 +135,6 @@ class NetworkDataProcessor
                         ]);
                         $processed['purchases']++;
                         
-                        if ($networkName === 'globalnetwork' && $index < 2) {
-                        
-                        }
-                        
                     } catch (\Exception $e) {
                         $errorMessage = "Error processing item at index $index: " . $e->getMessage();
                         $processed['errors'][] = [
@@ -183,13 +181,25 @@ class NetworkDataProcessor
      */
     private static function normalizeBoostinyData(array $item): array
     {
+        $orderDate = isset($item['date']) ? self::formatDateYmd($item['date']) : now()->format('Y-m-d');
+        $purchaseDate = isset($item['last_updated_at']) ? self::formatDateYmd($item['last_updated_at']) : $orderDate;
+
+        // Generate a unique campaign_id if not provided
+        $campaignId = $item['campaign_id'] ?? null;
+        if (empty($campaignId)) {
+            // Use campaign_name to generate a consistent ID
+            $campaignName = $item['campaign_name'] ?? 'Unknown';
+            $campaignId = 'BOOSTINY_' . md5($campaignName);
+        }
+
         return [
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
-            'campaign_id' => $item['campaign_id'] ?? null,
+            'campaign_id' => $campaignId,
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => $item['campaign_logo'] ?? null,
             'code' => $item['code'] ?? null,
             'country' => $item['country'] ?? 'NA',
+            'country_code' => strtoupper($item['country'] ?? 'NA'),
             'order_id' => $item['order_id'] ?? null,
             'network_order_id' => $item['network_order_id'] ?? null,
             'order_value' => $item['sales_amount_usd'] ?? 0,
@@ -198,9 +208,33 @@ class NetworkDataProcessor
             'quantity' => $item['orders'] ?? 1,
             'customer_type' => strtolower(trim($item['customer_type'] ?? 'unknown')),
             'status' => 'approved',
-            'order_date' => $item['date'] ?? now()->format('Y-m-d'), // تاريخ الطلب من API
-            'purchase_date' => $item['last_updated_at'] ?? now()->format('Y-m-d'), // تاريخ آخر تحديث
+            'order_date' => $orderDate, // تاريخ الطلب من API
+            'purchase_date' => $purchaseDate, // تاريخ آخر تحديث
         ];
+    }
+
+    /**
+     * Format any date/time string to Y-m-d safely
+     */
+    private static function formatDateYmd($value): string
+    {
+        if (empty($value)) {
+            return now()->format('Y-m-d');
+        }
+        // Handle timestamps or string dates
+        if (is_numeric($value)) {
+            $ts = (int)$value;
+            // If value looks like milliseconds, convert
+            if ($ts > 2000000000) { // larger than year ~2033 seconds
+                $ts = (int) round($ts / 1000);
+            }
+            return date('Y-m-d', $ts) ?: now()->format('Y-m-d');
+        }
+        $ts = strtotime((string)$value);
+        if ($ts === false) {
+            return now()->format('Y-m-d');
+        }
+        return date('Y-m-d', $ts);
     }
     
     /**
@@ -211,8 +245,15 @@ class NetworkDataProcessor
         $stat = $item['Stat'] ?? [];
         $offer = $item['Offer'] ?? [];
         
+        // Generate a unique campaign_id if not provided
+        $campaignId = $stat['offer_id'] ?? null;
+        if (empty($campaignId)) {
+            $campaignName = $offer['name'] ?? 'Unknown';
+            $campaignId = 'DIGIZAG_' . md5($campaignName);
+        }
+        
         return [
-            'campaign_id' => $stat['offer_id'] ?? null,
+            'campaign_id' => $campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $offer['name'] ?? 'Unknown',
             'campaign_logo' => null,
@@ -239,13 +280,20 @@ class NetworkDataProcessor
         $stat = $item['Stat'] ?? [];
         $offer = $item['Offer'] ?? [];
         
+        // Generate a unique campaign_id if not provided
+        $campaignId = $stat['offer_id'] ?? null;
+        if (empty($campaignId)) {
+            $campaignName = $offer['name'] ?? 'Unknown';
+            $campaignId = 'GLOBALNETWORK_' . md5($campaignName);
+        }
+        
         return [
-            'campaign_id' => $stat['offer_id'] ?? null,
+            'campaign_id' => $campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $offer['name'] ?? 'Unknown',
-            'campaign_logo' => null,
-            'code' => $stat['affiliate_info1'] ?? $stat['promo_code'] ?? 'NA',
-            'country' => 'NA',
+            'campaign_logo' => 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTdzx401xR8M7OJQ5ptWLX6p1LhUoOq7iEgWw&usqp=CAU',
+            'code' => $stat['promo_code'] ?? ($stat['affiliate_info1'] ?? 'NA'),
+            'country_code' => 'NA',
             'order_id' => $stat['id'] ?? null,
             'network_order_id' => $stat['id'] ?? null,
             'order_value' => $stat['conversion_sale_amount'] ?? 0,
@@ -267,8 +315,15 @@ class NetworkDataProcessor
         $stat = $item['Stat'] ?? [];
         $offer = $item['Offer'] ?? [];
         
+        // Generate a unique campaign_id if not provided
+        $campaignId = $stat['offer_id'] ?? null;
+        if (empty($campaignId)) {
+            $campaignName = $offer['name'] ?? 'Unknown';
+            $campaignId = 'ARABCLICKS_' . md5($campaignName);
+        }
+        
         return [
-            'campaign_id' => $stat['offer_id'] ?? null,
+            'campaign_id' => $campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $offer['name'] ?? 'Unknown',
             'campaign_logo' => null,
@@ -292,8 +347,15 @@ class NetworkDataProcessor
      */
     private static function normalizeLinkArabyData(array $item): array
     {
+        // Generate a unique campaign_id if not provided
+        $campaignId = $item['campaign_id'] ?? null;
+        if (empty($campaignId) || $campaignId === 'NA') {
+            $campaignName = $item['campaign_name'] ?? 'Unknown';
+            $campaignId = 'LINKARABY_' . md5($campaignName);
+        }
+        
         return [
-            'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'campaign_id' => $campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
@@ -317,8 +379,15 @@ class NetworkDataProcessor
      */
     private static function normalizeICWData(array $item): array
     {
+        // Generate a unique campaign_id if not provided
+        $campaignId = $item['campaign_id'] ?? null;
+        if (empty($campaignId) || $campaignId === 'NA') {
+            $campaignName = $item['campaign_name'] ?? 'Unknown';
+            $campaignId = 'ICW_' . md5($campaignName);
+        }
+        
         return [
-            'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'campaign_id' => $campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
@@ -342,8 +411,15 @@ class NetworkDataProcessor
      */
     private static function normalizeMediaMakData(array $item): array
     {
+        // Generate a unique campaign_id if not provided
+        $campaignId = $item['campaign_id'] ?? null;
+        if (empty($campaignId) || $campaignId === 'NA') {
+            $campaignName = $item['campaign_name'] ?? 'Unknown';
+            $campaignId = 'MEDIAMAK_' . md5($campaignName);
+        }
+        
         return [
-            'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'campaign_id' => $campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
@@ -363,12 +439,47 @@ class NetworkDataProcessor
     }
     
     /**
+     * Normalize Marketeers data format
+     */
+    private static function normalizeMarketeersData(array $item): array
+    {
+        $orderDate = self::formatDateYmd($item['order_date'] ?? null);
+        
+        return [
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
+            'campaign_id' => $item['campaign_id'] ?? ($item['campaign']['id'] ?? null),
+            'campaign_name' => $item['campaign_name'] ?? ($item['campaign']['title'] ?? 'Unknown'),
+            'campaign_logo' => $item['campaign_logo'] ?? null,
+            'code' => $item['code'] ?? ($item['coupon']['code'] ?? 'NA'),
+            'country' => $item['country'] ?? ($item['country_code'] ?? 'NA'),
+            'country_code' => strtoupper($item['country_code'] ?? ($item['country'] ?? 'NA')),
+            'order_id' => $item['order_id'] ?? ($item['advertiser_order_id'] ?? null),
+            'network_order_id' => $item['network_order_id'] ?? ($item['markteers_order_id'] ?? null),
+            'order_value' => (float)($item['order_value'] ?? ($item['order_amount_usd'] ?? $item['order_amount'] ?? 0)),
+            'commission' => (float)($item['commission'] ?? ($item['order_amount_usd'] ?? $item['order_amount'] ?? 0)),
+            'revenue' => (float)($item['revenue'] ?? ($item['payout'] ?? $item['payout_usd'] ?? 0)),
+            'quantity' => (int)($item['quantity'] ?? ($item['order_quantity'] ?? 1)),
+            'customer_type' => strtolower(trim($item['customer_type'] ?? 'unknown')),
+            'status' => strtolower(trim($item['status'] ?? 'approved')),
+            'order_date' => $orderDate,
+            'purchase_date' => $orderDate,
+        ];
+    }
+    
+    /**
      * Normalize CPX data format
      */
     private static function normalizeCPXData(array $item): array
     {
+        // Generate a unique campaign_id if not provided
+        $campaignId = $item['campaign_id'] ?? null;
+        if (empty($campaignId) || $campaignId === 'NA') {
+            $campaignName = $item['campaign_name'] ?? 'Unknown';
+            $campaignId = 'CPX_' . md5($campaignName);
+        }
+        
         return [
-            'campaign_id' => $item['campaign_id'] ?? 'NA',
+            'campaign_id' => $campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
@@ -392,8 +503,16 @@ class NetworkDataProcessor
      */
     private static function normalizePlatformanceData(array $item): array
     {
+        // Generate a unique campaign_id if not provided
+        $campaignId = $item['campaign_id'] ?? null;
+        if (empty($campaignId)) {
+            // Use campaign_name to generate a consistent ID
+            $campaignName = $item['campaign_name'] ?? 'Unknown';
+            $campaignId = 'PLATFORMANCE_' . md5($campaignName);
+        }
+
         return [
-            'campaign_id' => $item['campaign_id'] ?? null,
+            'campaign_id' => $campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
@@ -441,8 +560,15 @@ class NetworkDataProcessor
             $status = 'rejected';
         }
         
+        // Generate a unique campaign_id if not provided
+        $campaignId = $item['advertiserId'] ?? null;
+        if (empty($campaignId)) {
+            $campaignName = $item['advertiserName'] ?? 'Unknown';
+            $campaignId = 'OPTIMISEMEDIA_' . md5($campaignName);
+        }
+        
         return [
-            'campaign_id' => $item['advertiserId'] ?? null,
+            'campaign_id' => $campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['advertiserName'] ?? 'Unknown',
             'campaign_logo' => 'https://www.optimisemedia.com/assets/icons/logo-circle.svg',
@@ -453,7 +579,7 @@ class NetworkDataProcessor
             'order_value' => $item['originalOrderValue'] ?? 0,
             'commission' => $revenue,
             'revenue' => $revenue,
-            'quantity' => $countOrders > 0 ? $countOrders : 1,
+            'quantity' => $countOrders,
             'customer_type' => strtolower(trim($item['campaignName'] ?? 'unknown')),
             'status' => $status,
             'order_date' => isset($item['date']) ? date('Y-m-d', strtotime($item['date'])) : now()->format('Y-m-d'), // تاريخ الطلب من API
@@ -513,7 +639,7 @@ class NetworkDataProcessor
             'order_value' => $orderValue,
             'commission' => $commission,
             'revenue' => $commission, // Same as commission for Omolaat
-            'quantity' => $quantity,
+            'quantity' => 1,
             'customer_type' => strtolower(trim((string) ($src['customer_type_text'] ?? 'unknown'))),
             'status' => (string) ($src['status_option_opt__order_status'] ?? 'approved'),
             'order_date' => $orderDate,

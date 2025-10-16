@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Networks\Omolaat;
 
+use Illuminate\Support\Facades\Log;
+
 final class Client
 {
     private string $baseUrl = 'https://my.omolaat.com';
@@ -503,6 +505,7 @@ final class Client
             ];
             
             $res = $this->search($appname, $enc);
+            Log::info('res: -' . json_encode($res));
             if ($res['status'] !== 200) {
                 break;
             }
@@ -562,7 +565,7 @@ final class Client
             usleep(500000); // 0.5s delay
         }
         
-        \Log::info("Day data fetch completed", [
+        Log::info("Day data fetch completed", [
             'day_start_ms' => $dayStartMs,
             'day_end_ms' => $dayEndMs,
             'pages_fetched' => count($dayResults),

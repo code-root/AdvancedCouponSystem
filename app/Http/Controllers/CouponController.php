@@ -141,20 +141,58 @@ class CouponController extends Controller
     private function getCouponStats()
     {
         $userId = auth()->id();
-        
+        $start = now()->startOfMonth()->format('Y-m-d');
+        $end = now()->format('Y-m-d');
+        return $this->computeStats($userId, $start, $end);
+    }
+
+    private function calculateGrowthPercentage($current, $previous): float
+    {
+        if ($previous == 0) {
+            return $current > 0 ? 100.0 : 0.0;
+        }
+        return round((($current - $previous) / $previous) * 100, 1);
+    }
+
+    private function computeStats(int $userId, string $startDate, string $endDate): array
+    {
+        $purchaseBase = \App\Models\Purchase::where('user_id', $userId);
+        $current = (clone $purchaseBase)->whereBetween('order_date', [$startDate, $endDate]);
+
+        $start = \Carbon\Carbon::parse($startDate);
+        $end = \Carbon\Carbon::parse($endDate);
+        $duration = $start->diffInDays($end);
+        $prevStart = $start->copy()->subDays($duration + 1)->format('Y-m-d');
+        $prevEnd = $start->copy()->subDay()->format('Y-m-d');
+        $previous = (clone $purchaseBase)->whereBetween('order_date', [$prevStart, $prevEnd]);
+
+        $networks = (clone $current)->distinct('network_id')->count('network_id');
+        $networksPrev = (clone $previous)->distinct('network_id')->count('network_id');
+        $campaigns = \App\Models\Campaign::where('user_id', $userId)->count();
+        $campaignsPrev = $campaigns;
+        $coupons = Coupon::whereHas('campaign', function($q) use ($userId) { $q->where('user_id', $userId); })->count();
+        $couponsPrev = $coupons;
+
+        $orders = (clone $current)->sum('quantity');
+        $ordersPrev = (clone $previous)->sum('quantity');
+        $revenue = (clone $current)->sum('revenue');
+        $revenuePrev = (clone $previous)->sum('revenue');
+        $sales = (clone $current)->sum('order_value');
+        $salesPrev = (clone $previous)->sum('order_value');
+
         return [
-            'total' => Coupon::whereHas('campaign', function($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })->count(),
-            'active' => Coupon::whereHas('campaign', function($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })->where('status', 'active')->count(),
-            'used' => Coupon::whereHas('campaign', function($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })->where('used_count', '>', 0)->count(),
-            'expired' => Coupon::whereHas('campaign', function($q) use ($userId) {
-                $q->where('user_id', $userId);
-            })->where('expires_at', '<', now())->count(),
+            'networks' => $networks,
+            'campaigns' => $campaigns,
+            'coupons' => $coupons,
+            'total' => $orders,
+            'total_revenue' => number_format($revenue, 2, '.', ','),
+            'total_sales' => number_format($sales, 2, '.', ','),
+            'networks_growth' => $this->calculateGrowthPercentage($networks, $networksPrev),
+            'campaigns_growth' => $this->calculateGrowthPercentage($campaigns, $campaignsPrev),
+            'coupons_growth' => $this->calculateGrowthPercentage($coupons, $couponsPrev),
+            'orders_growth' => $this->calculateGrowthPercentage($orders, $ordersPrev),
+            'revenue_growth' => $this->calculateGrowthPercentage($revenue, $revenuePrev),
+            'sales_growth' => $this->calculateGrowthPercentage($sales, $salesPrev),
         ];
     }
 
@@ -205,7 +243,7 @@ class CouponController extends Controller
             'total_commission' => $coupon->purchases()->sum('order_value'),
             'total_order_value' => $coupon->purchases()->sum('order_value'),
             'total_orders' => $coupon->purchases()->count(),
-            'approved_purchases' => $coupon->purchases()->where('status', 'approved')->count(),
+            'approved_orders' => $coupon->purchases()->where('status', 'approved')->count(),
             'unique_users' => $coupon->purchases()->distinct('user_id')->count('user_id'),
         ];
 

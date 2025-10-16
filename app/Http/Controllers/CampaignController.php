@@ -132,14 +132,59 @@ class CampaignController extends Controller
     private function getCampaignStats()
     {
         $userId = $this->getTargetUserId();
-        
+        $start = now()->startOfMonth()->format('Y-m-d');
+        $end = now()->format('Y-m-d');
+        return $this->computeStats($userId, $start, $end);
+    }
+
+    private function calculateGrowthPercentage($current, $previous): float
+    {
+        if ($previous == 0) {
+            return $current > 0 ? 100.0 : 0.0;
+        }
+        return round((($current - $previous) / $previous) * 100, 1);
+    }
+
+    private function computeStats(int $userId, string $startDate, string $endDate): array
+    {
+        $purchaseBase = \App\Models\Purchase::where('user_id', $userId);
+        $current = (clone $purchaseBase)->whereBetween('order_date', [$startDate, $endDate]);
+
+        // previous period same duration
+        $start = \Carbon\Carbon::parse($startDate);
+        $end = \Carbon\Carbon::parse($endDate);
+        $duration = $start->diffInDays($end);
+        $prevStart = $start->copy()->subDays($duration + 1)->format('Y-m-d');
+        $prevEnd = $start->copy()->subDay()->format('Y-m-d');
+        $previous = (clone $purchaseBase)->whereBetween('order_date', [$prevStart, $prevEnd]);
+
+        $networks = (clone $current)->distinct('network_id')->count('network_id');
+        $networksPrev = (clone $previous)->distinct('network_id')->count('network_id');
+        $campaigns = Campaign::where('user_id', $userId)->count();
+        $campaignsPrev = $campaigns; // no historical snapshot
+        $coupons = \App\Models\Coupon::whereHas('campaign', function($q) use ($userId) { $q->where('user_id', $userId); })->count();
+        $couponsPrev = $coupons;
+
+        $orders = (clone $current)->sum('quantity');
+        $ordersPrev = (clone $previous)->sum('quantity');
+        $revenue = (clone $current)->sum('revenue');
+        $revenuePrev = (clone $previous)->sum('revenue');
+        $sales = (clone $current)->sum('order_value');
+        $salesPrev = (clone $previous)->sum('order_value');
+
         return [
-            'total' => Campaign::where('user_id', $userId)->count(),
-            'active' => Campaign::where('user_id', $userId)->where('status', 'active')->count(),
-            'paused' => Campaign::where('user_id', $userId)->where('status', 'paused')->count(),
-            'inactive' => Campaign::where('user_id', $userId)->where('status', 'inactive')->count(),
-            'coupon_type' => Campaign::where('user_id', $userId)->where('campaign_type', 'coupon')->count(),
-            'link_type' => Campaign::where('user_id', $userId)->where('campaign_type', 'link')->count(),
+            'networks' => $networks,
+            'campaigns' => $campaigns,
+            'coupons' => $coupons,
+            'total' => $orders,
+            'total_revenue' => number_format($revenue, 2, '.', ','),
+            'total_sales' => number_format($sales, 2, '.', ','),
+            'networks_growth' => $this->calculateGrowthPercentage($networks, $networksPrev),
+            'campaigns_growth' => $this->calculateGrowthPercentage($campaigns, $campaignsPrev),
+            'coupons_growth' => $this->calculateGrowthPercentage($coupons, $couponsPrev),
+            'orders_growth' => $this->calculateGrowthPercentage($orders, $ordersPrev),
+            'revenue_growth' => $this->calculateGrowthPercentage($revenue, $revenuePrev),
+            'sales_growth' => $this->calculateGrowthPercentage($sales, $salesPrev),
         ];
     }
 
@@ -195,7 +240,7 @@ class CampaignController extends Controller
             'total_commission' => $campaign->purchases()->sum('order_value'),
             'total_order_value' => $campaign->purchases()->sum('order_value'),
             'total_orders' => $campaign->purchases()->count(),
-            'approved_purchases' => $campaign->purchases()->where('status', 'approved')->count(),
+            'approved_orders' => $campaign->purchases()->where('status', 'approved')->count(),
         ];
 
         return view('dashboard.campaigns.show', compact('campaign', 'stats'));
@@ -289,7 +334,7 @@ class CampaignController extends Controller
             'used_coupons' => $campaign->coupons()->where('times_used', '>', 0)->count(),
             'total_uses' => $campaign->coupons()->sum('times_used'),
             'total_orders' => $campaign->purchases()->count(),
-            'completed_purchases' => $campaign->purchases()->where('status', 'completed')->count(),
+            'completed_orders' => $campaign->purchases()->where('status', 'completed')->count(),
             'total_revenue' => $campaign->purchases()->where('status', 'completed')->sum('amount'),
             'average_purchase' => $campaign->purchases()->where('status', 'completed')->avg('amount'),
             'daily_stats' => $campaign->purchases()

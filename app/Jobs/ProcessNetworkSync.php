@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use Throwable;
 
 class ProcessNetworkSync implements ShouldQueue
 {
@@ -76,7 +77,7 @@ class ProcessNetworkSync implements ShouldQueue
                     'records_synced' => $result['total_records'] ?? 0,
                     'campaigns_count' => $result['campaigns_count'] ?? 0,
                     'coupons_count' => $result['coupons_count'] ?? 0,
-                    'purchases_count' => $result['purchases_count'] ?? 0,
+                    'purchases_count' => $result['orders_count'] ?? 0,
                     'metadata' => $result['metadata'] ?? null,
                 ]);
 
@@ -89,7 +90,7 @@ class ProcessNetworkSync implements ShouldQueue
                 throw new Exception($result['message'] ?? 'Unknown sync error');
             }
 
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             Log::error("Sync failed for log ID {$this->syncLogId}: " . $e->getMessage());
             
             $syncLog->markAsFailed($e->getMessage());
@@ -149,7 +150,7 @@ class ProcessNetworkSync implements ShouldQueue
     /**
      * Handle a job failure.
      */
-    public function failed(Exception $exception): void
+    public function failed(Throwable $exception): void
     {
         Log::error("Job failed permanently for SyncLog ID {$this->syncLogId}: " . $exception->getMessage());
         

@@ -30,7 +30,7 @@ class PurchaseController extends Controller
         $campaigns = Campaign::where('user_id', $user ? $user->id : 0)->get();
         $stats = $this->getPurchaseStats();
         
-        return view('dashboard.purchases.index', compact('networks', 'campaigns', 'stats'));
+        return view('dashboard.orders.index', compact('networks', 'campaigns', 'stats'));
     }
     
     /**
@@ -262,20 +262,156 @@ class PurchaseController extends Controller
     }
     
     /**
-     * Get purchase statistics
+     * Get purchase statistics with growth calculations
      */
     private function getPurchaseStats()
     {
         $user = Auth::user();
         $userId = $user ? $user->id : 0;
         
+        // Get current month date range
+        $startOfMonth = now()->startOfMonth();
+        $endOfMonth = now()->endOfMonth();
+        
+        // Get previous month date range for comparison
+        $startOfPreviousMonth = now()->subMonth()->startOfMonth();
+        $endOfPreviousMonth = now()->subMonth()->endOfMonth();
+        
+        // Get basic stats for current month
+        $currentMonthOrders = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfMonth, $endOfMonth])
+            ->sum('quantity');
+        $currentMonthRevenue = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfMonth, $endOfMonth])
+            ->sum('revenue');
+        $currentMonthSales = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfMonth, $endOfMonth])
+            ->sum('order_value');
+        
+        // Get previous month stats for comparison
+        $previousMonthOrders = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfPreviousMonth, $endOfPreviousMonth])
+            ->sum('quantity');
+        $previousMonthRevenue = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfPreviousMonth, $endOfPreviousMonth])
+            ->sum('revenue');
+        $previousMonthSales = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfPreviousMonth, $endOfPreviousMonth])
+            ->sum('order_value');
+        
+        // Get unique counts for current month
+        $currentMonthNetworks = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfMonth, $endOfMonth])
+            ->distinct('network_id')->count('network_id');
+        $currentMonthCampaigns = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfMonth, $endOfMonth])
+            ->distinct('campaign_id')->count('campaign_id');
+        $currentMonthCoupons = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfMonth, $endOfMonth])
+            ->distinct('coupon_id')->count('coupon_id');
+        
+        // Get previous month unique counts
+        $previousMonthNetworks = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfPreviousMonth, $endOfPreviousMonth])
+            ->distinct('network_id')->count('network_id');
+        $previousMonthCampaigns = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfPreviousMonth, $endOfPreviousMonth])
+            ->distinct('campaign_id')->count('campaign_id');
+        $previousMonthCoupons = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$startOfPreviousMonth, $endOfPreviousMonth])
+            ->distinct('coupon_id')->count('coupon_id');
+        
+        // Calculate growth percentages
+        $networksGrowth = $this->calculateGrowthPercentage($currentMonthNetworks, $previousMonthNetworks);
+        $campaignsGrowth = $this->calculateGrowthPercentage($currentMonthCampaigns, $previousMonthCampaigns);
+        $couponsGrowth = $this->calculateGrowthPercentage($currentMonthCoupons, $previousMonthCoupons);
+        $ordersGrowth = $this->calculateGrowthPercentage($currentMonthOrders, $previousMonthOrders);
+        $revenueGrowth = $this->calculateGrowthPercentage($currentMonthRevenue, $previousMonthRevenue);
+        $salesGrowth = $this->calculateGrowthPercentage($currentMonthSales, $previousMonthSales);
+        
+        // Get total stats (all time)
+        $totalOrders = Purchase::where('user_id', $userId)->sum('quantity');
+        $totalRevenue = Purchase::where('user_id', $userId)->sum('revenue');
+        $totalSales = Purchase::where('user_id', $userId)->sum('order_value');
+        
+        // Get unique counts (all time)
+        $networksCount = Purchase::where('user_id', $userId)->distinct('network_id')->count('network_id');
+        $campaignsCount = Purchase::where('user_id', $userId)->distinct('campaign_id')->count('campaign_id');
+        $couponsCount = Purchase::where('user_id', $userId)->distinct('coupon_id')->count('coupon_id');
+        
+        // Get chart data for current month
+        $chartData = $this->getChartData($userId, $startOfMonth, $endOfMonth);
+        
         return [
-            'total' => Purchase::where('user_id', $userId)->count(),
+            'networks' => $networksCount,
+            'campaigns' => $campaignsCount,
+            'coupons' => $couponsCount,
+            'total' => $totalOrders,
             'approved' => Purchase::where('user_id', $userId)->where('status', 'approved')->count(),
             'pending' => Purchase::where('user_id', $userId)->where('status', 'pending')->count(),
             'rejected' => Purchase::where('user_id', $userId)->where('status', 'rejected')->count(),
-            'total_revenue' => number_format(Purchase::where('user_id', $userId)->sum('revenue'), 2, '.', ','),
-            'total_commission' => number_format(Purchase::where('user_id', $userId)->sum('commission'), 2, '.', ','),
+            'total_revenue' => number_format($totalRevenue, 2, '.', ','),
+            'total_sales' => number_format($totalSales, 2, '.', ','),
+            'chart_data' => $chartData,
+            // Growth percentages
+            'networks_growth' => $networksGrowth,
+            'campaigns_growth' => $campaignsGrowth,
+            'coupons_growth' => $couponsGrowth,
+            'orders_growth' => $ordersGrowth,
+            'revenue_growth' => $revenueGrowth,
+            'sales_growth' => $salesGrowth,
+        ];
+    }
+    
+    /**
+     * Calculate growth percentage between current and previous values
+     */
+    private function calculateGrowthPercentage($current, $previous)
+    {
+        if ($previous == 0) {
+            // If previous value is 0, return 100% if current > 0, otherwise 0%
+            return $current > 0 ? 100 : 0;
+        }
+        
+        return round((($current - $previous) / $previous) * 100, 1);
+    }
+    
+    /**
+     * Get chart data for sales trend
+     */
+    private function getChartData($userId, $startDate, $endDate)
+    {
+        $dateColumn = Schema::hasColumn('purchases', 'order_date') ? 'order_date' : 'created_at';
+        
+        $dailyStats = Purchase::where('user_id', $userId)
+            ->whereBetween($dateColumn, [$startDate, $endDate])
+            ->where('status', 'approved')
+            ->selectRaw("DATE($dateColumn) as date, SUM(order_value) as sales_amount, SUM(revenue) as revenue")
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+        
+        $labels = [];
+        $salesData = [];
+        $revenueData = [];
+        
+        // Fill in missing dates with zeros
+        $currentDate = $startDate->copy();
+        while ($currentDate <= $endDate) {
+            $dateStr = $currentDate->format('Y-m-d');
+            $labels[] = $currentDate->format('M d');
+            
+            $dayStats = $dailyStats->where('date', $dateStr)->first();
+            $salesData[] = $dayStats ? (float)$dayStats->sales_amount : 0;
+            $revenueData[] = $dayStats ? (float)$dayStats->revenue : 0;
+            
+            $currentDate->addDay();
+        }
+        
+        return [
+            'labels' => $labels,
+            'sales_amount' => $salesData,
+            'revenue' => $revenueData
         ];
     }
     
@@ -289,31 +425,50 @@ class PurchaseController extends Controller
         
         // Get all stats in one query using aggregation
         $stats = $statsQuery->selectRaw('
-            COUNT(*) as total,
-            SUM(CASE WHEN status = "approved" THEN 1 ELSE 0 END) as approved,
-            SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending,
-            SUM(CASE WHEN status = "rejected" THEN 1 ELSE 0 END) as rejected,
-            SUM(CASE WHEN status = "paid" THEN 1 ELSE 0 END) as paid,
+            COALESCE(SUM(quantity), 0) as total,
+            COUNT(DISTINCT network_id) as networks,
+            COUNT(DISTINCT campaign_id) as campaigns,
+            COUNT(DISTINCT coupon_id) as coupons,
+            SUM(CASE WHEN status = "approved" THEN quantity ELSE 0 END) as approved,
+            SUM(CASE WHEN status = "pending" THEN quantity ELSE 0 END) as pending,
+            SUM(CASE WHEN status = "rejected" THEN quantity ELSE 0 END) as rejected,
+            SUM(CASE WHEN status = "paid" THEN quantity ELSE 0 END) as paid,
             COALESCE(SUM(revenue), 0) as total_revenue,
             COALESCE(SUM(commission), 0) as total_commission,
-            COALESCE(SUM(order_value), 0) as total_order_value,
-            SUM(CASE WHEN purchase_type = "coupon" THEN 1 ELSE 0 END) as coupon_count,
-            SUM(CASE WHEN purchase_type = "link" THEN 1 ELSE 0 END) as link_count,
+            COALESCE(SUM(order_value), 0) as total_sales,
+            SUM(CASE WHEN purchase_type = "coupon" THEN quantity ELSE 0 END) as coupon_count,
+            SUM(CASE WHEN purchase_type = "link" THEN quantity ELSE 0 END) as link_count,
             SUM(CASE WHEN purchase_type = "coupon" THEN COALESCE(revenue, 0) ELSE 0 END) as coupon_revenue,
             SUM(CASE WHEN purchase_type = "link" THEN COALESCE(revenue, 0) ELSE 0 END) as link_revenue,
             SUM(CASE WHEN purchase_type = "coupon" THEN COALESCE(order_value, 0) ELSE 0 END) as coupon_order_value,
             SUM(CASE WHEN purchase_type = "link" THEN COALESCE(order_value, 0) ELSE 0 END) as link_order_value
         ')->first();
         
+        // Get chart data for filtered results
+        $chartData = $this->getFilteredChartData($query);
+        
+        // Calculate growth percentages for filtered data
+        $growthStats = $this->calculateFilteredGrowthStats($query);
+        
         return [
+            'networks' => $stats->networks ?? 0,
+            'campaigns' => $stats->campaigns ?? 0,
+            'coupons' => $stats->coupons ?? 0,
             'total' => $stats->total ?? 0,
             'approved' => $stats->approved ?? 0,
             'pending' => $stats->pending ?? 0,
             'rejected' => $stats->rejected ?? 0,
             'paid' => $stats->paid ?? 0,
             'total_revenue' => number_format($stats->total_revenue ?? 0, 2, '.', ','),
-            'total_commission' => number_format($stats->total_commission ?? 0, 2, '.', ','),
-            'total_order_value' => number_format($stats->total_order_value ?? 0, 2, '.', ','),
+            'total_sales' => number_format($stats->total_sales ?? 0, 2, '.', ','),
+            'chart_data' => $chartData,
+            // Growth percentages for filtered data
+            'networks_growth' => $growthStats['networks_growth'],
+            'campaigns_growth' => $growthStats['campaigns_growth'],
+            'coupons_growth' => $growthStats['coupons_growth'],
+            'orders_growth' => $growthStats['orders_growth'],
+            'revenue_growth' => $growthStats['revenue_growth'],
+            'sales_growth' => $growthStats['sales_growth'],
             'purchase_type_breakdown' => [
                 'coupon' => [
                     'count' => $stats->coupon_count ?? 0,
@@ -328,6 +483,160 @@ class PurchaseController extends Controller
             ]
         ];
     }
+    
+    /**
+     * Calculate growth stats for filtered data
+     */
+    private function calculateFilteredGrowthStats($query)
+    {
+        $user = Auth::user();
+        $userId = $user ? $user->id : 0;
+        
+        // Get date range from the query
+        $dateRange = $this->extractDateRangeFromQuery($query);
+        $startDate = $dateRange['start'] ?? now()->startOfMonth();
+        $endDate = $dateRange['end'] ?? now()->endOfMonth();
+        
+        // Calculate previous period (same duration)
+        $duration = $startDate->diffInDays($endDate);
+        $previousStartDate = $startDate->copy()->subDays($duration + 1);
+        $previousEndDate = $startDate->copy()->subDay();
+        
+        // Get current period stats
+        $currentStats = (clone $query)->selectRaw('
+            COALESCE(SUM(quantity), 0) as total,
+            COUNT(DISTINCT network_id) as networks,
+            COUNT(DISTINCT campaign_id) as campaigns,
+            COUNT(DISTINCT coupon_id) as coupons,
+            COALESCE(SUM(revenue), 0) as total_revenue,
+            COALESCE(SUM(order_value), 0) as total_sales
+        ')->first();
+        
+        // Get previous period stats with same filters (excluding date)
+        $previousQuery = Purchase::where('user_id', $userId)
+            ->whereBetween('order_date', [$previousStartDate, $previousEndDate]);
+        
+        // Apply same filters as original query (except date)
+        $this->applyFiltersExceptDate($previousQuery, $query);
+        
+        $previousStats = $previousQuery->selectRaw('
+            COALESCE(SUM(quantity), 0) as total,
+            COUNT(DISTINCT network_id) as networks,
+            COUNT(DISTINCT campaign_id) as campaigns,
+            COUNT(DISTINCT coupon_id) as coupons,
+            COALESCE(SUM(revenue), 0) as total_revenue,
+            COALESCE(SUM(order_value), 0) as total_sales
+        ')->first();
+        
+        return [
+            'networks_growth' => $this->calculateGrowthPercentage($currentStats->networks, $previousStats->networks),
+            'campaigns_growth' => $this->calculateGrowthPercentage($currentStats->campaigns, $previousStats->campaigns),
+            'coupons_growth' => $this->calculateGrowthPercentage($currentStats->coupons, $previousStats->coupons),
+            'orders_growth' => $this->calculateGrowthPercentage($currentStats->total, $previousStats->total),
+            'revenue_growth' => $this->calculateGrowthPercentage($currentStats->total_revenue, $previousStats->total_revenue),
+            'sales_growth' => $this->calculateGrowthPercentage($currentStats->total_sales, $previousStats->total_sales),
+        ];
+    }
+    
+    /**
+     * Apply same filters as original query except date filters
+     */
+    private function applyFiltersExceptDate($query, $originalQuery)
+    {
+        $wheres = $originalQuery->getQuery()->wheres ?? [];
+        $dateColumn = Schema::hasColumn('purchases', 'order_date') ? 'order_date' : 'created_at';
+        
+        foreach ($wheres as $where) {
+            // Skip date filters
+            if (isset($where['column']) && $where['column'] === $dateColumn) {
+                continue;
+            }
+            
+            // Apply other filters
+            if (isset($where['column']) && isset($where['operator']) && isset($where['value'])) {
+                if ($where['operator'] === '=') {
+                    $query->where($where['column'], $where['value']);
+                } elseif ($where['operator'] === 'in') {
+                    $query->whereIn($where['column'], $where['value']);
+                } elseif ($where['operator'] === 'like') {
+                    $query->where($where['column'], 'like', $where['value']);
+                }
+            }
+        }
+        
+        return $query;
+    }
+    
+    /**
+     * Get chart data for filtered results
+     */
+    private function getFilteredChartData($query)
+    {
+        $dateColumn = Schema::hasColumn('purchases', 'order_date') ? 'order_date' : 'created_at';
+        
+        // Get date range from the query
+        $dateRange = $this->extractDateRangeFromQuery($query);
+        $startDate = $dateRange['start'] ?? now()->startOfMonth();
+        $endDate = $dateRange['end'] ?? now()->endOfMonth();
+        
+        $dailyStats = (clone $query)
+            ->where('status', 'approved')
+            ->selectRaw("DATE($dateColumn) as date, SUM(order_value) as sales_amount, SUM(revenue) as revenue")
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get();
+        
+        $labels = [];
+        $salesData = [];
+        $revenueData = [];
+        
+        // Fill in missing dates with zeros
+        $currentDate = $startDate->copy();
+        while ($currentDate <= $endDate) {
+            $dateStr = $currentDate->format('Y-m-d');
+            $labels[] = $currentDate->format('M d');
+            
+            $dayStats = $dailyStats->where('date', $dateStr)->first();
+            $salesData[] = $dayStats ? (float)$dayStats->sales_amount : 0;
+            $revenueData[] = $dayStats ? (float)$dayStats->revenue : 0;
+            
+            $currentDate->addDay();
+        }
+        
+        return [
+            'labels' => $labels,
+            'sales_amount' => $salesData,
+            'revenue' => $revenueData
+        ];
+    }
+    
+    /**
+     * Extract date range from query for chart data
+     */
+    private function extractDateRangeFromQuery($query)
+    {
+        $dateColumn = Schema::hasColumn('purchases', 'order_date') ? 'order_date' : 'created_at';
+        
+        // Try to get date range from query constraints
+        $wheres = $query->getQuery()->wheres ?? [];
+        $startDate = null;
+        $endDate = null;
+        
+        foreach ($wheres as $where) {
+            if (isset($where['column']) && $where['column'] === $dateColumn) {
+                if ($where['operator'] === '>=') {
+                    $startDate = \Carbon\Carbon::parse($where['value']);
+                } elseif ($where['operator'] === '<=') {
+                    $endDate = \Carbon\Carbon::parse($where['value']);
+                }
+            }
+        }
+        
+        return [
+            'start' => $startDate,
+            'end' => $endDate
+        ];
+    }
 
     /**
      * Show the form for creating a new purchase
@@ -336,7 +645,7 @@ class PurchaseController extends Controller
     {
         $users = User::all();
         $coupons = Coupon::where('is_active', true)->get();
-        return view('dashboard.purchases.create', compact('users', 'coupons'));
+        return view('dashboard.orders.create', compact('users', 'coupons'));
     }
 
     /**
@@ -373,7 +682,7 @@ class PurchaseController extends Controller
             $coupon->increment('times_used');
         }
 
-        return redirect()->route('purchases.index')->with('success', 'Purchase created successfully');
+        return redirect()->route('orders.index')->with('success', 'Purchase created successfully');
     }
 
     /**
@@ -382,7 +691,7 @@ class PurchaseController extends Controller
     public function show(Purchase $purchase)
     {
         $purchase->load(['user', 'coupon', 'campaign']);
-        return view('dashboard.purchases.show', compact('purchase'));
+        return view('dashboard.orders.show', compact('purchase'));
     }
 
     /**
@@ -392,7 +701,7 @@ class PurchaseController extends Controller
     {
         $users = User::all();
         $coupons = Coupon::where('is_active', true)->get();
-        return view('dashboard.purchases.edit', compact('purchase', 'users', 'coupons'));
+        return view('dashboard.orders.edit', compact('purchase', 'users', 'coupons'));
     }
 
     /**
@@ -417,7 +726,7 @@ class PurchaseController extends Controller
             }
         }
 
-        return redirect()->route('purchases.index')->with('success', 'Purchase updated successfully');
+        return redirect()->route('orders.index')->with('success', 'Purchase updated successfully');
     }
 
     /**
@@ -430,7 +739,7 @@ class PurchaseController extends Controller
         }
 
         $purchase->delete();
-        return redirect()->route('purchases.index')->with('success', 'Purchase deleted successfully');
+        return redirect()->route('orders.index')->with('success', 'Purchase deleted successfully');
     }
 
     /**
@@ -466,7 +775,7 @@ class PurchaseController extends Controller
      */
     public function statisticsPage()
     {
-        return view('dashboard.purchases.statistics');
+        return view('dashboard.orders.statistics');
     }
 
     /**
@@ -509,23 +818,23 @@ class PurchaseController extends Controller
         }
         
         $stats = [
-            'total_orders' => (clone $query)->count(),
-            'approved_purchases' => (clone $query)->where('status', 'approved')->count(),
-            'pending_purchases' => (clone $query)->where('status', 'pending')->count(),
-            'rejected_purchases' => (clone $query)->where('status', 'rejected')->count(),
-            'paid_purchases' => (clone $query)->where('status', 'paid')->count(),
+            'total_orders' => (clone $query)->sum('quantity'),
+            'approved_orders' => (clone $query)->where('status', 'approved')->sum('quantity'),
+            'pending_orders' => (clone $query)->where('status', 'pending')->sum('quantity'),
+            'rejected_orders' => (clone $query)->where('status', 'rejected')->sum('quantity'),
+            'paid_orders' => (clone $query)->where('status', 'paid')->sum('quantity'),
             'total_revenue' => number_format((clone $query)->where('status', 'approved')->sum('revenue'), 2, '.', ','),
             'total_commission' => number_format((clone $query)->where('status', 'approved')->sum('order_value'), 2, '.', ','),
             'total_order_value' => number_format((clone $query)->where('status', 'approved')->sum('order_value'), 2, '.', ','),
             'average_purchase' => number_format((clone $query)->where('status', 'approved')->avg('order_value') ?: 0, 2, '.', ','),
             'average_revenue' => number_format((clone $query)->where('status', 'approved')->avg('revenue') ?: 0, 2, '.', ','),
-            'daily_stats' => (clone $query)->selectRaw("DATE($dateColumn) as date, COUNT(*) as count, FORMAT(SUM(order_value), 2) as order_value, FORMAT(SUM(revenue), 2) as revenue, FORMAT(SUM(commission), 2) as commission")
+            'daily_stats' => (clone $query)->selectRaw("DATE($dateColumn) as date, SUM(quantity) as count, FORMAT(SUM(order_value), 2) as order_value, FORMAT(SUM(revenue), 2) as revenue, FORMAT(SUM(commission), 2) as commission")
                 ->where('status', 'approved')
                 ->groupBy('date')
                 ->orderBy('date', 'desc')
                 ->limit(30)
                 ->get(),
-            'monthly_stats' => (clone $query)->selectRaw("DATE_FORMAT($dateColumn, '%Y-%m') as month, COUNT(*) as count, FORMAT(SUM(order_value), 2) as order_value, FORMAT(SUM(revenue), 2) as revenue, FORMAT(SUM(commission), 2) as commission")
+            'monthly_stats' => (clone $query)->selectRaw("DATE_FORMAT($dateColumn, '%Y-%m') as month, SUM(quantity) as count, FORMAT(SUM(order_value), 2) as order_value, FORMAT(SUM(revenue), 2) as revenue, FORMAT(SUM(commission), 2) as commission")
                 ->where('status', 'approved')
                 ->groupBy('month')
                 ->orderBy('month', 'desc')
@@ -533,12 +842,12 @@ class PurchaseController extends Controller
                 ->get(),
             'purchase_type_breakdown' => [
                 'coupon' => [
-                    'count' => (clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->count(),
+                    'count' => (clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->sum('quantity'),
                     'revenue' => number_format((clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->sum('revenue'), 2, '.', ','),
                     'order_value' => number_format((clone $query)->where('purchase_type', 'coupon')->where('status', 'approved')->sum('order_value'), 2, '.', ','),
                 ],
                 'link' => [
-                    'count' => (clone $query)->where('purchase_type', 'link')->where('status', 'approved')->count(),
+                    'count' => (clone $query)->where('purchase_type', 'link')->where('status', 'approved')->sum('quantity'),
                     'revenue' => number_format((clone $query)->where('purchase_type', 'link')->where('status', 'approved')->sum('revenue'), 2, '.', ','),
                     'order_value' => number_format((clone $query)->where('purchase_type', 'link')->where('status', 'approved')->sum('order_value'), 2, '.', ','),
                 ]
@@ -562,18 +871,18 @@ class PurchaseController extends Controller
         
         // Get stats for all connected networks (including those with 0 purchases)
         $networkStats = \App\Models\Network::select('networks.id', 'networks.display_name as network_name')
-            ->selectRaw('COALESCE(COUNT(purchases.id), 0) as count')
-            ->selectRaw('COALESCE(SUM(purchases.order_value), 0) as order_value')
-            ->selectRaw('COALESCE(SUM(purchases.revenue), 0) as revenue')
-            ->selectRaw('COALESCE(SUM(purchases.commission), 0) as commission')
+            ->selectRaw('COALESCE(COUNT(orders.id), 0) as count')
+            ->selectRaw('COALESCE(SUM(orders.order_value), 0) as order_value')
+            ->selectRaw('COALESCE(SUM(orders.revenue), 0) as revenue')
+            ->selectRaw('COALESCE(SUM(orders.commission), 0) as commission')
             ->leftJoin('purchases', function($join) use ($targetUserId) {
-                $join->on('networks.id', '=', 'purchases.network_id')
-                     ->where('purchases.user_id', '=', $targetUserId)
-                     ->where('purchases.status', '=', 'approved');
+                $join->on('networks.id', '=', 'orders.network_id')
+                     ->where('orders.user_id', '=', $targetUserId)
+                     ->where('orders.status', '=', 'approved');
             })
             ->whereIn('networks.id', $connectedNetworks)
             ->groupBy('networks.id', 'networks.display_name')
-            ->orderByRaw('COALESCE(SUM(purchases.revenue), 0) DESC')
+            ->orderByRaw('COALESCE(SUM(orders.revenue), 0) DESC')
             ->get();
         
         return response()->json($networkStats);

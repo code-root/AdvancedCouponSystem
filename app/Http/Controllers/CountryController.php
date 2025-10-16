@@ -56,16 +56,16 @@ class CountryController extends Controller
             'total_orders' => $country->purchases()->count(),
             'total_revenue' => $country->purchases()->sum('revenue'),
             'total_commission' => $country->purchases()->sum('order_value'),
-            'approved_purchases' => $country->purchases()->where('status', 'approved')->count(),
+            'approved_orders' => $country->purchases()->where('status', 'approved')->count(),
         ];
 
-        $recent_purchases = $country->purchases()
+        $recent_orders = $country->purchases()
             ->with(['campaign', 'network', 'coupon'])
             ->latest('order_date')
             ->limit(10)
             ->get();
 
-        return view('dashboard.countries.show', compact('country', 'stats', 'recent_purchases'));
+        return view('dashboard.countries.show', compact('country', 'stats', 'recent_orders'));
     }
 
     /**

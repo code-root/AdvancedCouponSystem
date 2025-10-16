@@ -347,7 +347,7 @@
             };
             
             $.ajax({
-                url: '{{ route("purchases.statistics-data") }}',
+                url: '{{ route("orders.statistics-data") }}',
                 method: 'GET',
                 data: params,
                 traditional: true, // Important for array parameters
@@ -366,9 +366,9 @@
         
         function updateSummaryStats(data) {
             $('#totalPurchases').text((data.total_orders || 0).toLocaleString('en-US'));
-            $('#approvedPurchases').text((data.approved_purchases || 0).toLocaleString('en-US'));
-            $('#pendingPurchases').text((data.pending_purchases || 0).toLocaleString('en-US'));
-            $('#rejectedPurchases').text((data.rejected_purchases || 0).toLocaleString('en-US'));
+            $('#approvedPurchases').text((data.approved_orders || 0).toLocaleString('en-US'));
+            $('#pendingPurchases').text((data.pending_orders || 0).toLocaleString('en-US'));
+            $('#rejectedPurchases').text((data.rejected_orders || 0).toLocaleString('en-US'));
             $('#totalRevenue').text('$' + parseFloat(data.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             $('#totalOrderValue').text('$' + parseFloat(data.total_order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             $('#averagePurchase').text('$' + parseFloat(data.average_purchase || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
@@ -632,7 +632,7 @@
         
         function loadNetworkComparison() {
             $.ajax({
-                url: '{{ route("purchases.network-comparison") }}',
+                url: '{{ route("orders.network-comparison") }}',
                 method: 'GET',
                 success: function(data) {
                     renderNetworkSalesChart(data);
@@ -809,7 +809,7 @@
         function loadNetworks() {
             // Load connected networks for filter
             $.ajax({
-                url: '{{ route("purchases.network-comparison") }}',
+                url: '{{ route("orders.network-comparison") }}',
                 method: 'GET',
                 success: function(networks) {
                     $('#networkFilter').empty();

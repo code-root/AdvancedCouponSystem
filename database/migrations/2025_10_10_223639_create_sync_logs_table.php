@@ -24,7 +24,7 @@ return new class extends Migration
             $table->integer('records_synced')->default(0);
             $table->integer('campaigns_count')->default(0);
             $table->integer('coupons_count')->default(0);
-            $table->integer('purchases_count')->default(0);
+            $table->integer('orders_count')->default(0);
             $table->text('error_message')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();

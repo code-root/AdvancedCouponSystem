@@ -32,7 +32,7 @@
             <div class="row justify-content-center">
                 <div class="col-lg-8 text-center text-white">
                     <div class="mb-4">
-                        <img src="/images/logo.png" alt="logo" height="40" class="mb-4">
+                        <img src="/images/logo-tr.png" alt="logo" height="40" class="mb-4">
                     </div>
                     
                     <h1 class="display-3 fw-bold mb-4">AdvancedCouponSystem</h1>

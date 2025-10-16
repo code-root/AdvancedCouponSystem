@@ -74,8 +74,8 @@
     <div class="col">
         <div class="card">
             <div class="card-body">
-                <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                <h3 class="mb-0 fw-bold text-success" id="stat-commission">${{ number_format($stats['total_commission'] ?? 0, 2, '.', ',') }}</h3>
+                <h5 class="text-muted fs-13 text-uppercase">Sales Amount</h5>
+                <h3 class="mb-0 fw-bold text-warning" id="stat-commission">${{ number_format($stats['total_commission'] ?? 0, 2, '.', ',') }}</h3>
                 <p class="mb-0 text-muted mt-2">
                     <span class="text-nowrap">Your earnings</span>
                 </p>
@@ -308,7 +308,7 @@ function loadDashboard() {
                 updateStats(data.stats);
                 renderCharts(data.stats);
                 renderTables(data.stats);
-                renderRecentPurchases(data.stats.recent_purchases);
+                renderRecentPurchases(data.stats.recent_orders);
             }
         },
         error: function(error) {
@@ -327,7 +327,7 @@ function updateStats(stats) {
     
     // Growth indicators
     const revenueGrowth = stats.revenue_growth || 0;
-    const purchasesGrowth = stats.purchases_growth || 0;
+    const purchasesGrowth = stats.orders_growth || 0;
     
     updateGrowthIndicator('revenue-growth', revenueGrowth);
     updateGrowthIndicator('purchases-growth', purchasesGrowth);
@@ -588,13 +588,13 @@ function renderTopNetworks(networks) {
 function renderRecentPurchases(purchases) {
     const tbody = document.getElementById('recentPurchasesBody');
     
-    if (!purchases || purchases.length === 0) {
+    if (!purchases || orders.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No recent purchases</td></tr>';
         return;
     }
     
     let html = '';
-    purchases.forEach(p => {
+    orders.forEach(p => {
         const statusBadge = getStatusBadge(p.status);
         html += `
             <tr>

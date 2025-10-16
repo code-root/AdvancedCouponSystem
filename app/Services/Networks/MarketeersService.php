@@ -371,8 +371,8 @@ class MarketeersService extends BaseNetworkService
             
             // Extract financial data (use USD values)
             $orderValue = (float)($item['order_amount_usd'] ?? $item['order_amount'] ?? 0);
-            $commission = (float)($item['commission_amount_usd'] ?? $item['commission_amount'] ?? 0);
-            $revenue = (float)($item['revenue_usd'] ?? $item['revenue'] ?? 0);
+            $commission =(float)($item['order_amount_usd'] ?? $item['order_amount'] ?? 0);
+            $revenue = (float)($item['payout'] ?? $item['payout_usd'] ?? 0);
             
             // Extract country code
             $countryCode = $item['country']['isoalpha2'] ?? 'NA';
