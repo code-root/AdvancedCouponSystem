@@ -13,9 +13,10 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed networks first
+        // Seed networks first, then proxies
         $this->call([
             NetworksSeeder::class,
+            NetworkProxiesSeeder::class,
         ]);
 
         // Create main user

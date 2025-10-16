@@ -2,11 +2,13 @@
 
 namespace App\Services\Networks;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use DOMDocument;
 use DOMXPath;
+use GuzzleHttp\Client;
+use GuzzleHttp\Cookie\CookieJar;
+use App\Models\NetworkProxy;
 
 class PlatformanceService extends BaseNetworkService
 {
@@ -21,32 +23,79 @@ class PlatformanceService extends BaseNetworkService
         'base_url' => 'https://login.platformance.co',
         'login_url' => 'https://login.platformance.co/login.html',
         'api_url' => 'https://login.platformance.co/publisher/performance.html',
+        'timeout' => 30,
+        'retry_attempts' => 2,
+        'retry_delay' => 2,
     ];
+    
+    private $selectedProxy = null;
+    
+    /**
+     * Get random proxy for this network
+     */
+    private function getRandomProxy(): ?NetworkProxy
+    {
+        return NetworkProxy::activeForNetwork($this->networkName)
+            ->inRandomOrder()
+            ->first();
+    }
+    
+    /**
+     * Create Guzzle client with proxy support
+     */
+    private function createClient(array $config = []): Client
+    {
+        $defaultConfig = [
+            'timeout' => $this->defaultConfig['timeout'],
+            'verify' => false,
+            'allow_redirects' => false,
+        ];
+        
+        if ($this->selectedProxy) {
+            $defaultConfig['proxy'] = $this->selectedProxy->toGuzzleProxyArray();
+        }
+        
+        return new Client(array_merge($defaultConfig, $config));
+    }
 
     /**
-     * Test connection by logging in and getting cookies (with retry)
+     * Test connection with proxy support
      */
     public function testConnection(array $credentials): array
     {
-        $maxRetries = 2;
+        $maxRetries = $this->defaultConfig['retry_attempts'];
+        $retryDelay = $this->defaultConfig['retry_delay'];
         $attempt = 0;
         $lastError = '';
+        
+        // Get available proxies
+        $proxies = NetworkProxy::activeForNetwork($this->networkName)
+            ->inRandomOrder()
+            ->limit(3)
+            ->get();
         
         while ($attempt < $maxRetries) {
             $attempt++;
             
             try {
-                Log::info("Platformance: Connection attempt #{$attempt}");
+                // Select proxy for this attempt
+                $this->selectedProxy = $proxies[$attempt - 1] ?? null;
+                
+                
+                // Create shared cookie jar for the entire connection process
+                $sharedCookieJar = new CookieJar();
                 
                 // Step 1: Get fresh token and PHPSESSID
-                $loginData = $this->getLoginTokenAndSession();
+                $loginData = $this->getLoginTokenAndSession($sharedCookieJar);
                 
                 if (!$loginData['success']) {
                     $lastError = $loginData['message'];
-                    Log::warning("Platformance: Failed to get login token on attempt #{$attempt}: {$lastError}");
+                    if ($this->selectedProxy) {
+                        $this->selectedProxy->markFailure();
+                    }
                     
                     if ($attempt < $maxRetries) {
-                        sleep(2); // Wait 2 seconds before retry
+                        sleep($retryDelay);
                         continue;
                     }
                     
@@ -59,22 +108,23 @@ class PlatformanceService extends BaseNetworkService
                 $token = $loginData['token'];
                 $phpsessid = $loginData['phpsessid'];
                 
-                Log::info("Platformance: Got fresh token and session on attempt #{$attempt}");
-                
-                // Step 2: Login with credentials
+                // Step 2: Login with credentials using the same cookie jar
                 $loginResult = $this->performLogin(
                     $credentials['email'],
                     $credentials['password'],
                     $token,
-                    $phpsessid
+                    $phpsessid,
+                    $sharedCookieJar
                 );
                 
                 if (!$loginResult['success']) {
                     $lastError = $loginResult['message'];
-                    Log::warning("Platformance: Login failed on attempt #{$attempt}: {$lastError}");
+                    if ($this->selectedProxy) {
+                        $this->selectedProxy->markFailure();
+                    }
                     
                     if ($attempt < $maxRetries) {
-                        sleep(2); // Wait before retry
+                        sleep($retryDelay);
                         continue;
                     }
                     
@@ -84,10 +134,8 @@ class PlatformanceService extends BaseNetworkService
                     ];
                 }
                 
-                // Step 3: Store cookies for future use
                 $cookieString = $this->buildCookieString($loginResult['cookies']);
                 
-                Log::info("Platformance: Successfully connected on attempt #{$attempt}");
                 
                 return [
                     'success' => true,
@@ -97,15 +145,20 @@ class PlatformanceService extends BaseNetworkService
                         'phpsessid' => $phpsessid,
                         'cookies' => $cookieString,
                         'all_cookies' => $loginResult['cookies'],
+                        'cookie_jar' => $sharedCookieJar, // Store shared cookie jar for reuse
+                        'proxy' => $this->selectedProxy ? $this->selectedProxy->toGuzzleProxyArray() : null,
                     ],
                 ];
                 
             } catch (\Exception $e) {
                 $lastError = $e->getMessage();
-                Log::error("Platformance connection attempt #{$attempt} failed: {$lastError}");
+                if ($this->selectedProxy) {
+                    $this->selectedProxy->markFailure();
+                }
+                
                 
                 if ($attempt < $maxRetries) {
-                    sleep(2); // Wait before retry
+                    sleep($retryDelay);
                     continue;
                 }
                 
@@ -123,49 +176,53 @@ class PlatformanceService extends BaseNetworkService
     }
 
     /**
-     * Step 1: Get login token and PHPSESSID
+     * Get login token and PHPSESSID with proxy support
      */
-    private function getLoginTokenAndSession(): array
+    private function getLoginTokenAndSession($cookieJar = null): array
     {
         try {
-            $response = Http::withHeaders([
+            // Use provided cookie jar or create new one
+            if (!$cookieJar) {
+                $cookieJar = new CookieJar();
+            }
+            
+            $client = $this->createClient(['cookies' => $cookieJar]);
+            
+            $headers = [
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
                 'Accept-Language' => 'en-US,en;q=0.9',
                 'Connection' => 'keep-alive',
+                'Host' => 'login.platformance.co',
                 'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-                'Sec-Fetch-Dest' => 'document',
-                'Sec-Fetch-Mode' => 'navigate',
-                'Sec-Fetch-Site' => 'none',
-                'Sec-Fetch-User' => '?1',
-            ])->get($this->defaultConfig['login_url']);
+            ];
             
-            if (!$response->successful()) {
+            $response = $client->get('https://login.platformance.co/login.html', [
+                'headers' => $headers,
+            ]);
+            
+            if ($response->getStatusCode() !== 200) {
                 return [
                     'success' => false,
-                    'message' => 'Failed to load login page',
+                    'message' => 'Failed to load login page: HTTP ' . $response->getStatusCode(),
                 ];
             }
             
-            $html = $response->body();
+            $html = $response->getBody()->getContents();
             
-            // Extract token using regex
-            preg_match('/name="token" value="([^"]+)"/', $html, $tokenMatches);
-            $token = $tokenMatches[1] ?? null;
-            
-            if (!$token) {
+            if (!preg_match('/name="token" value="([^"]+)"/', $html, $tokenMatches)) {
                 return [
                     'success' => false,
-                    'message' => 'Failed to extract login token',
+                    'message' => 'Failed to extract login token from HTML',
                 ];
             }
+            
+            $token = $tokenMatches[1];
             
             // Extract PHPSESSID from cookies
-            $cookies = $response->cookies()->toArray();
             $phpsessid = null;
-            
-            foreach ($cookies as $cookie) {
-                if ($cookie['Name'] === 'PHPSESSID') {
-                    $phpsessid = $cookie['Value'];
+            foreach ($cookieJar->getIterator() as $cookie) {
+                if ($cookie->getName() === 'PHPSESSID') {
+                    $phpsessid = $cookie->getValue();
                     break;
                 }
             }
@@ -192,31 +249,20 @@ class PlatformanceService extends BaseNetworkService
     }
 
     /**
-     * Step 2: Perform login with credentials
+     * Perform login with credentials and proxy support
      */
-    private function performLogin(string $email, string $password, string $token, string $phpsessid): array
+    private function performLogin(string $email, string $password, string $token, string $phpsessid, $cookieJar = null): array
     {
         try {
-            // Encode password to base64
-            $encodedPassword = base64_encode($password);
+            // Use provided cookie jar or create new one
+            if (!$cookieJar) {
+                $cookieJar = new CookieJar();
+            }
             
-            $response = Http::withOptions([
-                'allow_redirects' => false, // Don't follow redirects
-            ])->withHeaders([
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language' => 'en-US,en;q=0.9',
-                'Cache-Control' => 'max-age=0',
-                'Connection' => 'keep-alive',
-                'Content-Type' => 'application/x-www-form-urlencoded',
-                'Cookie' => 'PHPSESSID=' . $phpsessid,
-                'Origin' => 'https://login.platformance.co',
-                'Referer' => 'https://login.platformance.co/login.html',
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-                'Sec-Fetch-Dest' => 'document',
-                'Sec-Fetch-Mode' => 'navigate',
-                'Sec-Fetch-Site' => 'same-origin',
-                'Sec-Fetch-User' => '?1',
-            ])->asForm()->post($this->defaultConfig['login_url'], [
+            $client = $this->createClient(['cookies' => $cookieJar]);
+            
+            $encodedPassword = base64_encode($password);
+            $postData = http_build_query([
                 'email' => $email,
                 'password' => $encodedPassword,
                 'is_pass_encoded' => 'true',
@@ -224,31 +270,41 @@ class PlatformanceService extends BaseNetworkService
                 'token' => $token,
             ]);
             
-            // Get all cookies from response
-            $allCookies = $response->cookies()->toArray();
+            $headers = [
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language' => 'en-US,en;q=0.9',
+                'Content-Type' => 'application/x-www-form-urlencoded',
+                'Host' => 'login.platformance.co',
+                'Origin' => 'https://login.platformance.co',
+                'Referer' => 'https://login.platformance.co/login.html',
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+            ];
             
-            // Check if login was successful (should redirect or return 200)
-            if ($response->successful() || $response->redirect()) {
-                // Merge original PHPSESSID with new cookies
-                $finalCookies = [
-                    ['Name' => 'PHPSESSID', 'Value' => $phpsessid]
-                ];
-                
-                foreach ($allCookies as $cookie) {
-                    if ($cookie['Name'] !== 'PHPSESSID') {
-                        $finalCookies[] = $cookie;
-                    }
+            $response = $client->post('https://login.platformance.co/login.html', [
+                'headers' => $headers,
+                'body' => $postData,
+            ]);
+            
+            if ($response->getStatusCode() === 200 || $response->getStatusCode() === 302) {
+                $allCookies = [];
+                foreach ($cookieJar->getIterator() as $cookie) {
+                    $allCookies[] = [
+                        'Name' => $cookie->getName(),
+                        'Value' => $cookie->getValue(),
+                        'Domain' => $cookie->getDomain(),
+                        'Path' => $cookie->getPath(),
+                    ];
                 }
                 
                 return [
                     'success' => true,
-                    'cookies' => $finalCookies,
+                    'cookies' => $allCookies,
                 ];
             }
             
             return [
                 'success' => false,
-                'message' => 'Invalid credentials or login failed',
+                'message' => 'Invalid credentials or login failed (HTTP ' . $response->getStatusCode() . ')',
             ];
             
         } catch (\Exception $e) {
@@ -278,28 +334,29 @@ class PlatformanceService extends BaseNetworkService
     }
 
     /**
-     * Sync data from Platformance
+     * Sync data from Platformance with proxy support
      */
     public function syncData(array $credentials, array $config = []): array
     {
         try {
-            $testConnection = $this->testConnection($credentials);
-            if (!$testConnection['success']) {
-                return $testConnection;
-            }
-            $cookieString = $testConnection['data']['cookies'];
-            // Extract dates from config
             $startDate = $config['date_from'] ?? now()->startOfMonth()->format('Y-m-d');
             $endDate = $config['date_to'] ?? now()->format('Y-m-d');
             
-            // Try with stored cookies first
-            // $cookieString = $credentials['cookies'] ?? '';
+            if (empty($credentials['email']) || empty($credentials['password'])) {
+                return [
+                    'success' => false,
+                    'message' => 'Email and password are required for authentication.',
+                ];
+            }
+            
+            // Try with stored cookies first if available
+            $cookieString = $credentials['cookies'] ?? '';
+            $proxyConfig = $credentials['proxy'] ?? null;
+            $cookieJar = $credentials['cookie_jar'] ?? null;
             
             if (!empty($cookieString)) {
-                // Fetch performance data
-                $performanceData = $this->getPerformanceData($cookieString, $startDate, $endDate);
+                $performanceData = $this->getPerformanceData($cookieString, $startDate, $endDate, $proxyConfig, $cookieJar);
                 
-                // If successful, return data
                 if ($performanceData['success']) {
                     $totalRecords = count($performanceData['data'] ?? []);
                     
@@ -315,26 +372,18 @@ class PlatformanceService extends BaseNetworkService
                                 'data' => $performanceData['data'],
                             ],
                         ],
+                        'new_cookies' => $cookieString,
+                        'new_proxy' => $proxyConfig,
+                        'new_cookie_jar' => $performanceData['cookie_jar'] ?? $cookieJar,
                     ];
                 }
+                
             }
             
-            // If cookies failed or not available, re-login
-            if (empty($credentials['email']) || empty($credentials['password'])) {
-                return [
-                    'success' => false,
-                    'message' => 'Session expired. Please reconnect with your credentials.',
-                ];
-            }
-            
-            // Decrypt password if encrypted
-            $password = $credentials['password'];
-  
-            
-            // Re-authenticate
+            // Re-authenticate with fresh login
             $loginResult = $this->testConnection([
                 'email' => $credentials['email'],
-                'password' => $password,
+                'password' => $credentials['password'],
             ]);
             
             if (!$loginResult['success']) {
@@ -344,11 +393,12 @@ class PlatformanceService extends BaseNetworkService
                 ];
             }
             
-            // Get new cookies
             $newCookieString = $loginResult['data']['cookies'];
+            $newProxyConfig = $loginResult['data']['proxy'] ?? null;
+            $newCookieJar = $loginResult['data']['cookie_jar'] ?? null;
             
             // Fetch performance data with new cookies
-            $performanceData = $this->getPerformanceData($newCookieString, $startDate, $endDate);
+            $performanceData = $this->getPerformanceData($newCookieString, $startDate, $endDate, $newProxyConfig, $newCookieJar);
             
             if (!$performanceData['success']) {
                 return $performanceData;
@@ -368,12 +418,12 @@ class PlatformanceService extends BaseNetworkService
                         'data' => $performanceData['data'],
                     ],
                 ],
-                'new_cookies' => $newCookieString, // Return new cookies to update
+                'new_cookies' => $newCookieString,
+                'new_proxy' => $newProxyConfig,
+                'new_cookie_jar' => $performanceData['cookie_jar'] ?? $newCookieJar,
             ];
             
         } catch (\Exception $e) {
-            Log::error('Platformance sync failed: ' . $e->getMessage());
-            
             return [
                 'success' => false,
                 'message' => 'Sync failed: ' . $e->getMessage(),
@@ -382,20 +432,56 @@ class PlatformanceService extends BaseNetworkService
     }
 
     /**
-     * Get performance data from Platformance
+     * Get performance data with proxy support
      */
-    private function getPerformanceData(string $cookieString, string $startDate, string $endDate): array
+    private function getPerformanceData(string $cookieString, string $startDate, string $endDate, $proxyConfig = null, $cookieJar = null): array
     {
-
         try {
-            // Build query params to match original code
+            // Use provided cookie jar or create new one from cookie string
+            if (!$cookieJar) {
+                $cookieJar = new CookieJar();
+                
+                // Parse cookie string and add to jar
+                $cookiePairs = explode(';', $cookieString);
+                foreach ($cookiePairs as $pair) {
+                    $pair = trim($pair);
+                    if (strpos($pair, '=') !== false) {
+                        list($name, $value) = explode('=', $pair, 2);
+                        $cookieJar->setCookie(new \GuzzleHttp\Cookie\SetCookie([
+                            'Name' => trim($name),
+                            'Value' => trim($value),
+                            'Domain' => 'login.platformance.co',
+                            'Path' => '/',
+                            'Secure' => true,
+                            'HttpOnly' => false,
+                        ]));
+                    }
+                }
+            }
             
-         $params = ['group' => 
-         ['adid', 'campaign_id', 'coupon', 'created'],'fields' =>
-           ['grossSaleAmount', 'grossPayout', 'grossConversions', 'cr', 'saleAmount', 'extConv', 'pendingTotalConversions', 'pendingPayout'],
-            'start' => $startDate, 'end' => $endDate,'report_name' => 'performance','zone' => 'Asia/Dubai'];
+            $clientConfig = [
+                'timeout' => $this->defaultConfig['timeout'],
+                'cookies' => $cookieJar,
+                'verify' => false,
+                'allow_redirects' => false,
+            ];
             
-            // Build URL with proper encoding
+            if ($proxyConfig) {
+                $clientConfig['proxy'] = $proxyConfig;
+            }
+            
+            $client = new Client($clientConfig);
+            
+            // Build query parameters
+            $params = [
+                'group' => ['adid', 'campaign_id', 'coupon', 'created'],
+                'fields' => ['grossSaleAmount', 'grossPayout', 'grossConversions', 'cr', 'saleAmount', 'extConv', 'pendingTotalConversions', 'pendingPayout'],
+                'start' => $startDate,
+                'end' => $endDate,
+                'report_name' => 'performance',
+                'zone' => 'Asia/Dubai'
+            ];
+            
             $queryString = '';
             foreach ($params as $key => $value) {
                 if (is_array($value)) {
@@ -408,47 +494,77 @@ class PlatformanceService extends BaseNetworkService
             }
             $queryString = rtrim($queryString, '&');
             
-            $url = $this->defaultConfig['api_url'] . '?' . $queryString;
+            $url = 'https://login.platformance.co/publisher/performance.html?' . $queryString;
             
-            $response = Http::withOptions([
-                'allow_redirects' => false, // Don't follow redirects
-            ])->withHeaders([
+            $headers = [
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
                 'Accept-Language' => 'en-US,en;q=0.9',
-                'Cookie' => $cookieString,
+                'Cache-Control' => 'no-cache',
+                'Connection' => 'keep-alive',
+                'Host' => 'login.platformance.co',
                 'Referer' => 'https://login.platformance.co/publisher/',
                 'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-                'Sec-Fetch-Dest' => 'document',
-                'Sec-Fetch-Mode' => 'navigate',
-                'Sec-Fetch-Site' => 'same-origin',
-            ])->get($url);
+            ];
             
-                // Check if redirected (session expired)
-            if ($response->status() === 302 || $response->redirect()) {
+            $response = $client->get($url, [
+                'headers' => $headers,
+            ]);
+            
+            // Check if redirected (session expired)
+            if ($response->getStatusCode() === 302) {
+                $location = $response->getHeader('Location')[0] ?? 'unknown';
+                
+                // Check if redirected to login page
+                if (strpos($location, 'login') !== false) {
+                    return [
+                        'success' => false,
+                        'message' => 'Session expired - redirected to login',
+                        'needs_reauth' => true,
+                    ];
+                }
+                
+                // If redirected to a different page, try to follow the redirect
+                $redirectUrl = $location;
+                if (strpos($redirectUrl, 'http') !== 0) {
+                    $redirectUrl = 'https://login.platformance.co' . $redirectUrl;
+                }
+                
+                $redirectResponse = $client->get($redirectUrl, [
+                    'headers' => $headers,
+                ]);
+                
+                if ($redirectResponse->getStatusCode() === 200) {
+                    $html = $redirectResponse->getBody()->getContents();
+                    $parsedData = $this->parsePerformanceHTML($html);
+                    
+                    return [
+                        'success' => true,
+                        'data' => $parsedData,
+                        'cookie_jar' => $cookieJar,
+                    ];
+                }
+                
                 return [
                     'success' => false,
-                    'message' => 'Session expired',
+                    'message' => 'Failed to follow redirect',
                     'needs_reauth' => true,
                 ];
             }
             
-            if (!$response->successful()) {
+            if ($response->getStatusCode() !== 200) {
                 return [
                     'success' => false,
-                    'message' => 'Failed to fetch data. Status: ' . $response->status(),
+                    'message' => 'Failed to fetch data. Status: ' . $response->getStatusCode(),
                 ];
             }
             
-            // Parse HTML response
-            $html = $response->body();
-            
+            $html = $response->getBody()->getContents();
             $parsedData = $this->parsePerformanceHTML($html);
             
             return [
                 'success' => true,
                 'data' => $parsedData,
-                'raw_html_length' => strlen($html),
-                'html_preview' => substr($html, 0, 500),
+                'cookie_jar' => $cookieJar, // Return updated cookie jar
             ];
             
         } catch (\Exception $e) {
@@ -460,7 +576,7 @@ class PlatformanceService extends BaseNetworkService
     }
 
     /**
-     * Parse HTML table to extract performance data
+     * Parse HTML table to extract performance data (optimized)
      */
     private function parsePerformanceHTML(string $html): array
     {
@@ -468,77 +584,73 @@ class PlatformanceService extends BaseNetworkService
         
         try {
             $dom = new DOMDocument();
-            @$dom->loadHTML($html);
+            libxml_use_internal_errors(true);
+            $dom->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+            libxml_clear_errors();
+            
             $xpath = new DOMXPath($dom);
-            
-            // Find all table rows in tbody
             $rows = $xpath->query('//tbody/tr');
+            $currentDate = now()->format('Y-m-d');
             
-            foreach ($rows as $rowIndex => $row) {
+            foreach ($rows as $row) {
+                if (!$row instanceof \DOMElement) {
+                    continue;
+                }
                 $columns = $row->getElementsByTagName('td');
                 
-                // Skip if not enough columns
-                if ($columns->length < 12) {
+                if ($columns->length < 14) {
                     continue;
                 }
                 
-                // Extract data matching original code structure
                 $campaign = trim($columns->item(0)->nodeValue ?? '');
                 $campaignId = trim($columns->item(1)->nodeValue ?? '');
                 $code = trim($columns->item(2)->nodeValue ?? '');
                 $lastUpdated = trim($columns->item(3)->nodeValue ?? '');
                 
-                // Extract numeric data from specific columns (matching original code)
-                $saleAmount = trim($columns->item(10)->nodeValue ?? '0');
-                $conversions = trim($columns->item(11)->nodeValue ?? '0');
-                $payout = trim($columns->item(13)->nodeValue ?? '0');
-                
-                // Skip if no campaign ID
                 if (empty($campaignId)) {
                     continue;
                 }
                 
-                // Use code from column 2, or generate from campaign
-                if (empty($code)) {
-                    $code = 'NA-' . $campaign;
-                }
+                $saleAmount = $this->convertToDecimal($columns->item(10)->nodeValue ?? '0');
+                $conversions = (int)($columns->item(11)->nodeValue ?? '0');
+                $payout = $this->convertToDecimal($columns->item(13)->nodeValue ?? '0');
+                
+                $finalCode = !empty($code) ? $code : 'NA-' . $campaign;
+                $orderDate = !empty($lastUpdated) ? $lastUpdated : $currentDate;
                 
                 $data[] = [
                     'campaign_id' => $campaignId,
                     'campaign_name' => $campaign,
-                    'code' => $code,
-                    'purchase_type' => 'coupon', // Platformance is typically coupon-based
+                    'code' => $finalCode,
+                    'purchase_type' => 'coupon',
                     'country' => 'NA',
                     'order_id' => null,
                     'network_order_id' => null,
                     'order_value' => $saleAmount,
                     'commission' => $payout,
                     'revenue' => $payout,
-                    'quantity' => $conversions > 0 ? $conversions : 1,
+                    'quantity' => max(1, $conversions),
                     'customer_type' => 'unknown',
                     'status' => 'approved',
-                    'order_date' => $lastUpdated ?: now()->format('Y-m-d'), // تاريخ آخر تحديث من HTML
-                    'purchase_date' => $lastUpdated ?: now()->format('Y-m-d'), // نفس التاريخ
+                    'order_date' => $orderDate,
+                    'purchase_date' => $orderDate,
                 ];
-
             }
-
             
         } catch (\Exception $e) {
-            Log::error('Error parsing Platformance HTML: ' . $e->getMessage());
+            // Error parsing HTML
         }
         
         return $data;
     }
 
     /**
-     * Convert currency string to decimal
+     * Convert currency string to decimal (optimized)
      */
     private function convertToDecimal(string $value): float
     {
-        // Remove currency symbols and commas
-        $cleaned = preg_replace('/[^0-9.]/', '', $value);
-        return floatval($cleaned);
+        $cleaned = preg_replace('/[^\d.]/', '', $value);
+        return (float)$cleaned;
     }
 }
 

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
+use App\Models\NetworkProxy;
 use App\Helpers\NetworkDataProcessor;
 
 class MarketeersService extends BaseNetworkService
@@ -56,16 +57,52 @@ class MarketeersService extends BaseNetworkService
         try {
             $frontend = rtrim($this->defaultConfig['frontend_url'], '/');
             
-            $client = new Client([
+            $clientConfig = [
                 'base_uri' => $frontend . '/',
                 'cookies' => true,
                 'verify' => ($this->defaultConfig['verify_ssl'] ?? true),
-                'timeout' => $this->defaultConfig['timeout'] ?? 30,
+                'timeout' => $this->defaultConfig['timeout'] ?? 15,
                 'headers' => $this->buildBaseHeaders(),
-            ]);
+            ];
+
+            // Try pick a random active proxy for this network
+            // Proxy-only mode: try up to 10 proxies, no direct fallback
+            $proxies = NetworkProxy::activeForNetwork($this->networkName)
+                ->inRandomOrder()
+                ->limit(3)
+                ->get();
+            $attempts = 0;
+            $client = null;
+            $pickedProxy = null;
+            do {
+                $attempts++;
+                $pickedProxy = $proxies[$attempts - 1] ?? null;
+                if (!$pickedProxy) {
+                    break;
+                }
+                $cfg = $clientConfig;
+                $cfg['proxy'] = $pickedProxy->toGuzzleProxyArray();
+                $client = new Client($cfg);
+                try {
+                    // lightweight probe to validate proxy
+                    $client->request('GET', 'api/auth/csrf', [ 'headers' => ['accept' => 'application/json'] ]);
+                    break; // proxy ok
+                } catch (\Exception $e) {
+                    $pickedProxy->markFailure();
+                    $client = null;
+                    continue;
+                }
+            } while ($attempts < max(1, $proxies->count()));
+            if (!$client) {
+                return [
+                    'success' => false,
+                    'message' => 'No working proxies available for marketeers. Please update proxy list.',
+                ];
+            }
             
             // Step 1: CSRF
-            $csrfResp = $client->request('GET', 'api/auth/csrf', [
+            try {
+                $csrfResp = $client->request('GET', 'api/auth/csrf', [
                 'headers' => [
                     'content-type' => 'application/json',
                     'accept' => 'application/json, text/plain, */*',
@@ -75,7 +112,31 @@ class MarketeersService extends BaseNetworkService
                     'referer' => $frontend . '/publisher/login',
                     'origin' => $frontend,
                 ],
-            ]);
+                ]);
+            } catch (\Exception $e) {
+                // If proxy failed, mark it and retry once without proxy
+                if (isset($proxy)) {
+                    $proxy->markFailure();
+                }
+                $client = new Client([
+                    'base_uri' => $frontend . '/',
+                    'cookies' => true,
+                    'verify' => ($this->defaultConfig['verify_ssl'] ?? true),
+                    'timeout' => $this->defaultConfig['timeout'] ?? 30,
+                    'headers' => $this->buildBaseHeaders(),
+                ]);
+                $csrfResp = $client->request('GET', 'api/auth/csrf', [
+                    'headers' => [
+                        'content-type' => 'application/json',
+                        'accept' => 'application/json, text/plain, */*',
+                        'sec-fetch-site' => 'same-origin',
+                        'sec-fetch-mode' => 'cors',
+                        'sec-fetch-dest' => 'empty',
+                        'referer' => $frontend . '/publisher/login',
+                        'origin' => $frontend,
+                    ],
+                ]);
+            }
             $csrfJson = json_decode((string)$csrfResp->getBody(), true);
             $csrfToken = $csrfJson['csrfToken'] ?? null;
             if (!$csrfToken) {
@@ -143,6 +204,8 @@ class MarketeersService extends BaseNetworkService
                     'access_token' => $accessToken,
                     'user_id' => $userId,
                     'publisher_id' => $publisherId,
+                    // pass proxy info to reuse in fetch
+                    'proxy' => isset($pickedProxy) ? $pickedProxy->toGuzzleProxyArray() : null,
                 ],
             ];
         } catch (\Exception $e) {
@@ -163,6 +226,7 @@ class MarketeersService extends BaseNetworkService
             // Ensure we have tokens (either from prior testConnection or do a quick auth)
             $accessToken = $credentials['access_token'] ?? null;
             $publisherId = $credentials['publisher_id'] ?? null;
+            $proxyConfig = $credentials['proxy'] ?? null;
             
             if (empty($accessToken) || empty($publisherId)) {
                 $conn = $this->testConnection($credentials);
@@ -171,6 +235,7 @@ class MarketeersService extends BaseNetworkService
                 }
                 $accessToken = $conn['data']['access_token'] ?? null;
                 $publisherId = $conn['data']['publisher_id'] ?? null;
+                $proxyConfig = $conn['data']['proxy'] ?? null;
             }
             
             // Date range: current month by default
@@ -181,6 +246,20 @@ class MarketeersService extends BaseNetworkService
             
             $allResults = [];
             $page = 1;
+            
+            // Build Guzzle client for backend fetch (reuse proxy)
+            $backendBase = rtrim($this->defaultConfig['backend_url'], '/');
+            $clientCfg = [
+                'base_uri' => $backendBase . '/',
+                'cookies' => false,
+                'verify' => ($this->defaultConfig['verify_ssl'] ?? true),
+                'timeout' => $this->defaultConfig['timeout'] ?? 30,
+                'headers' => $this->buildBaseHeaders(),
+            ];
+            if (!empty($proxyConfig)) {
+                $clientCfg['proxy'] = $proxyConfig;
+            }
+            $guzzle = new \GuzzleHttp\Client($clientCfg);
             
             while (true) {
                 $params = [
@@ -193,26 +272,30 @@ class MarketeersService extends BaseNetworkService
                     'order_date_before' => $endDate,
                 ];
                 
-                $res = $this->makeRequest('get', rtrim($this->defaultConfig['backend_url'], '/') . '/api/v1/coupon_conversion_history/', [
-                    'headers' => $this->buildAuthHeaders($accessToken),
-                    'query' => $params,
-                ]);
-                
-                if (!$res['success']) {
+                try {
+                    $resp = $guzzle->request('GET', 'api/v1/coupon_conversion_history/', [
+                        'headers' => $this->buildAuthHeaders($accessToken),
+                        'query' => $params,
+                    ]);
+                } catch (\Exception $e) {
                     return [
                         'success' => false,
-                        'message' => 'Fetch failed: HTTP ' . $res['status'],
+                        'message' => 'Fetch failed: ' . $e->getMessage(),
                     ];
                 }
-                
-                $data = is_array($res['data']) ? $res['data'] : [];
+                $status = $resp->getStatusCode();
+                if ($status < 200 || $status >= 300) {
+                    return [
+                        'success' => false,
+                        'message' => 'Fetch failed: HTTP ' . $status,
+                    ];
+                }
+                $data = json_decode((string)$resp->getBody(), true) ?? [];
                 $results = $data['results'] ?? [];
                 $allResults = array_merge($allResults, $results);
-                
                 if (empty($data['next'])) {
                     break;
                 }
-                
                 $page++;
                 usleep((int)round($this->defaultConfig['request_delay'] * 1_000_000));
             }

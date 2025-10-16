@@ -3,67 +3,98 @@
 namespace App\Services\Networks;
 
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-use Exception;
+use App\Models\NetworkProxy;
+use DOMDocument;
+use DOMXPath;
+use GuzzleHttp\Client;
+use GuzzleHttp\Cookie\CookieJar;
 
 class GlobalemediaService extends BaseNetworkService
 {
     protected string $networkName = 'globalemedia';
     
     protected array $requiredFields = [
-        'email' => [
-            'label' => 'Email',
-            'type' => 'email',
-            'required' => true,
-            'placeholder' => 'your.email@example.com',
-            'help' => 'Your Omolaat account email',
-        ],
-        'password' => [
-            'label' => 'Password',
-            'type' => 'password',
-            'required' => true,
-            'placeholder' => 'Enter your password',
-            'help' => 'Your Omolaat account password',
-        ],
+        'email',
+        'password',
     ];
     
     protected array $defaultConfig = [
-        'base_url' => 'https://my.omolaat.com',
-        'login_url' => 'https://my.omolaat.com/workflow/start',
-        'search_url' => 'https://my.omolaat.com/elasticsearch/msearch',
-        'init_url' => 'https://my.omolaat.com/api/1.1/init/data',
-        'user_hi_url' => 'https://my.omolaat.com/user/hi',
+        'base_url' => 'https://login.globalemedia.net',
+        'login_url' => 'https://login.globalemedia.net/login.html',
+        'api_url' => 'https://login.globalemedia.net/publisher/performance.html',
+        'timeout' => 30,
+        'retry_attempts' => 2,
+        'retry_delay' => 2,
     ];
-
-    // Fixed IVs used by Bubble.io (same as Python version)
-    private const FIXED_IV_Y = 'po9';
-    private const FIXED_IV_X = 'fl1';
+    
+    private $selectedProxy = null;
 
     /**
-     * Test connection by logging in and getting cookies (with retry)
+     * Get random proxy for this network
+     */
+    private function getRandomProxy(): ?NetworkProxy
+    {
+        return NetworkProxy::activeForNetwork($this->networkName)
+            ->inRandomOrder()
+            ->first();
+    }
+    
+    /**
+     * Create Guzzle client with proxy support
+     */
+    private function createClient(array $config = []): Client
+    {
+        $defaultConfig = [
+            'timeout' => $this->defaultConfig['timeout'],
+            'verify' => false,
+            'allow_redirects' => false,
+        ];
+        
+        if ($this->selectedProxy) {
+            $defaultConfig['proxy'] = $this->selectedProxy->toGuzzleProxyArray();
+        }
+        
+        return new Client(array_merge($defaultConfig, $config));
+    }
+
+    /**
+     * Test connection with proxy support
      */
     public function testConnection(array $credentials): array
     {
-        $maxRetries = 2;
+        $maxRetries = $this->defaultConfig['retry_attempts'];
+        $retryDelay = $this->defaultConfig['retry_delay'];
         $attempt = 0;
         $lastError = '';
+        
+        // Get available proxies
+        $proxies = NetworkProxy::activeForNetwork($this->networkName)
+            ->inRandomOrder()
+            ->limit(3)
+            ->get();
         
         while ($attempt < $maxRetries) {
             $attempt++;
             
             try {
-                Log::info("Globalemedia: Connection attempt #{$attempt}");
+                // Select proxy for this attempt
+                $this->selectedProxy = $proxies[$attempt - 1] ?? null;
+                
+                // Create shared cookie jar for the entire connection process
+                $sharedCookieJar = new CookieJar();
                 
                 // Step 1: Get fresh token and PHPSESSID
-                $loginData = $this->getLoginTokenAndSession();
+                $loginData = $this->getLoginTokenAndSession($sharedCookieJar);
                 
                 if (!$loginData['success']) {
                     $lastError = $loginData['message'];
-                    Log::warning("Globalemedia: Failed to get login token on attempt #{$attempt}: {$lastError}");
+                    if ($this->selectedProxy) {
+                        $this->selectedProxy->markFailure();
+                    }
                     
                     if ($attempt < $maxRetries) {
-                        sleep(2); // Wait 2 seconds before retry
+                        sleep($retryDelay);
                         continue;
                     }
                     
@@ -76,22 +107,23 @@ class GlobalemediaService extends BaseNetworkService
                 $token = $loginData['token'];
                 $phpsessid = $loginData['phpsessid'];
                 
-                Log::info("Globalemedia: Got fresh token and session on attempt #{$attempt}");
-                
-                // Step 2: Login with credentials
+                // Step 2: Login with credentials using the same cookie jar
                 $loginResult = $this->performLogin(
                     $credentials['email'],
                     $credentials['password'],
                     $token,
-                    $phpsessid
+                    $phpsessid,
+                    $sharedCookieJar
                 );
                 
                 if (!$loginResult['success']) {
                     $lastError = $loginResult['message'];
-                    Log::warning("Globalemedia: Login failed on attempt #{$attempt}: {$lastError}");
+                    if ($this->selectedProxy) {
+                        $this->selectedProxy->markFailure();
+                    }
                     
                     if ($attempt < $maxRetries) {
-                        sleep(2); // Wait before retry
+                        sleep($retryDelay);
                         continue;
                     }
                     
@@ -101,10 +133,7 @@ class GlobalemediaService extends BaseNetworkService
                     ];
                 }
                 
-                // Step 3: Store cookies for future use
                 $cookieString = $this->buildCookieString($loginResult['cookies']);
-                
-                Log::info("Globalemedia: Successfully connected on attempt #{$attempt}");
                 
                 return [
                     'success' => true,
@@ -114,15 +143,19 @@ class GlobalemediaService extends BaseNetworkService
                         'phpsessid' => $phpsessid,
                         'cookies' => $cookieString,
                         'all_cookies' => $loginResult['cookies'],
+                        'cookie_jar' => $sharedCookieJar,
+                        'proxy' => $this->selectedProxy ? $this->selectedProxy->toGuzzleProxyArray() : null,
                     ],
                 ];
                 
             } catch (\Exception $e) {
                 $lastError = $e->getMessage();
-                Log::error("Globalemedia connection attempt #{$attempt} failed: {$lastError}");
+                if ($this->selectedProxy) {
+                    $this->selectedProxy->markFailure();
+                }
                 
                 if ($attempt < $maxRetries) {
-                    sleep(2); // Wait before retry
+                    sleep($retryDelay);
                     continue;
                 }
                 
@@ -140,49 +173,52 @@ class GlobalemediaService extends BaseNetworkService
     }
 
     /**
-     * Step 1: Get login token and PHPSESSID
+     * Get login token and PHPSESSID with proxy support
      */
-    private function getLoginTokenAndSession(): array
+    private function getLoginTokenAndSession($cookieJar = null): array
     {
         try {
-            $response = Http::withHeaders([
+            // Use provided cookie jar or create new one
+            if (!$cookieJar) {
+                $cookieJar = new CookieJar();
+            }
+            
+            $client = $this->createClient(['cookies' => $cookieJar]);
+            
+            $headers = [
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
                 'Accept-Language' => 'en-US,en;q=0.9',
                 'Connection' => 'keep-alive',
                 'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-                'Sec-Fetch-Dest' => 'document',
-                'Sec-Fetch-Mode' => 'navigate',
-                'Sec-Fetch-Site' => 'none',
-                'Sec-Fetch-User' => '?1',
-            ])->get($this->defaultConfig['login_url']);
+            ];
             
-            if (!$response->successful()) {
+            $response = $client->get($this->defaultConfig['login_url'], [
+                'headers' => $headers,
+            ]);
+            
+            if ($response->getStatusCode() !== 200) {
                 return [
                     'success' => false,
-                    'message' => 'Failed to load login page',
+                    'message' => 'Failed to load login page: HTTP ' . $response->getStatusCode(),
                 ];
             }
             
-            $html = $response->body();
+            $html = $response->getBody()->getContents();
             
-            // Extract token using regex
-            preg_match('/name="token" value="([^"]+)"/', $html, $tokenMatches);
-            $token = $tokenMatches[1] ?? null;
-            
-            if (!$token) {
+            if (!preg_match('/name="token" value="([^"]+)"/', $html, $tokenMatches)) {
                 return [
                     'success' => false,
-                    'message' => 'Failed to extract login token',
+                    'message' => 'Failed to extract login token from HTML',
                 ];
             }
+            
+            $token = $tokenMatches[1];
             
             // Extract PHPSESSID from cookies
-            $cookies = $response->cookies()->toArray();
             $phpsessid = null;
-            
-            foreach ($cookies as $cookie) {
-                if ($cookie['Name'] === 'PHPSESSID') {
-                    $phpsessid = $cookie['Value'];
+            foreach ($cookieJar->getIterator() as $cookie) {
+                if ($cookie->getName() === 'PHPSESSID') {
+                    $phpsessid = $cookie->getValue();
                     break;
                 }
             }
@@ -209,31 +245,20 @@ class GlobalemediaService extends BaseNetworkService
     }
 
     /**
-     * Step 2: Perform login with credentials
+     * Perform login with credentials and proxy support
      */
-    private function performLogin(string $email, string $password, string $token, string $phpsessid): array
+    private function performLogin(string $email, string $password, string $token, string $phpsessid, $cookieJar = null): array
     {
         try {
-            // Encode password to base64
-            $encodedPassword = base64_encode($password);
+            // Use provided cookie jar or create new one
+            if (!$cookieJar) {
+                $cookieJar = new CookieJar();
+            }
             
-            $response = Http::withOptions([
-                'allow_redirects' => false, // Don't follow redirects
-            ])->withHeaders([
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language' => 'en-US,en;q=0.9',
-                'Cache-Control' => 'max-age=0',
-                'Connection' => 'keep-alive',
-                'Content-Type' => 'application/x-www-form-urlencoded',
-                'Cookie' => 'PHPSESSID=' . $phpsessid,
-                'Origin' => 'https://login.globalemedia.net',
-                'Referer' => 'https://login.globalemedia.net/login.html',
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-                'Sec-Fetch-Dest' => 'document',
-                'Sec-Fetch-Mode' => 'navigate',
-                'Sec-Fetch-Site' => 'same-origin',
-                'Sec-Fetch-User' => '?1',
-            ])->asForm()->post($this->defaultConfig['login_url'], [
+            $client = $this->createClient(['cookies' => $cookieJar]);
+            
+            $encodedPassword = base64_encode($password);
+            $postData = http_build_query([
                 'email' => $email,
                 'password' => $encodedPassword,
                 'is_pass_encoded' => 'true',
@@ -241,31 +266,41 @@ class GlobalemediaService extends BaseNetworkService
                 'token' => $token,
             ]);
             
-            // Get all cookies from response
-            $allCookies = $response->cookies()->toArray();
+            $headers = [
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language' => 'en-US,en;q=0.9',
+                'Content-Type' => 'application/x-www-form-urlencoded',
+                'Host' => 'login.globalemedia.net',
+                'Origin' => 'https://login.globalemedia.net',
+                'Referer' => 'https://login.globalemedia.net/login.html',
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+            ];
             
-            // Check if login was successful (should redirect or return 200)
-            if ($response->successful() || $response->redirect()) {
-                // Merge original PHPSESSID with new cookies
-                $finalCookies = [
-                    ['Name' => 'PHPSESSID', 'Value' => $phpsessid]
-                ];
-                
-                foreach ($allCookies as $cookie) {
-                    if ($cookie['Name'] !== 'PHPSESSID') {
-                        $finalCookies[] = $cookie;
-                    }
+            $response = $client->post($this->defaultConfig['login_url'], [
+                'headers' => $headers,
+                'body' => $postData,
+            ]);
+            
+            if ($response->getStatusCode() === 200 || $response->getStatusCode() === 302) {
+                $allCookies = [];
+                foreach ($cookieJar->getIterator() as $cookie) {
+                    $allCookies[] = [
+                        'Name' => $cookie->getName(),
+                        'Value' => $cookie->getValue(),
+                        'Domain' => $cookie->getDomain(),
+                        'Path' => $cookie->getPath(),
+                    ];
                 }
                 
                 return [
                     'success' => true,
-                    'cookies' => $finalCookies,
+                    'cookies' => $allCookies,
                 ];
             }
             
             return [
                 'success' => false,
-                'message' => 'Invalid credentials or login failed',
+                'message' => 'Invalid credentials or login failed (HTTP ' . $response->getStatusCode() . ')',
             ];
             
         } catch (\Exception $e) {
@@ -294,24 +329,31 @@ class GlobalemediaService extends BaseNetworkService
         return implode('; ', $cookieParts);
     }
 
+
     /**
-     * Sync data from Globalemedia
+     * Sync data from Globalemedia with proxy support
      */
     public function syncData(array $credentials, array $config = []): array
     {
         try {
-            // Extract dates from config
             $startDate = $config['date_from'] ?? now()->startOfMonth()->format('Y-m-d');
             $endDate = $config['date_to'] ?? now()->format('Y-m-d');
             
-            // Try with stored cookies first
+            if (empty($credentials['email']) || empty($credentials['password'])) {
+                return [
+                    'success' => false,
+                    'message' => 'Email and password are required for authentication.',
+                ];
+            }
+            
+            // Try with stored cookies first if available
             $cookieString = $credentials['cookies'] ?? '';
+            $proxyConfig = $credentials['proxy'] ?? null;
+            $cookieJar = $credentials['cookie_jar'] ?? null;
             
             if (!empty($cookieString)) {
-                // Fetch performance data
-                $performanceData = $this->getPerformanceData($cookieString, $startDate, $endDate);
+                $performanceData = $this->getPerformanceData($cookieString, $startDate, $endDate, $proxyConfig, $cookieJar);
                 
-                // If successful, return data
                 if ($performanceData['success']) {
                     $totalRecords = count($performanceData['data'] ?? []);
                     
@@ -327,25 +369,17 @@ class GlobalemediaService extends BaseNetworkService
                                 'data' => $performanceData['data'],
                             ],
                         ],
+                        'new_cookies' => $cookieString,
+                        'new_proxy' => $proxyConfig,
+                        'new_cookie_jar' => $performanceData['cookie_jar'] ?? $cookieJar,
                     ];
                 }
             }
             
-            // If cookies failed or not available, re-login
-            if (empty($credentials['email']) || empty($credentials['password'])) {
-                return [
-                    'success' => false,
-                    'message' => 'Session expired. Please reconnect with your credentials.',
-                ];
-            }
-            
-            // Decrypt password if encrypted
-            $password = $credentials['password'];
-            
-            // Re-authenticate
+            // Re-authenticate with fresh login
             $loginResult = $this->testConnection([
                 'email' => $credentials['email'],
-                'password' => $password,
+                'password' => $credentials['password'],
             ]);
             
             if (!$loginResult['success']) {
@@ -355,11 +389,12 @@ class GlobalemediaService extends BaseNetworkService
                 ];
             }
             
-            // Get new cookies
             $newCookieString = $loginResult['data']['cookies'];
+            $newProxyConfig = $loginResult['data']['proxy'] ?? null;
+            $newCookieJar = $loginResult['data']['cookie_jar'] ?? null;
             
             // Fetch performance data with new cookies
-            $performanceData = $this->getPerformanceData($newCookieString, $startDate, $endDate);
+            $performanceData = $this->getPerformanceData($newCookieString, $startDate, $endDate, $newProxyConfig, $newCookieJar);
             
             if (!$performanceData['success']) {
                 return $performanceData;
@@ -379,12 +414,12 @@ class GlobalemediaService extends BaseNetworkService
                         'data' => $performanceData['data'],
                     ],
                 ],
-                'new_cookies' => $newCookieString, // Return new cookies to update
+                'new_cookies' => $newCookieString,
+                'new_proxy' => $newProxyConfig,
+                'new_cookie_jar' => $performanceData['cookie_jar'] ?? $newCookieJar,
             ];
             
         } catch (\Exception $e) {
-            Log::error('Globalemedia sync failed: ' . $e->getMessage());
-            
             return [
                 'success' => false,
                 'message' => 'Sync failed: ' . $e->getMessage(),
@@ -393,12 +428,47 @@ class GlobalemediaService extends BaseNetworkService
     }
 
     /**
-     * Get performance data from Globalemedia
+     * Get performance data with proxy support
      */
-    private function getPerformanceData(string $cookieString, string $startDate, string $endDate): array
+    private function getPerformanceData(string $cookieString, string $startDate, string $endDate, $proxyConfig = null, $cookieJar = null): array
     {
         try {
-            // Build query params to match Platformance
+            // Use provided cookie jar or create new one from cookie string
+            if (!$cookieJar) {
+                $cookieJar = new CookieJar();
+                
+                // Parse cookie string and add to jar
+                $cookiePairs = explode(';', $cookieString);
+                foreach ($cookiePairs as $pair) {
+                    $pair = trim($pair);
+                    if (strpos($pair, '=') !== false) {
+                        list($name, $value) = explode('=', $pair, 2);
+                        $cookieJar->setCookie(new \GuzzleHttp\Cookie\SetCookie([
+                            'Name' => trim($name),
+                            'Value' => trim($value),
+                            'Domain' => 'login.globalemedia.net',
+                            'Path' => '/',
+                            'Secure' => true,
+                            'HttpOnly' => false,
+                        ]));
+                    }
+                }
+            }
+            
+            $clientConfig = [
+                'timeout' => $this->defaultConfig['timeout'],
+                'cookies' => $cookieJar,
+                'verify' => false,
+                'allow_redirects' => false,
+            ];
+            
+            if ($proxyConfig) {
+                $clientConfig['proxy'] = $proxyConfig;
+            }
+            
+            $client = new Client($clientConfig);
+            
+            // Build query parameters
             $params = [
                 'group' => ['adid', 'coupon'],
                 'fields' => [
@@ -418,7 +488,6 @@ class GlobalemediaService extends BaseNetworkService
                 'zone' => 'Asia/Dubai',
             ];
             
-            // Build URL with proper encoding
             $queryString = '';
             foreach ($params as $key => $value) {
                 if (is_array($value)) {
@@ -433,44 +502,75 @@ class GlobalemediaService extends BaseNetworkService
             
             $url = $this->defaultConfig['api_url'] . '?' . $queryString;
             
-            $response = Http::withOptions([
-                'allow_redirects' => false, // Don't follow redirects
-            ])->withHeaders([
+            $headers = [
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
                 'Accept-Language' => 'en-US,en;q=0.9',
-                'Cookie' => $cookieString,
+                'Cache-Control' => 'no-cache',
+                'Connection' => 'keep-alive',
+                'Host' => 'login.globalemedia.net',
                 'Referer' => 'https://login.globalemedia.net/publisher/',
                 'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
-                'Sec-Fetch-Dest' => 'document',
-                'Sec-Fetch-Mode' => 'navigate',
-                'Sec-Fetch-Site' => 'same-origin',
-            ])->get($url);
+            ];
+            
+            $response = $client->get($url, [
+                'headers' => $headers,
+            ]);
             
             // Check if redirected (session expired)
-            if ($response->status() === 302 || $response->redirect()) {
+            if ($response->getStatusCode() === 302) {
+                $location = $response->getHeader('Location')[0] ?? 'unknown';
+                
+                // Check if redirected to login page
+                if (strpos($location, 'login') !== false) {
+                    return [
+                        'success' => false,
+                        'message' => 'Session expired - redirected to login',
+                        'needs_reauth' => true,
+                    ];
+                }
+                
+                // If redirected to a different page, try to follow the redirect
+                $redirectUrl = $location;
+                if (strpos($redirectUrl, 'http') !== 0) {
+                    $redirectUrl = 'https://login.globalemedia.net' . $redirectUrl;
+                }
+                
+                $redirectResponse = $client->get($redirectUrl, [
+                    'headers' => $headers,
+                ]);
+                
+                if ($redirectResponse->getStatusCode() === 200) {
+                    $html = $redirectResponse->getBody()->getContents();
+                    $parsedData = $this->parsePerformanceHTML($html);
+                    
+                    return [
+                        'success' => true,
+                        'data' => $parsedData,
+                        'cookie_jar' => $cookieJar,
+                    ];
+                }
+                
                 return [
                     'success' => false,
-                    'message' => 'Session expired',
+                    'message' => 'Failed to follow redirect',
                     'needs_reauth' => true,
                 ];
             }
             
-            if (!$response->successful()) {
+            if ($response->getStatusCode() !== 200) {
                 return [
                     'success' => false,
-                    'message' => 'Failed to fetch data. Status: ' . $response->status(),
+                    'message' => 'Failed to fetch data. Status: ' . $response->getStatusCode(),
                 ];
             }
             
-            // Parse HTML response
-            $html = $response->body();
-            
+            $html = $response->getBody()->getContents();
             $parsedData = $this->parsePerformanceHTML($html);
             
             return [
                 'success' => true,
                 'data' => $parsedData,
-                'raw_html_length' => strlen($html),
+                'cookie_jar' => $cookieJar,
             ];
             
         } catch (\Exception $e) {
@@ -482,7 +582,7 @@ class GlobalemediaService extends BaseNetworkService
     }
 
     /**
-     * Parse HTML table to extract performance data
+     * Parse HTML table to extract performance data (optimized)
      */
     private function parsePerformanceHTML(string $html): array
     {
@@ -490,30 +590,31 @@ class GlobalemediaService extends BaseNetworkService
         
         try {
             $dom = new DOMDocument();
-            @$dom->loadHTML($html);
+            libxml_use_internal_errors(true);
+            $dom->loadHTML($html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+            libxml_clear_errors();
+            
             $xpath = new DOMXPath($dom);
-            
-            // Find all table rows in tbody
             $rows = $xpath->query('//tbody/tr');
+            $currentDate = now()->format('Y-m-d');
             
-            foreach ($rows as $rowIndex => $row) {
+            foreach ($rows as $row) {
+                if (!$row instanceof \DOMElement) {
+                    continue;
+                }
                 $columns = $row->getElementsByTagName('td');
                 
-                // Skip if not enough columns
                 if ($columns->length < 13) {
                     continue;
                 }
                 
-                // Extract data matching Globalemedia structure
-                // Based on the Logi5/Globalemedia controller code
                 $campaign = trim($columns->item(0)->nodeValue ?? '');
                 $couponCode = trim($columns->item(1)->nodeValue ?? '');
                 $clicks = trim($columns->item(2)->nodeValue ?? '0');
                 $conversions = trim($columns->item(3)->nodeValue ?? '0');
                 $payout = trim($columns->item(4)->nodeValue ?? '0');
-                $saleAmount = trim($columns->item(12)->nodeValue ?? '0'); // Column 12 for sale amount
+                $saleAmount = trim($columns->item(12)->nodeValue ?? '0');
                 
-                // Skip if no campaign name or coupon code
                 if (empty($campaign) || empty($couponCode)) {
                     continue;
                 }
@@ -522,7 +623,7 @@ class GlobalemediaService extends BaseNetworkService
                     'campaign_id' => $campaign,
                     'campaign_name' => $campaign,
                     'code' => $couponCode,
-                    'purchase_type' => 'coupon', // Globalemedia is typically coupon-based
+                    'purchase_type' => 'coupon',
                     'country' => 'NA',
                     'order_id' => null,
                     'network_order_id' => null,
@@ -533,44 +634,24 @@ class GlobalemediaService extends BaseNetworkService
                     'quantity' => intval($conversions) > 0 ? intval($conversions) : 1,
                     'customer_type' => 'unknown',
                     'status' => 'approved',
-                    'order_date' => $this->config['date_from'] ?? now()->format('Y-m-d'), // تاريخ الطلب من التكوين
-                    'purchase_date' => $this->config['date_from'] ?? now()->format('Y-m-d'), // نفس التاريخ
+                    'order_date' => $currentDate,
+                    'purchase_date' => $currentDate,
                 ];
             }
             
         } catch (\Exception $e) {
-            Log::error('Error parsing Globalemedia HTML: ' . $e->getMessage());
+            // Error parsing HTML
         }
         
         return $data;
     }
 
     /**
-     * Convert currency string to decimal
+     * Convert currency string to decimal (optimized)
      */
     private function convertToDecimal(string $value): float
     {
-        // Remove currency symbols and commas
-        $cleaned = preg_replace('/[^0-9.\-]/', '', $value);
-        return floatval($cleaned);
-    }
-
-    /**
-     * Validate connection (placeholder - uses testConnection)
-     */
-    public function validateConnection($connection): bool
-    {
-        try {
-            if (!isset($connection->credentials['cookies'])) {
-                return false;
-            }
-
-            // Simple validation - check if cookies exist
-            return !empty($connection->credentials['cookies']);
-
-        } catch (\Exception $e) {
-            Log::error("Globalemedia connection validation failed: {$e->getMessage()}");
-            return false;
-        }
+        $cleaned = preg_replace('/[^\d.]/', '', $value);
+        return (float)$cleaned;
     }
 }
