@@ -309,7 +309,7 @@ class PlatformanceServiceTest extends TestCase
                     echo "  Campaign ID: " . ($coupon['campaign_id'] ?? 'N/A') . "\n";
                     echo "  Code: " . ($coupon['code'] ?? 'N/A') . "\n";
                     echo "  Revenue: $" . ($coupon['revenue'] ?? 0) . "\n";
-                    echo "  Order Value: $" . ($coupon['order_value'] ?? 0) . "\n";
+                    echo "  Order Value: $" . ($coupon['sales_amount'] ?? 0) . "\n";
                     echo "  Quantity: " . ($coupon['quantity'] ?? 0) . "\n";
                     echo "  Date: " . ($coupon['order_date'] ?? 'N/A') . "\n";
                 }

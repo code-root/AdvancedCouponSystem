@@ -28,6 +28,14 @@
                         <!-- Select Networks -->
                         <div class="mb-3">
                             <label class="form-label">Select Networks <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-2 mb-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllNetworks()">
+                                    <i class="ti ti-check me-1"></i>Select All
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAllNetworks()">
+                                    <i class="ti ti-x me-1"></i>Clear All
+                                </button>
+                            </div>
                             <select class="form-select" name="network_ids[]" id="networkSelect" multiple="multiple" data-toggle="select2" required>
                                 @foreach($networks as $network)
                                     <option value="{{ $network->id }}">
@@ -35,7 +43,10 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <small class="text-muted">Select one or more networks to sync data from</small>
+                            <small class="text-muted">
+                                <i class="ti ti-info-circle me-1"></i>
+                                Select one or more networks to sync data from. You can choose all networks or select specific ones.
+                            </small>
                         </div>
 
                         <!-- Sync Type -->
@@ -128,21 +139,33 @@
             <!-- Quick Actions -->
             <div class="card">
                 <div class="card-header">
-                    <h4 class="card-title mb-0">Quick Presets</h4>
+                    <h4 class="card-title mb-0">
+                        <i class="ti ti-zap me-2"></i>Quick Presets
+                    </h4>
                 </div>
                 <div class="card-body">
+                    <div class="alert alert-light mb-3">
+                        <small class="text-muted">
+                            <i class="ti ti-info-circle me-1"></i>
+                            These presets will select <strong>all networks</strong> and set the date range automatically.
+                        </small>
+                    </div>
                     <div class="d-grid gap-2">
                         <button type="button" class="btn btn-outline-primary" onclick="applyPreset('today')">
                             <i class="ti ti-calendar-today me-1"></i>Sync Today's Data
+                            <small class="d-block text-muted">All networks • Today only</small>
                         </button>
                         <button type="button" class="btn btn-outline-primary" onclick="applyPreset('yesterday')">
                             <i class="ti ti-calendar-minus me-1"></i>Sync Yesterday's Data
+                            <small class="d-block text-muted">All networks • Yesterday only</small>
                         </button>
                         <button type="button" class="btn btn-outline-primary" onclick="applyPreset('current_month')">
                             <i class="ti ti-calendar-month me-1"></i>Sync Current Month
+                            <small class="d-block text-muted">All networks • 1st to today</small>
                         </button>
                         <button type="button" class="btn btn-outline-primary" onclick="applyPreset('previous_month')">
                             <i class="ti ti-calendar-event me-1"></i>Sync Previous Month
+                            <small class="d-block text-muted">All networks • Full previous month</small>
                         </button>
                     </div>
                 </div>
@@ -151,15 +174,19 @@
             <!-- Info Card -->
             <div class="card">
                 <div class="card-header">
-                    <h4 class="card-title mb-0">Important Notes</h4>
+                    <h4 class="card-title mb-0">
+                        <i class="ti ti-info-circle me-2"></i>Important Notes
+                    </h4>
                 </div>
                 <div class="card-body">
                     <ul class="mb-0 ps-3">
-                        <li class="mb-2"><small>Quick Sync runs immediately in the background</small></li>
-                        <li class="mb-2"><small>Multiple networks can be synced simultaneously</small></li>
-                        <li class="mb-2"><small>Progress can be tracked in real-time</small></li>
-                        <li class="mb-2"><small>Results are saved in Sync Logs</small></li>
-                        <li class="mb-0"><small>For recurring syncs, create a Schedule instead</small></li>
+                        <li class="mb-2"><small><strong>Network Selection:</strong> Choose all networks or select specific ones</small></li>
+                        <li class="mb-2"><small><strong>Quick Presets:</strong> Automatically select all networks with preset date ranges</small></li>
+                        <li class="mb-2"><small><strong>Background Processing:</strong> Sync runs immediately in the background</small></li>
+                        <li class="mb-2"><small><strong>Multiple Networks:</strong> Can be synced simultaneously</small></li>
+                        <li class="mb-2"><small><strong>Real-time Progress:</strong> Track progress in real-time</small></li>
+                        <li class="mb-2"><small><strong>Sync Logs:</strong> Results are saved in Sync Logs</small></li>
+                        <li class="mb-0"><small><strong>Recurring Syncs:</strong> Create a Schedule for automatic syncs</small></li>
                     </ul>
                 </div>
             </div>
@@ -248,6 +275,19 @@ window.addEventListener('load', function() {
     });
 });
 
+function selectAllNetworks() {
+    const networkSelect = document.getElementById('networkSelect');
+    const allOptions = Array.from(networkSelect.options).map(opt => opt.value);
+    $(networkSelect).val(allOptions).trigger('change');
+    showToast('info', `Selected all ${allOptions.length} networks`);
+}
+
+function clearAllNetworks() {
+    const networkSelect = document.getElementById('networkSelect');
+    $(networkSelect).val(null).trigger('change');
+    showToast('info', 'Cleared all network selections');
+}
+
 function applyPreset(preset) {
     const dateRangeType = document.getElementById('dateRangeType');
     const networkSelect = document.getElementById('networkSelect');
@@ -258,8 +298,7 @@ function applyPreset(preset) {
     dateRangeType.dispatchEvent(new Event('change'));
     
     // Select all networks
-    const allOptions = Array.from(networkSelect.options).map(opt => opt.value);
-    $(networkSelect).val(allOptions).trigger('change');
+    selectAllNetworks();
     
     // Set sync type to all
     syncType.value = 'all';
@@ -275,8 +314,13 @@ function startQuickSync() {
     // Validate
     const networkIds = formData.getAll('network_ids[]');
     if (networkIds.length === 0) {
-        showToast('error', 'Please select at least one network');
+        showToast('error', 'Please select at least one network to sync');
         return;
+    }
+    
+    // Show confirmation for multiple networks
+    if (networkIds.length > 1) {
+        showToast('info', `Starting sync for ${networkIds.length} networks...`);
     }
     
     // Calculate date range
@@ -434,7 +478,7 @@ function showResults(syncData) {
         
         <h5 class="mb-3">Sync Details:</h5>
         <ul class="mb-3">
-            <li><strong>Networks:</strong> ${syncData.network_ids.length} network(s)</li>
+            <li><strong>Networks:</strong> ${syncData.network_ids.length} network(s) selected</li>
             <li><strong>Type:</strong> ${syncData.sync_type}</li>
             <li><strong>Date Range:</strong> ${syncData.date_from} to ${syncData.date_to}</li>
         </ul>

@@ -81,6 +81,8 @@ class NewLoginNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
+        ->mailer('sendmail')
+        ->from('no-reply@trakifi.com', 'trakifi')
             ->subject('New Login Detected')
             ->greeting('Hello ' . $notifiable->name . '!')
             ->line('A new login was detected on your account.')

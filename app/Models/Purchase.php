@@ -22,8 +22,7 @@ class Purchase extends Model
         'user_id',
         'order_id',
         'network_order_id',
-        'order_value',
-        'commission',
+        'sales_amount',
         'revenue',
         'quantity',
         'currency',
@@ -45,8 +44,7 @@ class Purchase extends Model
      */
     protected $casts = [
         'metadata' => 'array',
-        'order_value' => 'decimal:2',
-        'commission' => 'decimal:2',
+        'sales_amount' => 'decimal:2',
         'revenue' => 'decimal:2',
         'quantity' => 'integer',
         'order_date' => 'date',
@@ -137,27 +135,27 @@ class Purchase extends Model
     }
 
     /**
-     * Get commission rate as percentage.
+     * Get revenue rate as percentage.
      */
-    public function getCommissionRate(): float
+    public function getrevenueRate(): float
     {
-        if ($this->order_value == 0) {
+        if ($this->sales_amount == 0) {
             return 0;
         }
 
-        return ($this->commission / $this->order_value) * 100;
+        return ($this->revenue / $this->sales_amount) * 100;
     }
 
     /**
      * Get revenue rate as percentage.
      */
-    public function getRevenueRate(): float
+    public function getSalesAmountPercentage(): float
     {
-        if ($this->order_value == 0) {
+        if ($this->sales_amount == 0) {
             return 0;
         }
 
-        return ($this->revenue / $this->order_value) * 100;
+        return ($this->revenue / $this->sales_amount) * 100;
     }
 
     /**

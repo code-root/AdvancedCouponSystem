@@ -58,17 +58,17 @@ class OptimizeController extends Controller
             
             $data = [
                 "measures" => [
-                    "rejectedCommission",
-                    "pendingCommission", 
-                    "validatedCommission",
+                    "rejectedrevenue",
+                    "pendingrevenue", 
+                    "validatedrevenue",
                     "clicks",
                     "pendingConversions",
                     "validatedConversions",
                     "rejectedConversions",
-                    "clickCommission",
+                    "clickrevenue",
                     "averageOrderValue",
                     "originalOrderValue",
-                    "totalCommission",
+                    "totalrevenue",
                     "uniqueVisitors"
                 ],
                 "dimensions" => [
@@ -177,10 +177,10 @@ class OptimizeController extends Controller
                         ? $item['countryCode'] 
                         : 'US';
                     
-                    $rejectedCommission = $item["rejectedCommission"] ?? 0;
-                    $pendingCommission = $item["pendingCommission"] ?? 0;
-                    $validatedCommission = $item["validatedCommission"] ?? 0;
-                    $revenue = $rejectedCommission + $pendingCommission + $validatedCommission;
+                    $rejectedrevenue = $item["rejectedrevenue"] ?? 0;
+                    $pendingrevenue = $item["pendingrevenue"] ?? 0;
+                    $validatedrevenue = $item["validatedrevenue"] ?? 0;
+                    $revenue = $rejectedrevenue + $pendingrevenue + $validatedrevenue;
                     
                     // Get or create country
                     $country = Country::where('code', $countryCode)->first();
@@ -220,8 +220,8 @@ class OptimizeController extends Controller
                         'campaign_id' => $campaign->id,
                         'network_id' => $this->network->id,
                         'user_id' => $user->id,
-                        'order_value' => $item["originalOrderValue"] ?? 0,
-                        'commission' => $revenue,
+                        'sales_amount' => $item["originalOrderValue"] ?? 0,
+                        'revenue' => $revenue,
                         'revenue' => $revenue,
                         'quantity' => $countOrders,
                         'currency' => 'USD',
@@ -235,7 +235,7 @@ class OptimizeController extends Controller
                             'validated_conversions' => $item["validatedConversions"] ?? 0,
                             'pending_conversions' => $item["pendingConversions"] ?? 0,
                             'rejected_conversions' => $item["rejectedConversions"] ?? 0,
-                            'average_order_value' => $item["averageOrderValue"] ?? 0,
+                            'average_sales_amount' => $item["averageOrderValue"] ?? 0,
                             'unique_visitors' => $item["uniqueVisitors"] ?? 0,
                         ]
                     ]);

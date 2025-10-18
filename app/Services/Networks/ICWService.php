@@ -82,7 +82,7 @@ class ICWService extends BaseNetworkService
                         'purchase_type' => 'coupon', // ICW is typically coupon-based
                         'country' => 'N/A',
                         'sale_amount' => $saleAmount,
-                        'commission' => $revenue,
+                        'revenue' => $revenue,
                         'clicks' => 0,
                         'conversions' => $orders,
                         'customer_type' => 'N/A',
@@ -125,7 +125,7 @@ class ICWService extends BaseNetworkService
             'coupon_code' => $item['coupon_code'] ?? 'NA',
             'country' => $item['country'] ?? 'N/A',
             'sale_amount' => $item['sale_amount'] ?? 0,
-            'commission' => $item['commission'] ?? 0,
+            'revenue' => $item['revenue'] ?? 0,
             'clicks' => $item['clicks'] ?? 0,
             'conversions' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'N/A',

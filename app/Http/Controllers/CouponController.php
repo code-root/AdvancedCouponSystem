@@ -177,8 +177,8 @@ class CouponController extends Controller
         $ordersPrev = (clone $previous)->sum('quantity');
         $revenue = (clone $current)->sum('revenue');
         $revenuePrev = (clone $previous)->sum('revenue');
-        $sales = (clone $current)->sum('order_value');
-        $salesPrev = (clone $previous)->sum('order_value');
+        $sales = (clone $current)->sum('sales_amount');
+        $salesPrev = (clone $previous)->sum('sales_amount');
 
         return [
             'networks' => $networks,
@@ -240,8 +240,8 @@ class CouponController extends Controller
             'total_uses' => $coupon->used_count ?? 0,
             'remaining_uses' => $coupon->usage_limit ? ($coupon->usage_limit - $coupon->used_count) : null,
             'total_revenue' => $coupon->purchases()->sum('revenue'),
-            'total_commission' => $coupon->purchases()->sum('order_value'),
-            'total_order_value' => $coupon->purchases()->sum('order_value'),
+            'total_revenue' => $coupon->purchases()->sum('sales_amount'),
+            'total_sales_amount' => $coupon->purchases()->sum('sales_amount'),
             'total_orders' => $coupon->purchases()->count(),
             'approved_orders' => $coupon->purchases()->where('status', 'approved')->count(),
             'unique_users' => $coupon->purchases()->distinct('user_id')->count('user_id'),

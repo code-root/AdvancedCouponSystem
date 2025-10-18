@@ -98,8 +98,8 @@
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                    <h3 class="mb-0 fw-bold text-info" id="stat-commission">$0</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">revenue</h5>
+                    <h3 class="mb-0 fw-bold text-info" id="stat-revenue">$0</h3>
                 </div>
             </div>
         </div>
@@ -197,7 +197,7 @@ function updateStats(stats) {
     document.getElementById('stat-pending').textContent = stats.pending || 0;
     document.getElementById('stat-rejected').textContent = stats.rejected || 0;
     document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 
 function renderCharts(stats) {

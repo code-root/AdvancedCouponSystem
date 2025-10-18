@@ -65,10 +65,10 @@ class Country extends Model
     }
 
     /**
-     * Get total commission for the country.
+     * Get total revenue for the country.
      */
-    public function getTotalCommission(): float
+    public function getTotalSalesAmount(): float
     {
-        return $this->purchases()->sum('order_value');
+        return $this->purchases()->sum('sales_amount');
     }
 }

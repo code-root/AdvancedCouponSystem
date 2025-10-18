@@ -78,7 +78,7 @@ class LinkArabyService extends BaseNetworkService
                     'coupon_code' => '', // No coupon code for link-based campaigns
                     'country' => 'N/A',
                     'sale_amount' => $saleAmount,
-                    'commission' => $revenue,
+                    'revenue' => $revenue,
                     'clicks' => 1,
                     'conversions' => 1,
                     'customer_type' => $customerType,
@@ -114,7 +114,7 @@ class LinkArabyService extends BaseNetworkService
             'purchase_type' => 'coupon', // LinkAraby is typically coupon-based
             'country' => $item['country'] ?? 'N/A',
             'sale_amount' => $item['sale_amount'] ?? 0,
-            'commission' => $item['commission'] ?? 0,
+            'revenue' => $item['revenue'] ?? 0,
             'clicks' => $item['clicks'] ?? 1,
             'conversions' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'N/A',

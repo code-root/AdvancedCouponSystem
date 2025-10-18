@@ -152,11 +152,11 @@ class Coupon extends Model
     }
 
     /**
-     * Get total commission for the coupon.
+     * Get total revenue for the coupon.
      */
-    public function getTotalCommission(): float
+    public function getTotalSalesAmount(): float
     {
-        return $this->purchases()->sum('order_value');
+        return $this->purchases()->sum('sales_amount');
     }
 }
 

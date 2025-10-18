@@ -370,7 +370,7 @@
             $('#pendingPurchases').text((data.pending_orders || 0).toLocaleString('en-US'));
             $('#rejectedPurchases').text((data.rejected_orders || 0).toLocaleString('en-US'));
             $('#totalRevenue').text('$' + parseFloat(data.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-            $('#totalOrderValue').text('$' + parseFloat(data.total_order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            $('#totalOrderValue').text('$' + parseFloat(data.total_sales_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             $('#averagePurchase').text('$' + parseFloat(data.average_purchase || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             $('#averageRevenue').text('$' + parseFloat(data.average_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             
@@ -378,11 +378,11 @@
             if (data.purchase_type_breakdown) {
                 $('#couponPurchases').text((data.purchase_type_breakdown.coupon?.count || 0).toLocaleString('en-US'));
                 $('#couponRevenue').text('$' + parseFloat(data.purchase_type_breakdown.coupon?.revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                $('#couponOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.coupon?.order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('#couponOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.coupon?.sales_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
                 
                 $('#directLinkPurchases').text((data.purchase_type_breakdown.link?.count || 0).toLocaleString('en-US'));
                 $('#directLinkRevenue').text('$' + parseFloat(data.purchase_type_breakdown.link?.revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-                $('#directLinkOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.link?.order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+                $('#directLinkOrderValue').text('$' + parseFloat(data.purchase_type_breakdown.link?.sales_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
             }
         }
         
@@ -402,7 +402,7 @@
             
             const dates = dailyData.map(d => d.date);
             const revenues = dailyData.map(d => parseFloat(d.revenue || 0));
-            const orderValues = dailyData.map(d => parseFloat(d.order_value || 0));
+            const orderValues = dailyData.map(d => parseFloat(d.sales_amount || 0));
             const counts = dailyData.map(d => parseInt(d.count || 0));
             
             const options = {
@@ -493,8 +493,8 @@
             
             const months = monthlyData.map(d => d.month);
             const revenues = monthlyData.map(d => parseFloat(d.revenue || 0));
-            const orderValues = monthlyData.map(d => parseFloat(d.order_value || 0));
-            const commissions = monthlyData.map(d => parseFloat(d.commission || 0));
+            const orderValues = monthlyData.map(d => parseFloat(d.sales_amount || 0));
+            const revenues = monthlyData.map(d => parseFloat(d.revenue || 0));
             
             const options = {
                 series: [{
@@ -504,8 +504,8 @@
                     name: 'Order Value',
                     data: orderValues
                 }, {
-                    name: 'Commission',
-                    data: commissions
+                    name: 'revenue',
+                    data: revenues
                 }],
                 chart: {
                     type: 'bar',
@@ -769,7 +769,7 @@
             }
             
             // Filter out networks with 0 order value for cleaner chart
-            const dataWithOrders = data.filter(n => parseFloat(n.order_value) > 0);
+            const dataWithOrders = data.filter(n => parseFloat(n.sales_amount) > 0);
             
             if (dataWithOrders.length === 0) {
                 container.innerHTML = '<p class="text-center text-muted py-5">No order data available</p>';
@@ -777,7 +777,7 @@
             }
             
             const options = {
-                series: dataWithOrders.map(n => parseFloat(n.order_value)),
+                series: dataWithOrders.map(n => parseFloat(n.sales_amount)),
                 chart: {
                     type: 'donut',
                     height: 300

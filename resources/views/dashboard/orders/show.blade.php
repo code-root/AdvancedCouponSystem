@@ -119,15 +119,15 @@
                             <label class="text-muted small">Order Value</label>
                             <p class="mb-0">
                                 <strong class="text-primary fs-5">
-                                    {{ $purchase->currency ?? 'USD' }} {{ number_format($purchase->order_value ?? 0, 2) }}
+                                    {{ $purchase->currency ?? 'USD' }} {{ number_format($purchase->sales_amount ?? 0, 2) }}
                                 </strong>
                             </p>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label class="text-muted small">Commission</label>
+                            <label class="text-muted small">revenue</label>
                             <p class="mb-0">
                                 <strong class="text-success fs-5">
-                                    {{ $purchase->currency ?? 'USD' }} {{ number_format($purchase->commission ?? 0, 2) }}
+                                    {{ $purchase->currency ?? 'USD' }} {{ number_format($purchase->revenue ?? 0, 2) }}
                                 </strong>
                             </p>
                         </div>
@@ -196,10 +196,10 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3 pb-3 border-bottom">
-                        <small class="text-muted">Commission Rate</small>
+                        <small class="text-muted">revenue Rate</small>
                         <h5 class="mb-0 text-success">
-                            @if($purchase->order_value && $purchase->order_value > 0)
-                                {{ number_format(($purchase->commission / $purchase->order_value) * 100, 2) }}%
+                            @if($purchase->sales_amount && $purchase->sales_amount > 0)
+                                {{ number_format(($purchase->revenue / $purchase->sales_amount) * 100, 2) }}%
                             @else
                                 N/A
                             @endif

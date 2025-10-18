@@ -14,7 +14,7 @@ return [
     |
     */
 
-    'default' => env('MAIL_MAILER', 'log'),
+    'default' => env('MAIL_MAILER', 'smtp'),
 
     /*
     |--------------------------------------------------------------------------
@@ -40,6 +40,7 @@ return [
         'smtp' => [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),
+            'encryption' => env('MAIL_ENCRYPTION'),
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),
@@ -47,6 +48,70 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => env('MAIL_TIMEOUT', 10),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            'stream' => [
+                'ssl' => [
+                    'verify_peer' => env('MAIL_VERIFY_PEER', true),
+                    'verify_peer_name' => env('MAIL_VERIFY_PEER', true),
+                    'allow_self_signed' => env('MAIL_ALLOW_SELF_SIGNED', false),
+                ],
+            ],
+        ],
+
+        // Gmail over SMTP (for Google Workspace/Gmail App Password)
+        'gmail' => [
+            'transport' => 'smtp',
+            'host' => env('GMAIL_HOST', 'smtp.gmail.com'),
+            'port' => env('GMAIL_PORT', 587),
+            'encryption' => env('GMAIL_ENCRYPTION', 'tls'),
+            'username' => env('GMAIL_USERNAME', env('MAIL_USERNAME')),
+            'password' => env('GMAIL_APP_PASSWORD', env('MAIL_PASSWORD')),
+            'timeout' => env('MAIL_TIMEOUT', 10),
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            'stream' => [
+                'ssl' => [
+                    'verify_peer' => env('MAIL_VERIFY_PEER', true),
+                    'verify_peer_name' => env('MAIL_VERIFY_PEER', true),
+                    'allow_self_signed' => env('MAIL_ALLOW_SELF_SIGNED', false),
+                ],
+            ],
+        ],
+
+        // SendGrid SMTP
+        'sendgrid' => [
+            'transport' => 'smtp',
+            'host' => env('SENDGRID_HOST', 'smtp.sendgrid.net'),
+            'port' => env('SENDGRID_PORT', 587),
+            'encryption' => env('SENDGRID_ENCRYPTION', 'tls'),
+            'username' => env('SENDGRID_USERNAME', 'apikey'),
+            'password' => env('SENDGRID_API_KEY', env('MAIL_PASSWORD')),
+            'timeout' => env('MAIL_TIMEOUT', 10),
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            'stream' => [
+                'ssl' => [
+                    'verify_peer' => env('MAIL_VERIFY_PEER', true),
+                    'verify_peer_name' => env('MAIL_VERIFY_PEER', true),
+                    'allow_self_signed' => env('MAIL_ALLOW_SELF_SIGNED', false),
+                ],
+            ],
+        ],
+
+        // Mailgun SMTP
+        'mailgun' => [
+            'transport' => 'smtp',
+            'host' => env('MAILGUN_HOST', 'smtp.mailgun.org'),
+            'port' => env('MAILGUN_PORT', 587),
+            'encryption' => env('MAILGUN_ENCRYPTION', 'tls'),
+            'username' => env('MAILGUN_USERNAME'),
+            'password' => env('MAILGUN_PASSWORD'),
+            'timeout' => env('MAIL_TIMEOUT', 10),
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+            'stream' => [
+                'ssl' => [
+                    'verify_peer' => env('MAIL_VERIFY_PEER', true),
+                    'verify_peer_name' => env('MAIL_VERIFY_PEER', true),
+                    'allow_self_signed' => env('MAIL_ALLOW_SELF_SIGNED', false),
+                ],
+            ],
         ],
 
         'ses' => [
@@ -111,8 +176,8 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', 'Example'),
+        'address' => env('MAIL_FROM_ADDRESS', 'hello@trakifi.com'),
+        'name' => env('MAIL_FROM_NAME', 'trakifi'),
     ],
 
 ];

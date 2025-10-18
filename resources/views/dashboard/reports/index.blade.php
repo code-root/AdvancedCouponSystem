@@ -155,8 +155,8 @@
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                    <h3 class="mb-0 fw-bold text-success" id="stat-commission">${{ number_format($stats['total_commission'] ?? 0, 2, '.', ',') }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">revenue</h5>
+                    <h3 class="mb-0 fw-bold text-success" id="stat-revenue">${{ number_format($stats['total_revenue'] ?? 0, 2, '.', ',') }}</h3>
                 </div>
             </div>
         </div>
@@ -357,7 +357,7 @@ function loadReports() {
 // Update statistics
 function updateStats(stats) {
     document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('stat-orders').textContent = (stats.total_orders || 0).toLocaleString('en-US');
     document.getElementById('stat-approved').textContent = stats.approved_orders || 0;
     document.getElementById('stat-campaigns').textContent = stats.total_campaigns || 0;
@@ -387,8 +387,13 @@ function renderRevenueChart(dailyData) {
     // Clear container completely
     container.innerHTML = '';
     
-    const categories = dailyData.map(d => d.date);
-    const revenues = dailyData.map(d => parseFloat(d.revenue || 0));
+    // Ensure data is sorted by date (ascending) to avoid incorrect ordering
+    const sortedDaily = Array.isArray(dailyData)
+        ? [...dailyData].sort((a, b) => new Date(a.date) - new Date(b.date))
+        : [];
+
+    const categories = sortedDaily.map(d => d.date);
+    const revenues = sortedDaily.map(d => parseFloat(d.revenue || 0));
     
     const options = {
         series: [{
@@ -469,12 +474,17 @@ function renderTopCampaigns(campaigns) {
         return;
     }
     
+    // Sort campaigns by total_revenue (desc) numerically to prevent lexicographic sorting issues
+    const sortedCampaigns = Array.isArray(campaigns)
+        ? [...campaigns].sort((a, b) => (parseFloat(b.total_revenue || 0) - parseFloat(a.total_revenue || 0)))
+        : [];
+
     let html = '<div class="table-responsive">';
     html += '<table class="table table-sm table-hover mb-0">';
     html += '<thead><tr><th>Campaign</th><th class="text-end">Revenue</th><th class="text-end">Orders</th></tr></thead>';
     html += '<tbody>';
     
-    campaigns.forEach(campaign => {
+    sortedCampaigns.forEach(campaign => {
         html += `
             <tr>
                 <td>
@@ -507,12 +517,17 @@ function renderTopNetworks(networks) {
         return;
     }
     
+    // Sort networks by total_revenue (desc) numerically to prevent lexicographic sorting issues
+    const sortedNetworks = Array.isArray(networks)
+        ? [...networks].sort((a, b) => (parseFloat(b.total_revenue || 0) - parseFloat(a.total_revenue || 0)))
+        : [];
+
     let html = '<div class="table-responsive">';
     html += '<table class="table table-sm table-hover mb-0">';
     html += '<thead><tr><th>Network</th><th class="text-end">Revenue</th><th class="text-end">Orders</th></tr></thead>';
     html += '<tbody>';
     
-    networks.forEach(network => {
+    sortedNetworks.forEach(network => {
         html += `
             <tr>
                 <td>

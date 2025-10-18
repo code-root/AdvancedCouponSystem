@@ -106,7 +106,7 @@ class DigizagController extends Controller
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'group_by' => ['campaign', 'date'],
-                'metrics' => ['clicks', 'conversions', 'revenue', 'commission'],
+                'metrics' => ['clicks', 'conversions', 'revenue', 'revenue'],
                 'limit' => 1000,
             ];
 
@@ -296,8 +296,8 @@ class DigizagController extends Controller
                     'campaign_id' => $campaign->id,
                     'network_id' => $this->network->id,
                     'user_id' => $user->id,
-                    'order_value' => $item['revenue'] ?? 0,
-                    'commission' => $item['commission'] ?? 0,
+                    'sales_amount' => $item['revenue'] ?? 0,
+                    'revenue' => $item['revenue'] ?? 0,
                     'revenue' => $item['revenue'] ?? 0,
                     'quantity' => $item['conversions'] ?? 1,
                     'currency' => $item['currency'] ?? 'USD',

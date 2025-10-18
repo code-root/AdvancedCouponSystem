@@ -60,8 +60,8 @@
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                    <h3 class="mb-0 fw-bold text-primary">${{ number_format($stats['total_commission'] ?? 0, 2, '.', ',') }}</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">revenue</h5>
+                    <h3 class="mb-0 fw-bold text-primary">${{ number_format($stats['total_revenue'] ?? 0, 2, '.', ',') }}</h3>
                 </div>
             </div>
         </div>
@@ -69,7 +69,7 @@
             <div class="card">
                 <div class="card-body">
                     <h5 class="text-muted fs-13 text-uppercase">Order Value</h5>
-                    <h3 class="mb-0 fw-bold text-info">${{ number_format($stats['total_order_value'] ?? 0, 2, '.', ',') }}</h3>
+                    <h3 class="mb-0 fw-bold text-info">${{ number_format($stats['total_sales_amount'] ?? 0, 2, '.', ',') }}</h3>
                 </div>
             </div>
         </div>

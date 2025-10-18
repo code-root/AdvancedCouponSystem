@@ -103,13 +103,14 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
                     ]
                 ],
                 "dateType" => "conversionDate",
-                "fromDate" => Carbon::today()->format('d/m/Y'),
-                "toDate" => Carbon::today()->format('d/m/Y'),
+                "fromDate" => Carbon::now()->startOfMonth()->format('d/m/Y'),
+                "toDate" => Carbon::now()->endOfMonth()->format('d/m/Y'),
                 "targetCurrency" => "USD",
                 "dateGroupBy" => "daily",
                 "includeOriginalCurrency" => true,
                 "includeTargetCurrency" => true
             ];
+
 
             $response = Http::timeout(30)
                 ->withHeaders([
@@ -117,7 +118,7 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
                     'APIkey' => $token
                 ])
                 ->post($apiUrl, $testData);
-                    // Log::info($response->body());
+            
             if ($response->successful()) {
                 return [
                     'success' => true,
@@ -129,9 +130,15 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
                 ];
             }
 
+            Log::error('OptimiseMedia Connection Test Failed:', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+                'url' => $apiUrl
+            ]);
+
             return [
                 'success' => false,
-                'message' => 'Failed to connect to OptimiseMedia API',
+                'message' => 'Failed to connect to OptimiseMedia API: ' . $response->body(),
                 'data' => [
                     'status' => $response->status(),
                     'error' => $response->body()
@@ -139,6 +146,11 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
             ];
 
         } catch (\Exception $e) {
+            Log::error('OptimiseMedia Connection Test Exception:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return [
                 'success' => false,
                 'message' => 'Connection test failed: ' . $e->getMessage(),
@@ -166,65 +178,67 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
             $contactId = $credentials['contact_id'];
             $agencyId = $credentials['agency_id'];
 
-            // Parse dates
+            // Parse dates - default to full month (1st to last day) if not specified
             $startDate = isset($config['date_from']) 
                 ? Carbon::parse($config['date_from']) 
                 : Carbon::now()->startOfMonth();
             
             $endDate = isset($config['date_to']) 
                 ? Carbon::parse($config['date_to']) 
-                : Carbon::now();
+                : Carbon::now()->endOfMonth();
 
             // Build API URL
             $apiUrl = 'https://public.api.optimisemedia.com/v1/reporting/';
             $apiUrl .= '?contactId=' . $contactId . '&agencyId=' . $agencyId;
 
             // Build request data according to OptimiseMedia API
+
+
             $requestData = [
-                'measures' => [
-                    'rejectedCommission',
-                    'pendingCommission',
-                    'validatedCommission',
-                    'clicks',
-                    'pendingConversions',
-                    'validatedConversions',
-                    'rejectedConversions',
-                    'clickCommission',
-                    'averageOrderValue',
-                    'originalOrderValue',
-                    'totalCommission',
-                    'uniqueVisitors'
+                "measures" => [
+                    "rejectedCommission",
+                    "pendingCommission",
+                    "validatedCommission",
+                    "clicks",
+                    "pendingConversions", 
+                    "validatedConversions", 
+                    "rejectedConversions", 
+                    "clickCommission", 
+                    "averageOrderValue", 
+                    "originalOrderValue", 
+                    "totalCommission", 
+                    "uniqueVisitors"
                 ],
-                'dimensions' => [
-                    'date',
-                    'countryCode',
-                    'currencyCode',
-                    'campaignName',
-                    'voucherCode',
-                    'advertiserName',
-                    'advertiserId'
+                "dimensions" => [
+                    "date", 
+                    "countryCode", 
+                    "currencyCode", 
+                    "campaignName", 
+                    "voucherCode", 
+                    "advertiserName", 
+                    "advertiserId"
                 ],
-                'conditions' => [
+                "conditions" => [
                     [
-                        'operator' => '>=',
-                        'valueList' => ['0'],
-                        'field' => 'clicks',
-                        'or' => true
+                        "operator" => ">=",
+                        "valueList" => ["0"],
+                        "field" => "clicks",
+                        "or" => true
                     ]
                 ],
-                'orderBys' => [
+                "orderBys" => [
                     [
-                        'direction' => 'desc',
-                        'field' => 'voucherCode'
+                        "direction" => "desc",
+                        "field" => "voucherCode"
                     ]
                 ],
-                'dateType' => $config['date_type'] ?? 'conversionDate',
+                "dateType" => "conversionDate",
                 'fromDate' => $startDate->format('d/m/Y'),
                 'toDate' => $endDate->format('d/m/Y'),
-                'targetCurrency' => $config['target_currency'] ?? 'USD',
-                'dateGroupBy' => 'daily',
-                'includeOriginalCurrency' => true,
-                'includeTargetCurrency' => true
+                "targetCurrency" => "USD",
+                "dateGroupBy" => "daily",
+                "includeOriginalCurrency" => true,
+                "includeTargetCurrency" => true
             ];
 
             $response = Http::timeout(30)
@@ -233,9 +247,13 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
                     'APIkey' => $token
                 ])
                 ->post($apiUrl, $requestData);
-                    Log::info($response->body());
 
             if (!$response->successful()) {
+                Log::error('OptimiseMedia API Error:', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'url' => $apiUrl
+                ]);
                 return [
                     'success' => false,
                     'message' => 'Failed to fetch data from OptimiseMedia',
@@ -259,9 +277,27 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
             // Process and return data
             $totalRecords = count($responseData);
             
-            // Add purchase_type to each item
+            // Add purchase_type and ensure required fields for each item
             foreach ($responseData as &$item) {
+                // Calculate revenue from all commission types
+                $rejectedCommission = (float) ($item["rejectedCommission"] ?? 0);
+                $pendingCommission = (float) ($item["pendingCommission"] ?? 0);
+                $validatedCommission = (float) ($item["validatedCommission"] ?? 0);
+                $revenue = $rejectedCommission + $pendingCommission + $validatedCommission;
+                
                 $item['purchase_type'] = 'coupon'; // OptimiseMedia is typically coupon-based
+                // Ensure required fields exist with default values
+                $item['campaign_id'] = $item['advertiserId'] ?? 'UNKNOWN';
+                $item['campaign_name'] = $item['advertiserName'] ?? 'Unknown Campaign';
+                $item['code'] = $item['voucherCode'] ?? 'NA';
+                $item['country'] = $item['countryCode'] ?? 'NA';
+                $item['sales_amount'] = (float) ($item['originalOrderValue'] ?? 0);
+                $item['revenue'] = $revenue;
+                $item['quantity'] = ($item['validatedConversions'] ?? 0) + ($item['pendingConversions'] ?? 0) + ($item['rejectedConversions'] ?? 0);
+                $item['customer_type'] = 'unknown';
+                $item['status'] = 'approved'; // Default status
+                $item['order_date'] = $item['date'] ?? now()->format('Y-m-d');
+                $item['purchase_date'] = $item['date'] ?? now()->format('Y-m-d');
             }
             
             return [
@@ -278,8 +314,11 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
                 ]
             ];
 
-        } catch (\Exception $e ) {
-            Log::info($response->body());
+        } catch (\Exception $e) {
+            Log::error('OptimiseMedia Sync Exception:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return [
                 'success' => false,
@@ -296,7 +335,7 @@ class OptimiseMediaService extends BaseNetworkService implements NetworkServiceI
     {
         return [
             'date_from' => Carbon::now()->startOfMonth()->format('Y-m-d'),
-            'date_to' => Carbon::now()->format('Y-m-d'),
+            'date_to' => Carbon::now()->endOfMonth()->format('Y-m-d'),
             'target_currency' => 'USD',
             'date_type' => 'conversionDate'
         ];

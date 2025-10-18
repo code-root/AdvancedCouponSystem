@@ -371,7 +371,7 @@ class MarketeersService extends BaseNetworkService
             
             // Extract financial data (use USD values)
             $orderValue = (float)($item['order_amount_usd'] ?? $item['order_amount'] ?? 0);
-            $commission =(float)($item['order_amount_usd'] ?? $item['order_amount'] ?? 0);
+            $revenue =(float)($item['order_amount_usd'] ?? $item['order_amount'] ?? 0);
             $revenue = (float)($item['payout'] ?? $item['payout_usd'] ?? 0);
             
             // Extract country code
@@ -404,8 +404,8 @@ class MarketeersService extends BaseNetworkService
                 'country' => $countryCode,
                 'order_id' => $orderId,
                 'network_order_id' => $networkOrderId,
-                'order_value' => $orderValue,
-                'commission' => $commission,
+                'sales_amount' => $orderValue,
+                'revenue' => $revenue,
                 'revenue' => $revenue,
                 'quantity' => (int)($item['order_quantity'] ?? 1),
                 'customer_type' => 'unknown',

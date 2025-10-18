@@ -66,8 +66,8 @@
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5 class="text-muted fs-13 text-uppercase">Commission</h5>
-                    <h3 class="mb-0 fw-bold text-success" id="stat-commission">$0.00</h3>
+                    <h5 class="text-muted fs-13 text-uppercase">revenue</h5>
+                    <h3 class="mb-0 fw-bold text-success" id="stat-revenue">$0.00</h3>
                 </div>
             </div>
         </div>
@@ -192,9 +192,9 @@ function loadReport() {
 
 function updateStats(stats) {
     document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('stat-order-value').textContent = '$' + parseFloat(stats.total_order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('stat-avg-order').textContent = '$' + parseFloat(stats.avg_order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-order-value').textContent = '$' + parseFloat(stats.total_sales_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-avg-order').textContent = '$' + parseFloat(stats.avg_sales_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 
 function renderCharts(stats) {

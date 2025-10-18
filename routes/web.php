@@ -164,6 +164,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('statistics', [PurchaseController::class, 'statisticsPage'])->name('statistics');
         Route::get('statistics-data', [PurchaseController::class, 'statistics'])->name('statistics-data');
         Route::get('network-comparison', [PurchaseController::class, 'networkComparison'])->name('network-comparison');
+        Route::get('campaigns-by-network/{networkId}', [PurchaseController::class, 'getCampaignsByNetwork'])->name('campaigns-by-network');
         Route::get('create', [PurchaseController::class, 'create'])->name('create');
         Route::post('/', [PurchaseController::class, 'store'])->name('store');
         Route::post('export', [PurchaseController::class, 'export'])->name('export');

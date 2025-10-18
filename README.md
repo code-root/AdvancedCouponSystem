@@ -1,3 +1,62 @@
+# Advanced Coupon System
+
+A comprehensive coupon management system built with Laravel with integrated Gmail support.
+
+## 🚀 Quick Gmail Setup
+
+To set up Gmail for sending emails, run:
+
+```bash
+php artisan gmail:setup
+```
+
+This will guide you through the Gmail configuration process step by step.
+
+## 📧 Email Features
+
+- **Gmail SMTP Integration**: Easy setup with App Password support
+- **Multiple Email Templates**: Welcome, verification, password reset, and notifications
+- **Queue Support**: Background email processing
+- **Testing Tools**: Built-in email testing commands
+- **Security**: TLS/SSL encryption with proper authentication
+
+## 🛠️ Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `php artisan gmail:setup` | Quick Gmail configuration |
+| `php artisan gmail:status` | Check Gmail configuration status |
+| `php artisan gmail:diagnose` | Diagnose authentication issues |
+| `php artisan gmail:fix-ssl` | Fix Gmail SSL certificate issues |
+| `php artisan gmail:fix-trakifi` | Fix SSL for trakifi.com domain |
+| `php artisan mail:test email@example.com` | Send test email |
+| `php artisan mail:setup` | General email configuration |
+
+## 🚨 Quick Fixes
+
+### SSL Certificate Issues
+If you're getting SSL certificate errors with `info@trakifi.com`:
+
+```bash
+php artisan gmail:fix-trakifi YOUR_APP_PASSWORD
+```
+
+### Authentication Issues
+If you're getting "Username and Password not accepted" errors:
+
+```bash
+php artisan gmail:diagnose info@trakifi.com YOUR_APP_PASSWORD
+```
+
+This will test all configurations and find the one that works.
+
+## 📖 Documentation
+
+- [Gmail Setup Guide](md/GMAIL_SETUP_GUIDE.md) - Complete Gmail configuration guide
+- [Email Testing Guide](md/EMAIL_TESTING_GUIDE.md) - Email testing and troubleshooting
+
+---
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">

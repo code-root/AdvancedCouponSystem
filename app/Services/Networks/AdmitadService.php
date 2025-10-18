@@ -786,6 +786,7 @@ class AdmitadService extends BaseNetworkService
         $transformedData = [];
         
         foreach ($items as $item) {
+            // return $item;
             $campaignId = $item['advcampaign_id'] ?? null;
             $campaignName = $item['advcampaign_name'] ?? 'Unknown Campaign';
             $status = $item['status'] ?? 'pending';
@@ -824,7 +825,7 @@ class AdmitadService extends BaseNetworkService
                 $code = 'subid-' . $subid;
             }
             
-            $transformedData[] = [
+            $transformedItem = [
                 'campaign_id' => $campaignId,
                 'campaign_name' => $campaignName,
                 'code' => $code,
@@ -833,8 +834,7 @@ class AdmitadService extends BaseNetworkService
                 'country' => 'NA',
                 'order_id' => null,
                 'network_order_id' => $actionId,
-                'order_value' => round((float) $saleAmount, 2),
-                'commission' => round((float) $revenue, 2),
+                'sales_amount' => round((float) $saleAmount, 2),
                 'revenue' => round((float) $revenue, 2),
                 'quantity' => 1,
                 'customer_type' => 'unknown',
@@ -852,6 +852,8 @@ class AdmitadService extends BaseNetworkService
                     'subid_format' => !empty($subid) ? (preg_match('/^[A-Za-z0-9\-_]{3,}$/', $subid) && !is_numeric($subid) ? 'coupon_like' : 'link_like') : null,
                 ],
             ];
+            
+            $transformedData[] = $transformedItem;
         }
         
         return $transformedData;

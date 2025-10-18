@@ -81,7 +81,7 @@ class OmolaatSyncTest extends Command
             'success' => true,
             'message' => $result['message'] ?? '',
             'orders_total' => $ordersTotal,
-            // Revenue as affiliate commission; also include gross order amount for reference
+            // Revenue as affiliate revenue; also include gross order amount for reference
             'revenue_affiliate' => $revenueAffiliate,
             'revenue_order_amount' => $revenueOrder,
         ];

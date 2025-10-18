@@ -5,12 +5,12 @@
     <a href="{{ route('dashboard') }}" class="logo">
         <span class="logo-light">
             <span class="logo-lg"><img src="/images/logo-tr.png" alt="logo"></span>
-            <span class="logo-sm"><img src="/images/logo-sm.png" alt="small logo"></span>
+            <span class="logo-sm"><img src="/images/trakifi-m.png" alt="small logo"></span>
         </span>
 
         <span class="logo-dark">
-            <span class="logo-lg"><img src="/images/logo-dark.png" alt="dark logo"></span>
-            <span class="logo-sm"><img src="/images/logo-sm.png" alt="small logo"></span>
+            <span class="logo-lg"><img src="/images/trakifi-m.png" alt="dark logo"></span>
+            <span class="logo-sm"><img src="/images/trakifi-m.png" alt="small logo"></span>
         </span>
     </a>
 

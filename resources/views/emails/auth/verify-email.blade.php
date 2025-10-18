@@ -22,7 +22,7 @@
             Why do we need email verification?
         </p>
         <p style="margin: 0; font-size: 14px; color: #4a5568; line-height: 1.5;">
-            Email verification helps protect your account and ensures you receive important notifications about your affiliate campaigns, commissions, and earnings.
+            Email verification helps protect your account and ensures you receive important notifications about your affiliate campaigns, revenues, and earnings.
         </p>
     </div>
     

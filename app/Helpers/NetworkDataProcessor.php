@@ -25,7 +25,6 @@ class NetworkDataProcessor
         ];
         
         try {
-            
             DB::transaction(function () use ($data, $networkId, $userId, $startDate, $endDate, $networkName, &$processed) {
                 // Delete existing purchases for this date range
                 $deletedCount = Purchase::where('network_id', $networkId)
@@ -67,6 +66,8 @@ class NetworkDataProcessor
                             $item = self::normalizeOptimiseMediaData($item);
                         } elseif ($networkName === 'omolaat') {
                             $item = self::normalizeOmolaatData($item);
+                        } elseif (strtolower($networkName) === 'admitad') {
+                            $item = self::normalizeAdmitadData($item);
                         } else {
                             $item = self::normalizeBoostinyData($item);
                         }
@@ -113,6 +114,10 @@ class NetworkDataProcessor
                         );
                         $processed['coupons']++;
                         
+                        // Validate and ensure revenue is numeric
+                        $revenue = is_numeric($item['revenue']) ? (float) $item['revenue'] : 0;
+                        $salesAmount = is_numeric($item['sales_amount']) ? (float) $item['sales_amount'] : 0;
+                        
                         // Create purchase record
                         Purchase::create([
                             'coupon_id' => $coupon->id,
@@ -122,9 +127,8 @@ class NetworkDataProcessor
                             'user_id' => $userId,
                             'order_id' => $item['order_id'] ?? null,
                             'network_order_id' => $item['network_order_id'] ?? null,
-                            'order_value' => $item['order_value'],
-                            'commission' => $item['commission'],
-                            'revenue' => $item['revenue'],
+                            'sales_amount' => $salesAmount,
+                            'revenue' => $revenue,
                             'quantity' => $item['quantity'],
                             'currency' => 'USD',
                             'country_code' => $country->code,
@@ -202,8 +206,7 @@ class NetworkDataProcessor
             'country_code' => strtoupper($item['country'] ?? 'NA'),
             'order_id' => $item['order_id'] ?? null,
             'network_order_id' => $item['network_order_id'] ?? null,
-            'order_value' => $item['sales_amount_usd'] ?? 0,
-            'commission' => $item['revenue'] ?? 0,
+            'sales_amount' => $item['sales_amount_usd'] ?? 0,
             'revenue' => $item['revenue'] ?? 0,
             'quantity' => $item['orders'] ?? 1,
             'customer_type' => strtolower(trim($item['customer_type'] ?? 'unknown')),
@@ -261,8 +264,8 @@ class NetworkDataProcessor
             'country' => 'NA',
             'order_id' => $stat['id'] ?? null,
             'network_order_id' => $stat['id'] ?? null,
-            'order_value' => $stat['conversion_sale_amount'] ?? 0,
-            'commission' => $stat['payout'] ?? 0,
+            'sales_amount' => $stat['conversion_sale_amount'] ?? 0,
+            'revenue' => $stat['payout'] ?? 0,
             'revenue' => $stat['payout'] ?? 0,
             'quantity' => 1,
             'customer_type' => 'unknown',
@@ -296,8 +299,8 @@ class NetworkDataProcessor
             'country_code' => 'NA',
             'order_id' => $stat['id'] ?? null,
             'network_order_id' => $stat['id'] ?? null,
-            'order_value' => $stat['conversion_sale_amount'] ?? 0,
-            'commission' => $stat['payout'] ?? 0,
+            'sales_amount' => $stat['conversion_sale_amount'] ?? 0,
+            'revenue' => $stat['payout'] ?? 0,
             'revenue' => $stat['payout'] ?? 0,
             'quantity' => 1,
             'customer_type' => 'unknown',
@@ -331,8 +334,8 @@ class NetworkDataProcessor
             'country' => 'NA',
             'order_id' => $stat['id'] ?? null,
             'network_order_id' => $stat['id'] ?? null,
-            'order_value' => $stat['conversion_sale_amount'] ?? 0,
-            'commission' => $stat['payout'] ?? 0,
+            'sales_amount' => $stat['conversion_sale_amount'] ?? 0,
+            'revenue' => $stat['payout'] ?? 0,
             'revenue' => $stat['payout'] ?? 0,
             'quantity' => 1,
             'customer_type' => 'unknown',
@@ -363,9 +366,8 @@ class NetworkDataProcessor
             'country' => $item['country'] ?? 'NA',
             'order_id' => $item['transaction_id'] ?? null,
             'network_order_id' => $item['transaction_id'] ?? null,
-            'order_value' => $item['sale_amount'] ?? 0,
-            'commission' => $item['commission'] ?? 0,
-            'revenue' => $item['commission'] ?? 0,
+            'sales_amount' => $item['sale_amount'] ?? 0,
+            'revenue' => $item['revenue'] ?? 0,
             'quantity' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
             'status' => $item['status'] ?? 'approved',
@@ -395,9 +397,8 @@ class NetworkDataProcessor
             'country' => $item['country'] ?? 'NA',
             'order_id' => $item['transaction_id'] ?? null,
             'network_order_id' => $item['transaction_id'] ?? null,
-            'order_value' => $item['sale_amount'] ?? 0,
-            'commission' => $item['commission'] ?? 0,
-            'revenue' => $item['commission'] ?? 0,
+            'sales_amount' => $item['sale_amount'] ?? 0,
+            'revenue' => $item['revenue'] ?? 0,
             'quantity' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
             'status' => $item['status'] ?? 'approved',
@@ -427,9 +428,8 @@ class NetworkDataProcessor
             'country' => $item['country'] ?? 'NA',
             'order_id' => $item['transaction_id'] ?? null,
             'network_order_id' => $item['transaction_id'] ?? null,
-            'order_value' => $item['sale_amount'] ?? 0,
-            'commission' => $item['commission'] ?? 0,
-            'revenue' => $item['commission'] ?? 0,
+            'sales_amount' => $item['sale_amount'] ?? 0,
+            'revenue' => $item['revenue'] ?? 0,
             'quantity' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
             'status' => $item['status'] ?? 'approved',
@@ -455,8 +455,8 @@ class NetworkDataProcessor
             'country_code' => strtoupper($item['country_code'] ?? ($item['country'] ?? 'NA')),
             'order_id' => $item['order_id'] ?? ($item['advertiser_order_id'] ?? null),
             'network_order_id' => $item['network_order_id'] ?? ($item['markteers_order_id'] ?? null),
-            'order_value' => (float)($item['order_value'] ?? ($item['order_amount_usd'] ?? $item['order_amount'] ?? 0)),
-            'commission' => (float)($item['commission'] ?? ($item['order_amount_usd'] ?? $item['order_amount'] ?? 0)),
+            'sales_amount' => (float)($item['sales_amount'] ?? ($item['order_amount_usd'] ?? $item['order_amount'] ?? 0)),
+            'revenue' => (float)($item['revenue'] ?? ($item['order_amount_usd'] ?? $item['order_amount'] ?? 0)),
             'revenue' => (float)($item['revenue'] ?? ($item['payout'] ?? $item['payout_usd'] ?? 0)),
             'quantity' => (int)($item['quantity'] ?? ($item['order_quantity'] ?? 1)),
             'customer_type' => strtolower(trim($item['customer_type'] ?? 'unknown')),
@@ -487,9 +487,8 @@ class NetworkDataProcessor
             'country' => $item['country'] ?? 'NA',
             'order_id' => $item['transaction_id'] ?? null,
             'network_order_id' => $item['transaction_id'] ?? null,
-            'order_value' => $item['sale_amount'] ?? 0,
-            'commission' => $item['commission'] ?? 0,
-            'revenue' => $item['commission'] ?? 0,
+            'sales_amount' => $item['sale_amount'] ?? 0,
+            'revenue' => $item['revenue'] ?? 0,
             'quantity' => $item['conversions'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
             'status' => $item['status'] ?? 'approved',
@@ -520,8 +519,7 @@ class NetworkDataProcessor
             'country_code' => $item['country'] ?? 'NA',
             'order_id' => $item['order_id'] ?? null,
             'network_order_id' => $item['network_order_id'] ?? null,
-            'order_value' => $item['order_value'] ?? 0,
-            'commission' => $item['commission'] ?? 0,
+            'sales_amount' => $item['sales_amount'] ?? 0,
             'revenue' => $item['revenue'] ?? 0,
             'quantity' => $item['quantity'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'unknown',
@@ -541,22 +539,22 @@ class NetworkDataProcessor
                       ($item['validatedConversions'] ?? 0) + 
                       ($item['rejectedConversions'] ?? 0);
         
-        // Calculate total revenue (commission)
-        $rejectedCommission = $item['rejectedCommission'] ?? 0;
-        $pendingCommission = $item['pendingCommission'] ?? 0;
-        $validatedCommission = $item['validatedCommission'] ?? 0;
-        $revenue = $rejectedCommission + $pendingCommission + $validatedCommission;
+        // Calculate total revenue (revenue)
+        $rejectedrevenue = $item['rejectedCommission'] ?? 0;
+        $pendingrevenue = $item['pendingCommission'] ?? 0;
+        $validatedrevenue = $item['validatedCommission'] ?? 0;
+        $revenue = $rejectedrevenue + $pendingrevenue + $validatedrevenue;
         
         // Use 'US' as default if countryCode is '-' or missing
         $countryCode = ($item['countryCode'] && $item['countryCode'] !== '-') 
             ? $item['countryCode'] 
             : 'US';
         
-        // Determine status based on commission type
+        // Determine status based on revenue type
         $status = 'pending';
-        if ($validatedCommission > 0) {
+        if ($validatedrevenue > 0) {
             $status = 'approved';
-        } elseif ($rejectedCommission > 0) {
+        } elseif ($rejectedrevenue > 0) {
             $status = 'rejected';
         }
         
@@ -576,9 +574,8 @@ class NetworkDataProcessor
             'country_code' => $countryCode,
             'order_id' => null, // OptimiseMedia doesn't provide individual order IDs
             'network_order_id' => null,
-            'order_value' => $item['originalOrderValue'] ?? 0,
-            'commission' => $revenue,
-            'revenue' => $revenue,
+            'sales_amount' => $item['originalOrderValue'] ?? 0,
+            'revenue' => $item['totalCommission'] ?? 0,
             'quantity' => $countOrders,
             'customer_type' => strtolower(trim($item['campaignName'] ?? 'unknown')),
             'status' => $status,
@@ -624,7 +621,7 @@ class NetworkDataProcessor
 
         // Validate numeric values
         $orderValue = self::validateNumericValue($src['order_amount_number'] ?? 0);
-        $commission = self::validateNumericValue($src['affiliate_amount_number'] ?? 0);
+        $revenue = self::validateNumericValue($src['affiliate_amount_number'] ?? 0);
         $quantity = self::validateIntegerValue($src['quantity_number'] ?? 1);
 
         return [
@@ -636,9 +633,9 @@ class NetworkDataProcessor
             'country_code' => $src['country_text'] ?? 'NA',
             'order_id' => $hit['pos_order_id_text'] ?? null,
             'network_order_id' => $src['pos_order_id_text'] ?? null,
-            'order_value' => $orderValue,
-            'commission' => $commission,
-            'revenue' => $commission, // Same as commission for Omolaat
+            'sales_amount' => $orderValue,
+            'revenue' => $revenue,
+            'revenue' => $revenue, // Same as revenue for Omolaat
             'quantity' => 1,
             'customer_type' => strtolower(trim((string) ($src['customer_type_text'] ?? 'unknown'))),
             'status' => (string) ($src['status_option_opt__order_status'] ?? 'approved'),
@@ -772,8 +769,8 @@ class NetworkDataProcessor
             'campaign_name',
             'order_date',
             'purchase_date',
-            'order_value',
-            'commission',
+            'sales_amount',
+            'revenue',
             'revenue',
             'status'
         ];
@@ -806,17 +803,17 @@ class NetworkDataProcessor
         }
 
         // Validate numeric values
-        if (!is_numeric($item['order_value']) || $item['order_value'] < 0) {
-            Log::warning("Invalid order_value in normalized data at index $index", [
-                'order_value' => $item['order_value'],
+        if (!is_numeric($item['sales_amount']) || $item['sales_amount'] < 0) {
+            Log::warning("Invalid sales_amount in normalized data at index $index", [
+                'sales_amount' => $item['sales_amount'],
                 'index' => $index
             ]);
             return false;
         }
 
-        if (!is_numeric($item['commission']) || $item['commission'] < 0) {
-            Log::warning("Invalid commission in normalized data at index $index", [
-                'commission' => $item['commission'],
+        if (!is_numeric($item['revenue']) || $item['revenue'] < 0) {
+            Log::warning("Invalid revenue in normalized data at index $index", [
+                'revenue' => $item['revenue'],
                 'index' => $index
             ]);
             return false;
@@ -825,6 +822,49 @@ class NetworkDataProcessor
         return true;
     }
     
+    /**
+     * Normalize Admitad data format
+     * Optimized for Admitad API response structure
+     */
+    private static function normalizeAdmitadData(array $item): array
+    {
+        // Use existing campaign_id from Admitad API
+        $campaignId = $item['campaign_id'] ?? null;
+        if (empty($campaignId)) {
+            $campaignName = $item['campaign_name'] ?? 'Unknown';
+            $campaignId = 'ADMITAD_' . md5($campaignName);
+        }
+
+        // Format dates properly - Admitad uses Y-m-d format
+        $orderDate = self::formatDateYmd($item['order_date'] ?? $item['purchase_date'] ?? null);
+        $purchaseDate = self::formatDateYmd($item['purchase_date'] ?? $item['order_date'] ?? null);
+
+        // Ensure numeric values are properly cast
+        $salesAmount = is_numeric($item['sales_amount'] ?? 0) ? (float)$item['sales_amount'] : 0.0;
+        $revenue = is_numeric($item['revenue'] ?? 0) ? (float)$item['revenue'] : 0.0;
+        $quantity = is_numeric($item['quantity'] ?? 1) ? (int)$item['quantity'] : 1;
+
+        return [
+            'campaign_id' => (string)$campaignId,
+            'purchase_type' => $item['purchase_type'] ?? 'coupon',
+            'campaign_name' => $item['campaign_name'] ?? 'Unknown',
+            'campaign_logo' => null,
+            'code' => $item['code'] ?? 'NA',
+            'country' => $item['country'] ?? 'NA',
+            'country_code' => strtoupper($item['country'] ?? 'NA'),
+            'order_id' => $item['order_id'] ?? null,
+            'network_order_id' => $item['network_order_id'] ?? null,
+            'sales_amount' => $salesAmount,
+            'revenue' => $revenue,
+            'revenue' => $revenue, // Duplicate for compatibility
+            'quantity' => $quantity,
+            'customer_type' => strtolower(trim($item['customer_type'] ?? 'unknown')),
+            'status' => strtolower(trim($item['status'] ?? 'approved')),
+            'order_date' => $orderDate,
+            'purchase_date' => $purchaseDate,
+        ];
+    }
+
     /**
      * Process link performance data from network
      */
@@ -864,8 +904,8 @@ class NetworkDataProcessor
                             'campaign_id' => $campaign->id,
                             'network_id' => $networkId,
                             'user_id' => $userId,
-                            'order_value' => $item['sales_amount_usd'] ?? 0,
-                            'commission' => $item['revenue'] ?? 0,
+                            'sales_amount' => $item['sales_amount_usd'] ?? 0,
+                            'revenue' => $item['revenue'] ?? 0,
                             'revenue' => $item['revenue'] ?? 0,
                             'quantity' => $item['orders'] ?? 1,
                             'currency' => 'USD',

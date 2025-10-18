@@ -79,7 +79,7 @@ class CPXService extends BaseNetworkService
                                 'purchase_type' => !empty($conversion['coupon_code']) ? 'coupon' : 'link', // Determine based on coupon code
                                 'country' => $conversion['country'] ?? 'Unknown',
                                 'sale_amount' => floatval($conversion['sale_amount'] ?? 0),
-                                'commission' => floatval($conversion['payout'] ?? 0),
+                                'revenue' => floatval($conversion['payout'] ?? 0),
                                 'orders' => 1,
                                 'customer_type' => $conversion['customer_type'] ?? 'new',
                                 'transaction_id' => $conversion['order_id'] ?? '',
@@ -117,7 +117,7 @@ class CPXService extends BaseNetworkService
             'coupon_code' => $item['coupon_code'] ?? '',
             'country' => $item['country'] ?? 'Unknown',
             'sale_amount' => $item['sale_amount'] ?? 0,
-            'commission' => $item['commission'] ?? 0,
+            'revenue' => $item['revenue'] ?? 0,
             'clicks' => 0,
             'conversions' => $item['orders'] ?? 1,
             'customer_type' => $item['customer_type'] ?? 'new',

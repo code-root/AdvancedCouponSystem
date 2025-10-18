@@ -306,7 +306,7 @@ imageButton.addEventListener("click", function () {
     Swal.fire({
         title: 'Sweet!',
         text: 'Modal with a custom image.',
-        imageUrl: '/images/logo-sm.png',
+        imageUrl: '/images/trakifi-m.png',
         imageHeight: 40,
         customClass: {
             confirmButton: 'btn btn-primary mt-2',

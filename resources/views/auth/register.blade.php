@@ -13,7 +13,7 @@
             <div class="col-xl-4 col-lg-5 col-md-6">
                 <div class="card overflow-hidden text-center h-100 p-xxl-4 p-3 mb-0">
                     <a href="{{ route('dashboard') }}" class="auth-brand mb-3">
-                        <img src="/images/logo-dark.png" alt="dark logo" height="24" class="logo-dark">
+                        <img src="/images/trakifi-m.png" alt="dark logo" height="24" class="logo-dark">
                         <img src="/images/logo-tr.png" alt="logo light" height="24" class="logo-light">
                     </a>
 

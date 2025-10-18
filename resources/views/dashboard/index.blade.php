@@ -75,7 +75,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Sales Amount</h5>
-                <h3 class="mb-0 fw-bold text-warning" id="stat-commission">${{ number_format($stats['total_commission'] ?? 0, 2, '.', ',') }}</h3>
+                <h3 class="mb-0 fw-bold text-warning" id="stat-revenue">${{ number_format($stats['total_revenue'] ?? 0, 2, '.', ',') }}</h3>
                 <p class="mb-0 text-muted mt-2">
                     <span class="text-nowrap">Your earnings</span>
                 </p>
@@ -319,7 +319,7 @@ function loadDashboard() {
 
 function updateStats(stats) {
     document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-    document.getElementById('stat-commission').textContent = '$' + parseFloat(stats.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('stat-revenue').textContent = '$' + parseFloat(stats.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     document.getElementById('stat-orders').textContent = (stats.total_orders || 0).toLocaleString('en-US');
     document.getElementById('stat-campaigns').textContent = stats.total_campaigns || 0;
     document.getElementById('stat-coupons').textContent = stats.total_coupons || 0;
@@ -569,14 +569,14 @@ function renderTopNetworks(networks) {
     }
     
     let html = '<div class="table-responsive"><table class="table table-sm mb-0">';
-    html += '<thead><tr><th>Network</th><th class="text-end">Revenue</th><th class="text-end">Commission</th></tr></thead><tbody>';
+    html += '<thead><tr><th>Network</th><th class="text-end">Revenue</th><th class="text-end">revenue</th></tr></thead><tbody>';
     
     networks.forEach(n => {
         html += `
             <tr>
                 <td><i class="ti ti-affiliate text-info me-2"></i>${n.network?.display_name || 'Unknown'}</td>
                 <td class="text-end fw-semibold text-success">$${parseFloat(n.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td class="text-end text-primary">$${parseFloat(n.total_commission || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="text-end text-primary">$${parseFloat(n.total_revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
             </tr>
         `;
     });
@@ -601,7 +601,7 @@ function renderRecentPurchases(purchases) {
                 <td><code>${p.order_id || 'N/A'}</code></td>
                 <td>${p.campaign?.name || 'Unknown'}</td>
                 <td>${p.network?.display_name || 'Unknown'}</td>
-                <td>$${parseFloat(p.order_value || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td>$${parseFloat(p.sales_amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 <td class="text-success fw-semibold">$${parseFloat(p.revenue || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 <td>${statusBadge}</td>
                 <td>${p.order_date ? new Date(p.order_date).toLocaleDateString() : 'N/A'}</td>

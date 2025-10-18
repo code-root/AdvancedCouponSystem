@@ -129,8 +129,8 @@
                             
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <span class="text-muted">Commission Rate:</span>
-                                    <span class="fw-medium" id="sidebarCommission">-</span>
+                                    <span class="text-muted">revenue Rate:</span>
+                                    <span class="fw-medium" id="sidebarrevenue">-</span>
                                 </div>
                             </div>
 

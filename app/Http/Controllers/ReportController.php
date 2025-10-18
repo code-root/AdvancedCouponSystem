@@ -69,8 +69,8 @@ class ReportController extends Controller
             
             // Revenue
             'total_revenue' => $purchasesQuery->sum('revenue'),
-            'total_commission' => $purchasesQuery->sum('order_value'),
-            'total_order_value' => $purchasesQuery->sum('order_value'),
+            'total_revenue' => $purchasesQuery->sum('sales_amount'),
+            'total_sales_amount' => $purchasesQuery->sum('sales_amount'),
             
             // Campaigns & Coupons
             'total_campaigns' => $campaignsQuery->count(),
@@ -189,7 +189,7 @@ class ReportController extends Controller
         $query = Purchase::where('user_id', $userId)
             ->select('network_id', 
                 DB::raw('SUM(revenue) as total_revenue'),
-                DB::raw('SUM(commission) as total_commission'),
+                DB::raw('SUM(revenue) as total_revenue'),
                 DB::raw('COUNT(*) as total_orders'))
             ->with('network:id,display_name')
             ->groupBy('network_id');
@@ -458,7 +458,7 @@ class ReportController extends Controller
             'pending' => (clone $statsQuery)->where('status', 'pending')->count(),
             'rejected' => (clone $statsQuery)->where('status', 'rejected')->count(),
             'total_revenue' => (clone $statsQuery)->sum('revenue'),
-            'total_commission' => (clone $statsQuery)->sum('order_value'),
+            'total_revenue' => (clone $statsQuery)->sum('sales_amount'),
             
             // Daily trend
             'daily_trend' => $this->getDailyRevenue($request, $userId),
@@ -558,9 +558,9 @@ class ReportController extends Controller
         
         $stats = [
             'total_revenue' => $statsQuery->sum('revenue'),
-            'total_commission' => $statsQuery->sum('order_value'),
-            'total_order_value' => $statsQuery->sum('order_value'),
-            'avg_order_value' => $statsQuery->avg('order_value'),
+            'total_revenue' => $statsQuery->sum('sales_amount'),
+            'total_sales_amount' => $statsQuery->sum('sales_amount'),
+            'avg_sales_amount' => $statsQuery->avg('sales_amount'),
             
             // Daily revenue
             'daily_revenue' => $this->getDailyRevenue($request, $userId),

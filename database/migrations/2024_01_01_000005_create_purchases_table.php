@@ -19,8 +19,7 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
             $table->string('order_id')->nullable();
             $table->string('network_order_id')->nullable();
-            $table->decimal('order_value', 15, 2)->default(0);
-            $table->decimal('commission', 15, 2)->default(0);
+            $table->decimal('sales_amount', 15, 2)->default(0);
             $table->decimal('revenue', 15, 2)->default(0);
             $table->integer('quantity')->default(1);
             $table->string('currency', 3)->default('USD');

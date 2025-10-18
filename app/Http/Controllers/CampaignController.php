@@ -169,8 +169,8 @@ class CampaignController extends Controller
         $ordersPrev = (clone $previous)->sum('quantity');
         $revenue = (clone $current)->sum('revenue');
         $revenuePrev = (clone $previous)->sum('revenue');
-        $sales = (clone $current)->sum('order_value');
-        $salesPrev = (clone $previous)->sum('order_value');
+        $sales = (clone $current)->sum('sales_amount');
+        $salesPrev = (clone $previous)->sum('sales_amount');
 
         return [
             'networks' => $networks,
@@ -237,8 +237,8 @@ class CampaignController extends Controller
             'total_coupons' => $campaign->coupons()->count(),
             'used_coupons' => $campaign->coupons()->where('used_count', '>', 0)->count(),
             'total_revenue' => $campaign->purchases()->sum('revenue'),
-            'total_commission' => $campaign->purchases()->sum('order_value'),
-            'total_order_value' => $campaign->purchases()->sum('order_value'),
+            'total_revenue' => $campaign->purchases()->sum('sales_amount'),
+            'total_sales_amount' => $campaign->purchases()->sum('sales_amount'),
             'total_orders' => $campaign->purchases()->count(),
             'approved_orders' => $campaign->purchases()->where('status', 'approved')->count(),
         ];

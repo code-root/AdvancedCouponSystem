@@ -294,8 +294,8 @@ class OmolaatIntegrationTest extends TestCase
             'code' => 'TEST_CODE_456',
             'order_id' => 'ORDER_789',
             'network_order_id' => 'NET_ORDER_101',
-            'order_value' => 150.75,
-            'commission' => 15.08,
+            'sales_amount' => 150.75,
+            'revenue' => 15.08,
             'revenue' => 15.08,
             'clicks' => 10,
             'quantity' => 2,
@@ -312,8 +312,8 @@ class OmolaatIntegrationTest extends TestCase
         $this->assertEquals('TEST_CODE_456', $transformed['code']);
         $this->assertEquals('coupon', $transformed['purchase_type']);
         $this->assertEquals('NA', $transformed['country']);
-        $this->assertEquals(150.75, $transformed['order_value']);
-        $this->assertEquals(15.08, $transformed['commission']);
+        $this->assertEquals(150.75, $transformed['sales_amount']);
+        $this->assertEquals(15.08, $transformed['revenue']);
         $this->assertEquals(15.08, $transformed['revenue']);
         $this->assertEquals(10, $transformed['clicks']);
         $this->assertEquals(2, $transformed['quantity']);

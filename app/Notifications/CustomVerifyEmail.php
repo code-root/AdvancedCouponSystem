@@ -17,6 +17,8 @@ class CustomVerifyEmail extends BaseVerifyEmail
         $verificationUrl = $this->verificationUrl($notifiable);
 
         return (new MailMessage)
+        ->mailer('sendmail')
+        ->from('no-reply@trakifi.com', 'trakifi')
             ->subject('Verify Your Email Address')
             ->view('emails.auth.verify-email', [
                 'user' => $notifiable,

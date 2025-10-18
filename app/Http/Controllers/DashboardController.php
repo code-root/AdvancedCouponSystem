@@ -69,12 +69,11 @@ class DashboardController extends Controller
         
         $networkIds = array_values($networkIds);
         $networkIds = !empty($networkIds) ? $networkIds : null;
-        
         // Main statistics
         $stats = [
             // Overview stats
             'total_revenue' => $this->getTotalRevenue($userId, $dateRange, $networkIds),
-            'total_commission' => $this->getTotalCommission($userId, $dateRange, $networkIds),
+            'total_sales_amount' => $this->getTotalSalesAmount($userId, $dateRange, $networkIds),
             'total_orders' => $this->getTotalPurchases($userId, $dateRange, $networkIds),
             'total_campaigns' => $this->getTotalCampaigns($userId, $networkIds),
             'total_coupons' => $this->getTotalCoupons($userId, $networkIds),
@@ -116,7 +115,7 @@ class DashboardController extends Controller
         
         return [
             'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue'),
-            'total_commission' => Purchase::where('user_id', $userId)->sum('order_value'),
+            'total_revenue' => Purchase::where('user_id', $userId)->sum('sales_amount'),
             'total_orders' => Purchase::where('user_id', $userId)->count(),
             'total_campaigns' => Campaign::where('user_id', $userId)->count(),
             'total_coupons' => Coupon::whereHas('campaign', function($q) use ($userId) {
@@ -155,7 +154,7 @@ class DashboardController extends Controller
     /**
      * Get total commission
      */
-    private function getTotalCommission($userId, $dateRange, $networkIds = null)
+    private function getTotalSalesAmount($userId, $dateRange, $networkIds = null)
     {
         $query = Purchase::where('user_id', $userId)
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']]);
@@ -164,7 +163,7 @@ class DashboardController extends Controller
             $query->whereIn('network_id', $networkIds);
         }
         
-        return $query->sum('order_value');
+        return $query->sum('sales_amount');
     }
     
     /**
@@ -252,7 +251,7 @@ class DashboardController extends Controller
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
             ->select('network_id',
                 DB::raw('SUM(revenue) as total_revenue'),
-                DB::raw('SUM(order_value) as total_commission'),
+                DB::raw('SUM(sales_amount) as total_revenue'),
                 DB::raw('COUNT(*) as total_orders'),
                 DB::raw('AVG(revenue) as avg_revenue'))
             ->with('network:id,display_name')
@@ -310,7 +309,7 @@ class DashboardController extends Controller
             ->whereBetween('order_date', [$dateRange['from'], $dateRange['to']])
             ->select('network_id',
                 DB::raw('SUM(revenue) as total_revenue'),
-                DB::raw('SUM(order_value) as total_commission'),
+                DB::raw('SUM(sales_amount) as total_revenue'),
                 DB::raw('COUNT(*) as total_orders'))
             ->with('network:id,display_name')
             ->groupBy('network_id')

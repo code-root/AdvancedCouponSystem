@@ -127,7 +127,7 @@
                                     @foreach($coupon->purchases as $purchase)
                                     <tr>
                                         <td><code>{{ $purchase->order_id ?? 'N/A' }}</code></td>
-                                        <td class="text-end">${{ number_format($purchase->order_value, 2) }}</td>
+                                        <td class="text-end">${{ number_format($purchase->sales_amount, 2) }}</td>
                                         <td class="text-end text-success fw-semibold">${{ number_format($purchase->revenue, 2) }}</td>
                                         <td>
                                             @if($purchase->status === 'approved')
