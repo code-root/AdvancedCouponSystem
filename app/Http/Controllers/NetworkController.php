@@ -97,6 +97,9 @@ class NetworkController extends Controller
             // Get network
             $network = Network::findOrFail($validated['network_id']);
             
+            // Plan limit: max networks
+            app(\App\Services\PlanLimitService::class)->assertCanAddNetwork(auth()->user());
+
             // Check if user already has a connection to this network
             $existingConnection = auth()->user()->networkConnections()
                 ->where('network_id', $network->id)
@@ -290,20 +293,55 @@ class NetworkController extends Controller
                     ->with('error', 'Network connection not found.');
             }
 
+            $networkId = $userConnection->network_id;
             $networkName = $userConnection->network->display_name;
-            $userConnection->delete();
+            $userId = auth()->id();
+
+            // Start database transaction to ensure data consistency
+            DB::transaction(function () use ($networkId, $userId, $userConnection) {
+                // Delete all campaigns related to this network and user
+                $campaignsDeleted = \App\Models\Campaign::where('network_id', $networkId)
+                    ->where('user_id', $userId)
+                    ->delete();
+
+                // Delete all coupons related to this network and user
+                $couponsDeleted = \App\Models\Coupon::whereHas('campaign', function ($query) use ($networkId, $userId) {
+                    $query->where('network_id', $networkId)
+                          ->where('user_id', $userId);
+                })->delete();
+
+                // Delete all purchases related to this network and user
+                $purchasesDeleted = \App\Models\Purchase::where('network_id', $networkId)
+                    ->where('user_id', $userId)
+                    ->delete();
+
+                // Delete all sync logs related to this network and user
+                $syncLogsDeleted = \App\Models\SyncLog::where('network_id', $networkId)
+                    ->where('user_id', $userId)
+                    ->delete();
+
+                // Finally, delete the network connection
+                $userConnection->delete();
+
+            });
 
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => "Successfully disconnected from {$networkName}!"
+                    'message' => "Successfully disconnected from {$networkName} and cleaned up all related data!"
                 ]);
             }
 
             return redirect()->route('networks.index')
-                ->with('success', "Successfully disconnected from {$networkName}!");
+                ->with('success', "Successfully disconnected from {$networkName} and cleaned up all related data!");
                 
         } catch (\Exception $e) {
+            Log::error("Failed to disconnect network and cleanup data", [
+                'user_id' => auth()->id(),
+                'connection_id' => $connectionId,
+                'error' => $e->getMessage()
+            ]);
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
@@ -487,6 +525,8 @@ class NetworkController extends Controller
     public function syncConnection(Request $request, $connectionId)
     {
         try {
+            // Plan limit: sync allowed
+            app(\App\Services\PlanLimitService::class)->assertCanSync(auth()->user());
             // Find connection
             $connection = NetworkConnection::where('id', $connectionId)
                 ->where('user_id', auth()->id())
@@ -607,6 +647,9 @@ class NetworkController extends Controller
             $connection->update([
                 'last_sync' => now()
             ]);
+
+            // Increment usage counters
+            app(\App\Services\PlanLimitService::class)->incrementSyncCount(auth()->user(), 0, (int) ($linkStats['purchases'] ?? 0) + (int) ($couponStats['purchases'] ?? 0));
             
             $totalRecords = ($couponStats['purchases'] ?? 0) + ($linkStats['purchases'] ?? 0);
             

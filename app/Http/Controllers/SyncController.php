@@ -31,7 +31,7 @@ class SyncController extends Controller
             ->latest()
             ->paginate(15);
 
-        return view('sync.schedules.index', compact('schedules'));
+        return view('dashboard.sync.schedules.index', compact('schedules'));
     }
 
     /**
@@ -45,7 +45,7 @@ class SyncController extends Controller
             ->get()
             ->pluck('network');
 
-        return view('sync.schedules.create', compact('networks'));
+        return view('dashboard.sync.schedules.create', compact('networks'));
     }
 
     /**
@@ -72,6 +72,9 @@ class SyncController extends Controller
                 ->withInput();
         }
 
+        // Plan limit: sync allowed when creating schedule (pre-check)
+        app(\App\Services\PlanLimitService::class)->assertCanSync(Auth::user());
+
         $schedule = SyncSchedule::create([
             'user_id' => Auth::id(),
             'name' => $request->name,
@@ -86,7 +89,7 @@ class SyncController extends Controller
             'next_run_at' => now()->addMinutes((int) $request->interval_minutes),
         ]);
 
-        return redirect()->route('sync.schedules.index')
+        return redirect()->route('dashboard.sync.schedules.index')
             ->with('success', 'Sync schedule created successfully!');
     }
 
@@ -103,7 +106,7 @@ class SyncController extends Controller
             ->get()
             ->pluck('network');
 
-        return view('sync.schedules.edit', compact('schedule', 'networks'));
+        return view('dashboard.sync.schedules.edit', compact('schedule', 'networks'));
     }
 
     /**
@@ -144,7 +147,7 @@ class SyncController extends Controller
             'is_active' => $request->boolean('is_active'),
         ]);
 
-        return redirect()->route('sync.schedules.index')
+        return redirect()->route('dashboard.sync.schedules.index')
             ->with('success', 'Sync schedule updated successfully!');
     }
 
@@ -156,7 +159,7 @@ class SyncController extends Controller
         $schedule = SyncSchedule::where('user_id', Auth::id())->findOrFail($id);
         $schedule->delete();
 
-        return redirect()->route('sync.schedules.index')
+        return redirect()->route('dashboard.sync.schedules.index')
             ->with('success', 'Sync schedule deleted successfully!');
     }
 
@@ -189,6 +192,8 @@ class SyncController extends Controller
             ], 400);
         }
 
+        app(\App\Services\PlanLimitService::class)->assertCanSync(Auth::user());
+
         $networkIds = $schedule->network_ids ?? [];
         $dispatched = 0;
 
@@ -203,6 +208,11 @@ class SyncController extends Controller
 
             ProcessNetworkSync::dispatch($syncLog->id, $schedule->id);
             $dispatched++;
+        }
+
+        // Update sync usage after successful dispatch
+        if ($dispatched > 0) {
+            app(\App\Services\PlanLimitService::class)->incrementSyncCount(Auth::user(), $dispatched);
         }
 
         return response()->json([
@@ -223,7 +233,7 @@ class SyncController extends Controller
             ->pluck('network_id');
         $networks = Network::whereIn('id', $network_ids)->get();
 
-        return view('sync.quick-sync', compact('networks'));
+        return view('dashboard.sync.quick-sync', compact('networks'));
     }
 
     /**
@@ -245,6 +255,8 @@ class SyncController extends Controller
                 'errors' => $validator->errors(),
             ], 422);
         }
+
+        app(\App\Services\PlanLimitService::class)->assertCanSync(Auth::user());
 
         $networkIds = $request->network_ids;
         $dispatched = 0;
@@ -275,6 +287,11 @@ class SyncController extends Controller
 
             ProcessNetworkSync::dispatch($syncLog->id);
             $dispatched++;
+        }
+
+        // Update sync usage after successful dispatch
+        if ($dispatched > 0) {
+            app(\App\Services\PlanLimitService::class)->incrementSyncCount(Auth::user(), $dispatched);
         }
 
         return response()->json([
@@ -331,7 +348,7 @@ class SyncController extends Controller
             ]);
         }
 
-        return view('sync.logs.index', compact('logs', 'networks', 'schedules'));
+        return view('dashboard.sync.logs.index', compact('logs', 'networks', 'schedules'));
     }
 
     /**
@@ -343,7 +360,7 @@ class SyncController extends Controller
             ->with(['network', 'syncSchedule', 'user'])
             ->findOrFail($id);
 
-        return view('sync.logs.show', compact('log'));
+        return view('dashboard.sync.logs.show', compact('log'));
     }
 
     /**
@@ -351,6 +368,6 @@ class SyncController extends Controller
      */
     public function settingsIndex()
     {
-        return view('sync.settings.index');
+        return view('dashboard.sync.settings.index');
     }
 }

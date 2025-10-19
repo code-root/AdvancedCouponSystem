@@ -1,11 +1,11 @@
-@extends('layouts.vertical', ['title' => 'Network Integration'])
+@extends('dashboard.layouts.vertical', ['title' => 'Network Integration'])
 
 @section('css')
     @vite(['node_modules/select2/dist/css/select2.min.css', 'node_modules/sweetalert2/dist/sweetalert2.min.css'])
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Affiliate', 'title' => 'Network Integration'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Affiliate', 'title' => 'Network Integration'])
 
     <div class="row">
         <div class="col-12">

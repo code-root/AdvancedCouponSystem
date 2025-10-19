@@ -1,4 +1,4 @@
-@extends('layouts.vertical', ['title' => 'Coupon Details'])
+@extends('dashboard.layouts.vertical', ['title' => 'Coupon Details'])
 
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.css">
@@ -6,7 +6,7 @@
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Coupons', 'title' => 'Coupon: ' . $coupon->code])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Coupons', 'title' => 'Coupon: ' . $coupon->code])
 
     <!-- Coupon Header -->
     <div class="row">

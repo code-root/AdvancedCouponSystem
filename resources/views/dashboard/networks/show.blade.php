@@ -1,7 +1,7 @@
-@extends('layouts.vertical', ['title' => 'Network Details'])
+@extends('dashboard.layouts.vertical', ['title' => 'Network Details'])
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Networks', 'title' => 'Network Details'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Networks', 'title' => 'Network Details'])
 
     <div class="row">
         <div class="col-12 mb-3">

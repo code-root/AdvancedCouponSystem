@@ -17,3 +17,19 @@ Schedule::command('sync:process-scheduled')
 Schedule::command('sync:reset-daily-counters')
     ->daily()
     ->at('00:00');
+
+// Schedule subscription management tasks
+Schedule::job(new \App\Jobs\RotateSyncUsageJob())
+    ->daily()
+    ->at('01:00')
+    ->withoutOverlapping();
+
+Schedule::job(new \App\Jobs\ResetDailyCountersJob())
+    ->daily()
+    ->at('00:05')
+    ->withoutOverlapping();
+
+Schedule::job(new \App\Jobs\NotifyTrialEndingJob())
+    ->daily()
+    ->at('09:00')
+    ->withoutOverlapping();

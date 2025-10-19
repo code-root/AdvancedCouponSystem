@@ -1,11 +1,11 @@
-@extends('layouts.vertical', ['title' => 'Purchase Reports'])
+@extends('dashboard.layouts.vertical', ['title' => 'Purchase Reports'])
 
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Reports', 'title' => 'Purchase Analytics'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Reports', 'title' => 'Purchase Analytics'])
 
     <!-- Filters -->
     <div class="row mb-3">

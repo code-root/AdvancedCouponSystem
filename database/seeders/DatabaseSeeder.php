@@ -13,8 +13,11 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed networks first, then proxies
+        // Seed roles and permissions first
         $this->call([
+            RoleSeeder::class,
+            AdminSeeder::class,
+            UserSeeder::class,
             NetworksSeeder::class,
             NetworkProxiesSeeder::class,
         ]);

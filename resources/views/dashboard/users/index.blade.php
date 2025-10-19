@@ -1,7 +1,7 @@
-@extends('layouts.vertical', ['title' => 'Users Management'])
+@extends('dashboard.layouts.vertical', ['title' => 'Users Management'])
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Administration', 'title' => 'Users Management'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Administration', 'title' => 'Users Management'])
 
     <div class="row">
         <div class="col-12 mb-3">

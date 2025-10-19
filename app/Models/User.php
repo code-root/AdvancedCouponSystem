@@ -192,4 +192,13 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         $this->notify(new \App\Notifications\CustomResetPassword($token));
     }
+
+    /**
+     * Get the user's subscription
+     */
+    public function subscription()
+    {
+        return $this->hasOne(\App\Models\Subscription::class);
+    }
+
 }

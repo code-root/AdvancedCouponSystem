@@ -1,4 +1,4 @@
-@extends('layouts.vertical',['title' => 'Dashboard'])
+@extends('dashboard.layouts.vertical',['title' => 'Dashboard'])
 
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -588,13 +588,13 @@ function renderTopNetworks(networks) {
 function renderRecentPurchases(purchases) {
     const tbody = document.getElementById('recentPurchasesBody');
     
-    if (!purchases || orders.length === 0) {
+    if (!purchases || purchases.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No recent purchases</td></tr>';
         return;
     }
     
     let html = '';
-    orders.forEach(p => {
+    purchases.forEach(p => {
         const statusBadge = getStatusBadge(p.status);
         html += `
             <tr>

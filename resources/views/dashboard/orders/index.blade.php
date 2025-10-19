@@ -1,4 +1,4 @@
-@extends('layouts.vertical', ['title' => 'Orders'])
+@extends('dashboard.layouts.vertical', ['title' => 'Orders'])
 
 @section('css')
     @vite(['node_modules/flatpickr/dist/flatpickr.min.css'])
@@ -55,7 +55,7 @@
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Orders', 'title' => 'Reports'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Orders', 'title' => 'Reports'])
     <!-- Statistics Cards -->
     <div class="row row-cols-xxl-6 row-cols-md-3 row-cols-1 text-center mb-3" id="statsCards">
         <div class="col">

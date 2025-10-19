@@ -58,7 +58,7 @@ class SyncLog extends Model
      */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(\App\Models\User::class);
     }
 
     /**
@@ -66,7 +66,7 @@ class SyncLog extends Model
      */
     public function network(): BelongsTo
     {
-        return $this->belongsTo(Network::class);
+        return $this->belongsTo(\App\Models\Network::class);
     }
 
     /**

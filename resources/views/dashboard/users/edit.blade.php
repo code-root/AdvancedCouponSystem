@@ -1,7 +1,7 @@
-@extends('layouts.vertical', ['title' => 'Edit User'])
+@extends('dashboard.layouts.vertical', ['title' => 'Edit User'])
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Users', 'title' => 'Edit User'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Users', 'title' => 'Edit User'])
 
     <div class="row">
         <div class="col-lg-8 mx-auto">

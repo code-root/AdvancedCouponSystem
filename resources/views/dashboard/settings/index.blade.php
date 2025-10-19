@@ -1,11 +1,11 @@
-@extends('layouts.vertical', ['title' => 'Settings'])
+@extends('dashboard.layouts.vertical', ['title' => 'Settings'])
 
 @section('css')
     @vite(['node_modules/select2/dist/css/select2.min.css'])
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Configuration', 'title' => 'Settings'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Configuration', 'title' => 'Settings'])
 
     <div class="row">
         <div class="col-12">

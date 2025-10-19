@@ -1,11 +1,11 @@
-@extends('layouts.vertical', ['title' => 'Connect Network'])
+@extends('dashboard.layouts.vertical', ['title' => 'Connect Network'])
 
 @section('css')
     @vite(['node_modules/sweetalert2/dist/sweetalert2.min.css'])
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Networks', 'title' => 'Connect New Network'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Networks', 'title' => 'Connect New Network'])
 
     <div class="row">
         <div class="col-12 mb-3">

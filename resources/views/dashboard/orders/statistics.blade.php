@@ -1,4 +1,4 @@
-@extends('layouts.vertical', ['title' => 'Purchase Statistics'])
+@extends('dashboard.layouts.vertical', ['title' => 'Purchase Statistics'])
 
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
@@ -6,7 +6,7 @@
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Purchases', 'title' => 'Statistics & Analytics'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Purchases', 'title' => 'Statistics & Analytics'])
 
     <!-- Filters -->
     <div class="row mb-3">

@@ -1,7 +1,7 @@
-@extends('layouts.vertical', ['title' => 'Change Password'])
+@extends('dashboard.layouts.vertical', ['title' => 'Change Password'])
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Profile', 'title' => 'Change Password'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Profile', 'title' => 'Change Password'])
 
     <div class="row justify-content-center">
         <div class="col-lg-6">

@@ -1,11 +1,11 @@
-@extends('layouts.vertical', ['title' => 'Campaign Details'])
+@extends('dashboard.layouts.vertical', ['title' => 'Campaign Details'])
 
 @section('css')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/apexcharts@3.45.1/dist/apexcharts.css">
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Campaigns', 'title' => $campaign->name])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Campaigns', 'title' => $campaign->name])
 
     <!-- Campaign Header -->
     <div class="row">

@@ -1,4 +1,4 @@
-@extends('layouts.vertical', ['title' => 'Login Sessions'])
+@extends('dashboard.layouts.vertical', ['title' => 'Login Sessions'])
 
 @section('css')
 <style>
@@ -32,7 +32,7 @@
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Security', 'title' => 'Login Sessions'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Security', 'title' => 'Login Sessions'])
 
     <!-- Statistics Cards -->
     <div class="row row-cols-xxl-5 row-cols-md-3 row-cols-1 text-center mb-3">

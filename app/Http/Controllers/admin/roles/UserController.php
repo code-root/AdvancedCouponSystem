@@ -15,9 +15,8 @@ class UserController extends Controller
 
     public function __construct()
     {
-        $this->middleware('permission:view-users')->only(['index', 'show']);
-        $this->middleware('permission:create-users')->only(['create', 'store']);
-        $this->middleware('permission:write-users')->only(['edit', 'update', 'destroy', 'toggleStatus']);
+        // Middleware is now handled in routes or individual methods
+        // This constructor can be used for other initialization if needed
     }
 
     /**
@@ -28,7 +27,22 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $data = Admin::orderBy('id', 'DESC')->get();
-        return view('admin.users.index', compact('data'));
+        
+        // Calculate statistics
+        $stats = [
+            'total_users' => \App\Models\User::count(),
+            'active_subscriptions' => \App\Models\Subscription::where('status', 'active')->count(),
+            'trial_users' => \App\Models\User::whereHas('subscription', function($query) {
+                $query->where('status', 'trial');
+            })->count(),
+            'expired_subscriptions' => \App\Models\Subscription::where('status', 'expired')->count(),
+            'no_subscription' => \App\Models\User::whereDoesntHave('subscription')->count(),
+            'users_this_month' => \App\Models\User::whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->count(),
+        ];
+        
+        return view('admin.users.index', compact('data', 'stats'));
     }
 
     /**

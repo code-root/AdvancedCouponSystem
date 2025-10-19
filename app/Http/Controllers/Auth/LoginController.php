@@ -27,11 +27,14 @@ class LoginController extends Controller
             'password' => ['required'],
         ]);
 
+        // Try to authenticate as regular user (User model)
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
+            $user = Auth::user();
             $request->session()->regenerate();
-            // Always redirect to dashboard and ignore any previously intended URL
             $request->session()->forget('url.intended');
-            return redirect()->route('dashboard');
+            
+            // Regular user - redirect to user dashboard
+            return redirect()->route('dashboard')->with('success', 'Welcome back!');
         }
 
         throw ValidationException::withMessages([

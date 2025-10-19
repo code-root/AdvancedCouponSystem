@@ -76,6 +76,7 @@
                     <p class="text-danger fs-14 mb-4">Don't have an account? <a
                             href="{{ route('register') }}" class="fw-semibold text-dark ms-1">Sign Up!</a></p>
 
+
                     <p class="mt-auto mb-0">
                         <script>
                             document.write(new Date().getFullYear())

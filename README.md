@@ -1,120 +1,285 @@
-# Advanced Coupon System
+# 🚀 Advanced Coupon System
 
-A comprehensive coupon management system built with Laravel with integrated Gmail support.
+نظام إدارة الكوبونات والاشتراكات المتقدم مع لوحة إدارة شاملة
 
-## 🚀 Quick Gmail Setup
+## ✨ الميزات الرئيسية
 
-To set up Gmail for sending emails, run:
+### 🎯 نظام الاشتراكات
+- ✅ خطط اشتراك متعددة (Starter, Pro, Enterprise)
+- ✅ تجربة مجانية 14 يوم
+- ✅ نظام الحدود والتحكم في الاستخدام
+- ✅ كوبونات الخصم
+- ✅ دعم Stripe و PayPal
 
+### 👨‍💼 لوحة الإدارة
+- ✅ إدارة المستخدمين والاشتراكات
+- ✅ إدارة الخطط والكوبونات
+- ✅ إدارة الشبكات والبروكسيات
+- ✅ التقارير والإحصائيات
+- ✅ إعدادات الموقع الديناميكية
+- ✅ نظام التنقل كـ مستخدم (Impersonation)
+
+### 🔒 الأمان والمراقبة
+- ✅ مراقبة الأخطاء
+- ✅ مراقبة الأداء
+- ✅ نظام النسخ الاحتياطي
+- ✅ حماية البيانات حسب user_id
+
+### 🎨 التخصيص
+- ✅ ثيمات متعددة (Light, Dark, Auto)
+- ✅ تخطيطات مختلفة (Vertical, Horizontal, Two Column)
+- ✅ ألوان قابلة للتخصيص
+- ✅ إعدادات ديناميكية للموقع
+
+## 🛠️ التثبيت
+
+### المتطلبات
+- PHP 8.1+
+- MySQL 5.7+
+- Composer
+- Node.js & NPM
+
+### خطوات التثبيت
+
+1. **استنساخ المشروع**
 ```bash
-php artisan gmail:setup
+git clone <repository-url>
+cd AdvancedCouponSystem
 ```
 
-This will guide you through the Gmail configuration process step by step.
-
-## 📧 Email Features
-
-- **Gmail SMTP Integration**: Easy setup with App Password support
-- **Multiple Email Templates**: Welcome, verification, password reset, and notifications
-- **Queue Support**: Background email processing
-- **Testing Tools**: Built-in email testing commands
-- **Security**: TLS/SSL encryption with proper authentication
-
-## 🛠️ Available Commands
-
-| Command | Description |
-|---------|-------------|
-| `php artisan gmail:setup` | Quick Gmail configuration |
-| `php artisan gmail:status` | Check Gmail configuration status |
-| `php artisan gmail:diagnose` | Diagnose authentication issues |
-| `php artisan gmail:fix-ssl` | Fix Gmail SSL certificate issues |
-| `php artisan gmail:fix-trakifi` | Fix SSL for trakifi.com domain |
-| `php artisan mail:test email@example.com` | Send test email |
-| `php artisan mail:setup` | General email configuration |
-
-## 🚨 Quick Fixes
-
-### SSL Certificate Issues
-If you're getting SSL certificate errors with `info@trakifi.com`:
-
+2. **تثبيت التبعيات**
 ```bash
-php artisan gmail:fix-trakifi YOUR_APP_PASSWORD
+composer install
+npm install
 ```
 
-### Authentication Issues
-If you're getting "Username and Password not accepted" errors:
-
+3. **إعداد البيئة**
 ```bash
-php artisan gmail:diagnose info@trakifi.com YOUR_APP_PASSWORD
+cp .env.example .env
+php artisan key:generate
 ```
 
-This will test all configurations and find the one that works.
+4. **إعداد قاعدة البيانات**
+```bash
+# تحديث ملف .env بقاعدة البيانات
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=advanced_coupon_system
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
+```
 
-## 📖 Documentation
+5. **تشغيل المايجريشن والـ Seeders**
+```bash
+php artisan migrate
+php artisan db:seed
+```
 
-- [Gmail Setup Guide](md/GMAIL_SETUP_GUIDE.md) - Complete Gmail configuration guide
-- [Email Testing Guide](md/EMAIL_TESTING_GUIDE.md) - Email testing and troubleshooting
+6. **بناء الأصول**
+```bash
+npm run build
+```
+
+7. **تشغيل الخادم**
+```bash
+php artisan serve
+```
+
+## 🔐 بيانات تسجيل الدخول
+
+### للمستخدمين العاديين
+- **المسار**: `http://127.0.0.1:8000/login`
+- **إنشاء حساب**: `http://127.0.0.1:8000/register`
+
+### للأدمن
+- **المسار**: `http://127.0.0.1:8000/admin/login`
+- **البريد الإلكتروني**: `admin@example.com`
+- **كلمة المرور**: `password`
+
+## 📊 المسارات الرئيسية
+
+### للمستخدمين
+- `/dashboard` - لوحة التحكم
+- `/subscriptions/plans` - خطط الاشتراك
+- `/subscriptions/compare` - مقارنة الخطط
+- `/subscriptions/manage` - إدارة الاشتراك
+
+### للأدمن
+- `/admin/` - لوحة التحكم الرئيسية
+- `/admin/user-management/` - إدارة المستخدمين
+- `/admin/plans/` - إدارة الخطط
+- `/admin/reports/` - التقارير
+- `/admin/settings/` - الإعدادات
+
+## 🎨 تخصيص الثيم
+
+النظام يدعم تخصيص الثيم من خلال:
+
+1. **الضغط على أيقونة الإعدادات** في الجانب الأيمن
+2. **اختيار التخطيط**: Vertical, Horizontal, Two Column
+3. **اختيار الثيم**: Light, Dark, Auto
+4. **تخصيص الألوان**: Sidebar, Topbar
+5. **حفظ الإعدادات** تلقائياً
+
+## 🔧 الأوامر المفيدة
+
+```bash
+# تشغيل النسخ الاحتياطي
+php artisan backup:database
+php artisan backup:files
+
+# تشغيل الاختبارات
+php artisan test
+
+# تشغيل الـ Jobs المجدولة
+php artisan schedule:run
+
+# مسح الـ Cache
+php artisan cache:clear
+php artisan route:clear
+php artisan config:clear
+
+# إعادة بناء الأصول
+npm run build
+npm run dev
+```
+
+## 📁 هيكل المشروع
+
+```
+AdvancedCouponSystem/
+├── app/
+│   ├── Console/Commands/     # أوامر Artisan
+│   ├── Http/
+│   │   ├── Controllers/      # المتحكمات
+│   │   │   ├── admin/        # متحكمات الأدمن
+│   │   │   └── ...
+│   │   └── Middleware/       # الـ Middleware
+│   ├── Jobs/                 # الـ Jobs
+│   ├── Models/               # النماذج
+│   ├── Notifications/        # الإشعارات
+│   └── Services/             # الخدمات
+├── database/
+│   ├── migrations/           # المايجريشن
+│   └── seeders/              # الـ Seeders
+├── resources/
+│   ├── views/
+│   │   ├── admin/            # صفحات الأدمن
+│   │   ├── dashboard/        # صفحات المستخدمين
+│   │   └── ...
+│   └── js/                   # ملفات JavaScript
+├── routes/
+│   ├── admin.php             # مسارات الأدمن
+│   ├── dashboard.php         # مسارات المستخدمين
+│   └── web.php               # المسارات العامة
+├── tests/                    # الاختبارات
+└── public/
+    └── assets/               # الأصول العامة
+```
+
+## 🧪 الاختبارات
+
+```bash
+# تشغيل جميع الاختبارات
+php artisan test
+
+# تشغيل اختبارات الوحدة
+php artisan test --testsuite=Unit
+
+# تشغيل اختبارات التكامل
+php artisan test --testsuite=Feature
+
+# تشغيل اختبارات مع تغطية
+php artisan test --coverage
+```
+
+## 📈 المراقبة والأداء
+
+### مراقبة الأخطاء
+- يتم تسجيل جميع الأخطاء في جدول `error_logs`
+- يمكن مراقبة الأخطاء من لوحة الأدمن
+
+### مراقبة الأداء
+- يتم تسجيل مقاييس الأداء في جدول `performance_metrics`
+- تتبع وقت الاستجابة واستخدام الذاكرة
+
+### النسخ الاحتياطي
+- نسخ احتياطي لقاعدة البيانات: `php artisan backup:database`
+- نسخ احتياطي للملفات: `php artisan backup:files`
+
+## 🔄 الجدولة
+
+النظام يشمل Jobs مجدولة:
+
+- **RotateSyncUsageJob**: دوْرَنة بيانات الاستخدام يومياً
+- **ResetDailyCountersJob**: إعادة تعيين العدادات اليومية
+- **NotifyTrialEndingJob**: إشعارات انتهاء التجربة
+
+## 🎯 الخطط المتاحة
+
+### Starter Plan
+- 3 شبكات كحد أقصى
+- 100 عملية sync يومياً
+- 2000 عملية sync شهرياً
+- حد الإيرادات: $10,000
+- حد الطلبات: 500
+
+### Pro Plan
+- 10 شبكات كحد أقصى
+- 500 عملية sync يومياً
+- 10000 عملية sync شهرياً
+- حد الإيرادات: $50,000
+- حد الطلبات: 2500
+
+### Enterprise Plan
+- شبكات غير محدودة
+- عمليات sync غير محدودة
+- إيرادات غير محدودة
+- طلبات غير محدودة
+
+## 🚀 النشر
+
+### إعدادات الإنتاج
+
+1. **تحديث ملف .env**
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://yourdomain.com
+```
+
+2. **تحسين الأداء**
+```bash
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+3. **إعداد الخادم**
+- Apache/Nginx
+- SSL Certificate
+- Database optimization
+
+## 🤝 المساهمة
+
+1. Fork المشروع
+2. إنشاء branch للميزة الجديدة
+3. Commit التغييرات
+4. Push إلى الـ branch
+5. إنشاء Pull Request
+
+## 📄 الترخيص
+
+هذا المشروع مرخص تحت رخصة MIT.
+
+## 📞 الدعم
+
+للحصول على الدعم:
+- إنشاء Issue في GitHub
+- التواصل عبر البريد الإلكتروني
+- مراجعة الوثائق
 
 ---
 
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
-
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
-
-## About Laravel
-
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
-
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-## Laravel Sponsors
-
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
-
-### Premium Partners
-
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+**تم تطوير هذا النظام بواسطة فريق التطوير المتقدم** 🚀

@@ -1,7 +1,7 @@
-@extends('layouts.vertical', ['title' => 'Create Sub-User'])
+@extends('dashboard.layouts.vertical', ['title' => 'Create Sub-User'])
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Users', 'title' => 'Create New Sub-User'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Users', 'title' => 'Create New Sub-User'])
 
     <div class="row">
         <div class="col-lg-8 mx-auto">

@@ -1,11 +1,11 @@
-@extends('layouts.vertical', ['title' => 'Coupons'])
+@extends('dashboard.layouts.vertical', ['title' => 'Coupons'])
 
 @section('css')
     @vite(['node_modules/flatpickr/dist/flatpickr.min.css'])
 @endsection
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Marketing', 'title' => 'Coupons'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Marketing', 'title' => 'Coupons'])
 
     <div class="row">
         <div class="col-12 mb-3">

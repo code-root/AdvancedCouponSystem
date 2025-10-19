@@ -26,8 +26,8 @@ return new class extends Migration
             $table->json('settings')->nullable(); // Store campaign-specific settings
             $table->timestamps();
             
-            // Ensure unique campaign per network
-            $table->unique(['network_id', 'network_campaign_id']);
+            // Allow duplicate campaigns per network
+            // $table->unique(['network_id', 'network_campaign_id']); // Removed to allow duplicates
         });
     }
 

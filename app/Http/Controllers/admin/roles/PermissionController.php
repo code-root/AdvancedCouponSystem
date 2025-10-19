@@ -10,7 +10,8 @@ class PermissionController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:view-permissions')->only(['index']);
+        // Middleware is now handled in routes or individual methods
+        // This constructor can be used for other initialization if needed
     }
 
     public function index(Request $request)

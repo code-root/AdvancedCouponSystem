@@ -12,9 +12,8 @@ class RoleController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:view-roles--permissions')->only(['index', 'show']);
-        $this->middleware('permission:create-roles--permissions')->only(['create', 'store']);
-        $this->middleware('permission:write-roles--permissions')->only(['edit', 'update', 'destroy']);
+        // Middleware is now handled in routes or individual methods
+        // This constructor can be used for other initialization if needed
     }
     /**
      * Display a listing of the resource.

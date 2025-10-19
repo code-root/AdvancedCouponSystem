@@ -70,6 +70,11 @@ class DataSyncService
                 default => $this->syncAll($service, $credentials, $syncConfig, $userId, $network),
             };
 
+            // Update sync usage if sync was successful
+            if ($result['success']) {
+                $this->updateSyncUsage($userId, $result);
+            }
+
             return $result;
 
         } catch (Exception $e) {
@@ -173,13 +178,26 @@ class DataSyncService
 
         $totalRecords = ($couponStats['purchases'] ?? 0) + ($linkStats['purchases'] ?? 0);
 
+        // Plan usage accounting
+        try {
+            app(\App\Services\PlanLimitService::class)
+                ->incrementSyncCount(
+                    \App\Models\User::findOrFail($userId),
+                    (float) (($couponStats['revenue'] ?? 0) + ($linkStats['revenue'] ?? 0)),
+                    (int) (($couponStats['purchases'] ?? 0) + ($linkStats['purchases'] ?? 0)),
+                    1
+                );
+        } catch (\Throwable $e) {
+            Log::warning('Usage increment failed: '.$e->getMessage());
+        }
+
         return [
             'success' => true,
             'message' => $result['message'] ?? 'Data synced successfully',
             'total_records' => $totalRecords,
             'campaigns_count' => $couponStats['campaigns'] ?? 0,
             'coupons_count' => $couponStats['coupons'] ?? 0,
-            'orders_count' => $couponStats['purchases'] ?? 0,
+            'orders_count' => ($couponStats['purchases'] ?? 0) + ($linkStats['purchases'] ?? 0),
             'metadata' => [
                 'coupon_stats' => $couponStats,
                 'link_stats' => $linkStats,
@@ -236,6 +254,37 @@ class DataSyncService
     public function resetDailyCounters(): void
     {
         SyncSchedule::query()->update(['runs_today' => 0]);
+    }
+
+    /**
+     * Update sync usage after successful sync
+     */
+    private function updateSyncUsage(int $userId, array $result): void
+    {
+        try {
+            $user = \App\Models\User::find($userId);
+            if (!$user) {
+                return;
+            }
+
+            $planLimitService = app(\App\Services\PlanLimitService::class);
+            
+            // Update sync count
+            $planLimitService->incrementSyncCount($user, 1);
+            
+            // Update revenue count if purchases were synced
+            if (isset($result['purchases_count']) && $result['purchases_count'] > 0) {
+                $planLimitService->incrementRevenueCount($user, $result['purchases_count']);
+            }
+            
+            // Update orders count if purchases were synced
+            if (isset($result['purchases_count']) && $result['purchases_count'] > 0) {
+                $planLimitService->incrementOrdersCount($user, $result['purchases_count']);
+            }
+            
+        } catch (\Exception $e) {
+            Log::error("Error updating sync usage for user {$userId}: " . $e->getMessage());
+        }
     }
 }
 

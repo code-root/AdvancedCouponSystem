@@ -1,7 +1,7 @@
-@extends('layouts.vertical', ['title' => 'Session Details'])
+@extends('dashboard.layouts.vertical', ['title' => 'Session Details'])
 
 @section('content')
-    @include('layouts.partials.page-title', ['subtitle' => 'Security', 'title' => 'Session Details'])
+    @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Security', 'title' => 'Session Details'])
 
     <div class="row">
         <div class="col-12 mb-3">
