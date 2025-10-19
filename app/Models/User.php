@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Traits\Auditable;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens, HasRoles;
+    use HasFactory, Notifiable, HasApiTokens, HasRoles, Auditable;
 
     /**
      * The attributes that are mass assignable.
@@ -194,11 +195,57 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get the user's subscription
+     * Get the user's subscriptions
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(\App\Models\Subscription::class);
+    }
+
+    /**
+     * Get the user's current subscription
      */
     public function subscription()
     {
-        return $this->hasOne(\App\Models\Subscription::class);
+        return $this->hasOne(\App\Models\Subscription::class)->latest();
+    }
+
+    /**
+     * Get the user's active subscription
+     */
+    public function activeSubscription()
+    {
+        return $this->hasOne(\App\Models\Subscription::class)
+            ->where('status', 'active')
+            ->where('ends_at', '>', now())
+            ->latest();
+    }
+
+    /**
+     * Check if user has active subscription
+     */
+    public function hasActiveSubscription(): bool
+    {
+        return $this->subscriptions()
+            ->where('status', 'active')
+            ->where('ends_at', '>', now())
+            ->exists();
+    }
+
+    /**
+     * Get user's networks
+     */
+    public function networks()
+    {
+        return $this->hasMany(\App\Models\Network::class);
+    }
+
+    /**
+     * Get user's sync logs
+     */
+    public function syncLogs()
+    {
+        return $this->hasMany(\App\Models\SyncLog::class);
     }
 
 }

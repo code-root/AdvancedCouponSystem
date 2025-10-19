@@ -7,10 +7,13 @@ use App\Models\Network;
 use App\Models\Campaign;
 use App\Models\Coupon;
 use App\Models\Purchase;
+use App\Models\Subscription;
+use App\Models\UserSession;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rules\Password;
 use Carbon\Carbon;
 
@@ -38,7 +41,12 @@ class DashboardController extends Controller
         // Get initial stats
         $stats = $this->getInitialStats($targetUserId);
         
-        return view('dashboard.index', compact('stats', 'networks'));
+        // Get subscription information
+        $subscription = $user->activeSubscription;
+        $subscriptionStats = $this->getSubscriptionStats($user);
+        $activeSessions = $this->getUserActiveSessions($user);
+        
+        return view('dashboard.index', compact('stats', 'networks', 'subscription', 'subscriptionStats', 'activeSessions'));
     }
     
     /**
@@ -622,5 +630,128 @@ class DashboardController extends Controller
         
         $user->delete();
         return redirect()->route('users.index')->with('success', 'User deleted successfully');
+    }
+
+    /**
+     * Get subscription statistics for user
+     */
+    private function getSubscriptionStats($user)
+    {
+        return Cache::remember("user_subscription_stats_{$user->id}", 300, function () use ($user) {
+            $subscription = $user->activeSubscription;
+            
+            if (!$subscription) {
+                return [
+                    'has_subscription' => false,
+                    'days_remaining' => 0,
+                    'is_expiring_soon' => false,
+                    'usage' => [],
+                ];
+            }
+
+            $daysRemaining = $subscription->ends_at ? now()->diffInDays($subscription->ends_at, false) : 0;
+            $isExpiringSoon = $daysRemaining <= 7 && $daysRemaining > 0;
+
+            return [
+                'has_subscription' => true,
+                'subscription' => $subscription,
+                'days_remaining' => $daysRemaining,
+                'is_expiring_soon' => $isExpiringSoon,
+                'next_billing_date' => $subscription->ends_at,
+                'usage' => $this->getSubscriptionUsage($subscription),
+            ];
+        });
+    }
+
+    /**
+     * Get subscription usage data
+     */
+    private function getSubscriptionUsage($subscription)
+    {
+        $plan = $subscription->plan;
+        $user = $subscription->user;
+
+        $usage = [];
+
+        if (isset($plan->features['networks_limit'])) {
+            $networksCount = $user->networks()->count();
+            $usage['networks'] = [
+                'used' => $networksCount,
+                'limit' => $plan->features['networks_limit'],
+                'percentage' => $plan->features['networks_limit'] > 0 
+                    ? round(($networksCount / $plan->features['networks_limit']) * 100, 2)
+                    : 0,
+            ];
+        }
+
+        if (isset($plan->features['campaigns_limit'])) {
+            $campaignsCount = $user->campaigns()->count();
+            $usage['campaigns'] = [
+                'used' => $campaignsCount,
+                'limit' => $plan->features['campaigns_limit'],
+                'percentage' => $plan->features['campaigns_limit'] > 0 
+                    ? round(($campaignsCount / $plan->features['campaigns_limit']) * 100, 2)
+                    : 0,
+            ];
+        }
+
+        if (isset($plan->features['syncs_per_month'])) {
+            $currentMonthSyncs = $user->syncLogs()
+                ->whereMonth('created_at', now()->month)
+                ->whereYear('created_at', now()->year)
+                ->count();
+            
+            $usage['syncs'] = [
+                'used' => $currentMonthSyncs,
+                'limit' => $plan->features['syncs_per_month'],
+                'percentage' => $plan->features['syncs_per_month'] > 0 
+                    ? round(($currentMonthSyncs / $plan->features['syncs_per_month']) * 100, 2)
+                    : 0,
+            ];
+        }
+
+        return $usage;
+    }
+
+    /**
+     * Get user's active sessions
+     */
+    private function getUserActiveSessions($user)
+    {
+        return Cache::remember("user_active_sessions_{$user->id}", 60, function () use ($user) {
+            return UserSession::where('user_id', $user->id)
+                ->where('is_active', true)
+                ->latest('last_activity')
+                ->limit(5)
+                ->get()
+                ->map(function ($session) {
+                    return [
+                        'id' => $session->id,
+                        'ip_address' => $session->ip_address,
+                        'device_name' => $session->device_name,
+                        'platform' => $session->platform,
+                        'browser' => $session->browser,
+                        'last_activity' => $session->last_activity,
+                        'is_current' => $session->session_id === session()->getId(),
+                    ];
+                });
+        });
+    }
+
+    /**
+     * Get real-time dashboard data for user
+     */
+    public function getRealTimeData()
+    {
+        $user = Auth::user();
+        
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'active_sessions' => UserSession::where('user_id', $user->id)->where('is_active', true)->count(),
+                'subscription_status' => $user->hasActiveSubscription() ? 'active' : 'inactive',
+                'timestamp' => now()->toISOString(),
+            ]
+        ]);
     }
 }

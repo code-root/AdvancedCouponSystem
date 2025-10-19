@@ -11,12 +11,15 @@ use App\Models\Subscription;
 use App\Models\Network;
 use App\Models\SyncLog;
 use App\Models\UserSession;
+use App\Models\AdminSession;
+use App\Models\AdminAuditLog;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use App\Http\Requests\admin\AdminUpdateRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 
@@ -80,8 +83,11 @@ class AdminController extends Controller
 
         // Get initial statistics for page load
         $stats = $this->getInitialStats();
+        $recentActivities = $this->getRecentActivities();
+        $pendingActivations = $this->getPendingManualActivations();
+        $systemAlerts = $this->getSystemAlerts();
 
-        return view('admin.dashboard', compact('stats'));
+        return view('admin.dashboard', compact('stats', 'recentActivities', 'pendingActivations', 'systemAlerts'));
     }
 
     /**
@@ -140,19 +146,39 @@ class AdminController extends Controller
      */
     private function getInitialStats()
     {
-        return [
-            'total_users' => User::count(),
-            'active_subscriptions' => User::whereHas('subscription', function ($q) {
-                $q->where('status', 'active');
-            })->count(),
-            'trial_users' => User::whereHas('subscription', function ($q) {
-                $q->where('status', 'trial');
-            })->count(),
-            'active_networks' => Network::where('is_active', true)->count(),
-            'syncs_today' => SyncLog::whereDate('started_at', today())->count(),
-            'active_sessions' => UserSession::where('is_active', true)->count(),
-            'total_revenue' => DB::table('purchases')->sum('revenue'),
-        ];
+        return Cache::remember('admin_dashboard_stats', 300, function () {
+            $stats = [
+                'total_users' => User::count(),
+                'active_subscriptions' => Subscription::where('status', 'active')->count(),
+                'trial_subscriptions' => Subscription::where('status', 'trialing')->count(),
+                'canceled_subscriptions' => Subscription::where('status', 'canceled')->count(),
+                'active_networks' => Network::where('is_active', true)->count(),
+                'syncs_today' => SyncLog::whereDate('started_at', today())->count(),
+                'active_user_sessions' => UserSession::where('is_active', true)->count(),
+                'active_admin_sessions' => AdminSession::where('is_active', true)->count(),
+                'total_revenue' => $this->getTotalRevenue(),
+                'monthly_revenue' => $this->getMonthlyRevenue(),
+                'new_subscriptions_today' => Subscription::whereDate('created_at', today())->count(),
+                'new_users_today' => User::whereDate('created_at', today())->count(),
+                'failed_syncs_today' => SyncLog::where('status', 'failed')->whereDate('started_at', today())->count(),
+                'audit_logs_today' => AdminAuditLog::whereDate('created_at', today())->count(),
+            ];
+
+            // Add system health stats with error handling
+            try {
+                $stats['queue_status'] = $this->getQueueStatus();
+            } catch (\Exception $e) {
+                $stats['queue_status'] = 'unknown';
+            }
+
+            try {
+                $stats['storage_usage'] = $this->getStorageUsage();
+            } catch (\Exception $e) {
+                $stats['storage_usage'] = 0;
+            }
+
+            return $stats;
+        });
     }
 
     /**
@@ -299,15 +325,40 @@ class AdminController extends Controller
         ]);
     }
 
-    public function postProfile(AdminUpdateRequest $request)
+    public function postProfile(Request $request)
     {
         $user = Auth::guard('admin')->user();
-        $data = $request->except('password');
-        if ($request->password != null) {
-            $user->password = Hash::make($request->password);
-        }
-        $user->update($data);
+        
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:admins,email,' . $user->id,
+            'phone' => 'nullable|string|max:20',
+            'timezone' => 'nullable|string|max:255',
+            'bio' => 'nullable|string|max:500',
+        ]);
+        
+        $user->update($validated);
         return back()->with('success', 'Profile updated successfully');
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $user = Auth::guard('admin')->user();
+        
+        $validated = $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+        
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect']);
+        }
+        
+        $user->update([
+            'password' => Hash::make($validated['new_password'])
+        ]);
+        
+        return back()->with('success', 'Password updated successfully');
     }
 
     public function getLeads($categoryId)
@@ -361,5 +412,181 @@ class AdminController extends Controller
             'recentChanges',
             'settingsByGroup'
         ));
+    }
+
+    /**
+     * Get total revenue
+     */
+    private function getTotalRevenue()
+    {
+        return DB::table('purchases')->sum('revenue') ?? 0;
+    }
+
+    /**
+     * Get monthly revenue
+     */
+    private function getMonthlyRevenue()
+    {
+        return DB::table('purchases')
+            ->whereMonth('order_date', now()->month)
+            ->whereYear('order_date', now()->year)
+            ->sum('revenue') ?? 0;
+    }
+
+    /**
+     * Get recent activities from audit logs
+     */
+    private function getRecentActivities()
+    {
+        return Cache::remember('admin_recent_activities', 60, function () {
+            return AdminAuditLog::with('admin:id,name')
+                ->latest()
+                ->limit(10)
+                ->get()
+                ->map(function ($log) {
+                    return [
+                        'id' => $log->id,
+                        'admin_name' => $log->admin->name ?? 'System',
+                        'action' => $log->action,
+                        'description' => $log->description,
+                        'model_type' => $log->model_type,
+                        'created_at' => $log->created_at,
+                        'time_ago' => $log->created_at->diffForHumans(),
+                    ];
+                });
+        });
+    }
+
+    /**
+     * Get pending manual activations
+     */
+    private function getPendingManualActivations()
+    {
+        return Cache::remember('pending_manual_activations', 300, function () {
+            return Subscription::with(['user:id,name,email', 'plan:id,name'])
+                ->where('status', 'pending')
+                ->where('gateway', 'manual')
+                ->latest()
+                ->limit(5)
+                ->get()
+                ->map(function ($subscription) {
+                    return [
+                        'id' => $subscription->id,
+                        'user_name' => $subscription->user->name,
+                        'user_email' => $subscription->user->email,
+                        'plan_name' => $subscription->plan->name,
+                        'created_at' => $subscription->created_at,
+                        'time_ago' => $subscription->created_at->diffForHumans(),
+                    ];
+                });
+        });
+    }
+
+    /**
+     * Get system alerts
+     */
+    private function getSystemAlerts()
+    {
+        $alerts = [];
+
+        // Check for failed syncs
+        $failedSyncsCount = SyncLog::where('status', 'failed')
+            ->where('started_at', '>=', now()->subHours(24))
+            ->count();
+
+        if ($failedSyncsCount > 10) {
+            $alerts[] = [
+                'type' => 'warning',
+                'title' => 'High Failed Syncs',
+                'message' => "{$failedSyncsCount} syncs failed in the last 24 hours",
+                'action_url' => route('admin.reports.sync-logs'),
+            ];
+        }
+
+        // Check for expiring subscriptions
+        $expiringSubscriptions = Subscription::where('status', 'active')
+            ->where('ends_at', '<=', now()->addDays(7))
+            ->where('ends_at', '>', now())
+            ->count();
+
+        if ($expiringSubscriptions > 0) {
+            $alerts[] = [
+                'type' => 'info',
+                'title' => 'Expiring Subscriptions',
+                'message' => "{$expiringSubscriptions} subscriptions expiring in the next 7 days",
+                'action_url' => route('admin.subscriptions.index'),
+            ];
+        }
+
+        // Check for inactive admins
+        $inactiveAdmins = Admin::where('active', false)->count();
+        if ($inactiveAdmins > 0) {
+            $alerts[] = [
+                'type' => 'danger',
+                'title' => 'Inactive Admins',
+                'message' => "{$inactiveAdmins} admin accounts are inactive",
+                'action_url' => route('admin.legacy.users.index'),
+            ];
+        }
+
+        return $alerts;
+    }
+
+    /**
+     * Get real-time dashboard data
+     */
+    public function getRealTimeData()
+    {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'active_sessions' => [
+                    'users' => UserSession::where('is_active', true)->count(),
+                    'admins' => AdminSession::where('is_active', true)->count(),
+                ],
+                'new_subscriptions_today' => Subscription::whereDate('created_at', today())->count(),
+                'new_users_today' => User::whereDate('created_at', today())->count(),
+                'failed_syncs_today' => SyncLog::where('status', 'failed')->whereDate('started_at', today())->count(),
+                'timestamp' => now()->toISOString(),
+            ]
+        ]);
+    }
+
+    /**
+     * Get queue status
+     */
+    private function getQueueStatus(): string
+    {
+        try {
+            // Check if queue worker is running by checking for recent jobs
+            $recentJobs = DB::table('jobs')->where('created_at', '>=', now()->subMinutes(5))->count();
+            $failedJobs = DB::table('failed_jobs')->where('failed_at', '>=', now()->subMinutes(5))->count();
+            
+            if ($recentJobs > 0 && $failedJobs === 0) {
+                return 'running';
+            } elseif ($failedJobs > 0) {
+                return 'failed';
+            } else {
+                return 'idle';
+            }
+        } catch (\Exception $e) {
+            return 'unknown';
+        }
+    }
+
+    /**
+     * Get storage usage percentage
+     */
+    private function getStorageUsage(): int
+    {
+        try {
+            $totalSpace = disk_total_space(storage_path());
+            $freeSpace = disk_free_space(storage_path());
+            $usedSpace = $totalSpace - $freeSpace;
+            
+            return round(($usedSpace / $totalSpace) * 100);
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 }

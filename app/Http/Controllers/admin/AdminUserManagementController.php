@@ -13,6 +13,8 @@ use App\Services\SubscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password;
 
 class AdminUserManagementController extends Controller
@@ -92,39 +94,38 @@ class AdminUserManagementController extends Controller
      */
     public function show($id)
     {
+        // Optimize user query with specific field selection
         $user = User::with([
-            'subscription.plan',
-            'networkConnections.network',
+            'subscription:id,user_id,plan_id,status,starts_at,ends_at',
+            'subscription.plan:id,name',
+            'networkConnections:id,user_id,network_id,connection_name,is_connected,connected_at',
+            'networkConnections.network:id,display_name,name',
+            'campaigns:id,user_id,name,status',
+            'purchases:id,user_id,campaign_id,network_id,revenue,order_date'
+        ])->findOrFail($id);
+
+        // Load additional relationships separately to avoid conflicts
+        $user->load([
             'campaigns' => function ($query) {
                 $query->withCount(['coupons', 'purchases']);
             },
             'purchases' => function ($query) {
-                $query->with(['campaign', 'network'])->latest()->limit(10);
+                $query->with(['campaign:id,name', 'network:id,display_name'])->latest()->limit(10);
             }
-        ])->findOrFail($id);
+        ]);
 
-        // Get recent sync logs
+        // Get recent sync logs with optimized query
         $recentSyncLogs = SyncLog::where('user_id', $id)
+            ->select('id', 'user_id', 'network_id', 'sync_type', 'status', 'duration_seconds', 'records_synced', 'started_at')
             ->with('network:id,display_name')
             ->latest('started_at')
             ->limit(10)
             ->get();
 
-        // Get usage statistics
-        $usageStats = [
-            'daily_syncs' => SyncLog::where('user_id', $id)
-                ->whereDate('started_at', today())
-                ->count(),
-            'monthly_syncs' => SyncLog::where('user_id', $id)
-                ->whereMonth('started_at', now()->month)
-                ->whereYear('started_at', now()->year)
-                ->count(),
-            'total_revenue' => $user->purchases()->sum('revenue'),
-            'total_orders' => $user->purchases()->count(),
-            'connected_networks' => $user->networkConnections()->where('is_connected', true)->count(),
-        ];
+        // Get usage statistics with optimized queries
+        $usageStats = $this->getUserUsageStats($id);
 
-        // Get monthly revenue trend
+        // Get monthly revenue trend with optimized query
         $monthlyRevenue = Purchase::where('user_id', $id)
             ->selectRaw('DATE_FORMAT(order_date, "%Y-%m") as month, SUM(revenue) as revenue, COUNT(*) as orders')
             ->groupBy('month')
@@ -136,21 +137,69 @@ class AdminUserManagementController extends Controller
     }
 
     /**
-     * Toggle user status (active/inactive).
+     * Get optimized user usage statistics.
+     */
+    private function getUserUsageStats($userId): array
+    {
+        try {
+            // Use cached statistics for better performance
+            return cache()->remember("user_usage_stats_{$userId}", 300, function () use ($userId) {
+                $today = today();
+                $currentMonth = now()->month;
+                $currentYear = now()->year;
+                
+                // Get last sync date efficiently
+                $lastSync = SyncLog::where('user_id', $userId)
+                    ->latest('started_at')
+                    ->value('started_at');
+                
+                return [
+                    'daily_syncs' => SyncLog::where('user_id', $userId)
+                        ->whereDate('started_at', $today)
+                        ->count(),
+                    'monthly_syncs' => SyncLog::where('user_id', $userId)
+                        ->whereMonth('started_at', $currentMonth)
+                        ->whereYear('started_at', $currentYear)
+                        ->count(),
+                    'total_revenue' => Purchase::where('user_id', $userId)->sum('revenue') ?? 0,
+                    'total_orders' => Purchase::where('user_id', $userId)->count(),
+                    'connected_networks' => NetworkConnection::where('user_id', $userId)
+                        ->where('is_connected', true)
+                        ->count(),
+                    'last_sync' => $lastSync ? \Carbon\Carbon::parse($lastSync) : null,
+                ];
+            });
+        } catch (\Exception $e) {
+            // Return default values if there's an error
+            return [
+                'daily_syncs' => 0,
+                'monthly_syncs' => 0,
+                'total_revenue' => 0,
+                'total_orders' => 0,
+                'connected_networks' => 0,
+                'last_sync' => null,
+            ];
+        }
+    }
+
+    /**
+     * Toggle user status (active/inactive/suspended).
      */
     public function toggleStatus(Request $request, $id)
     {
         $user = User::findOrFail($id);
         
-        $request->validate([
-            'active' => 'required|boolean'
+        $validated = $request->validate([
+            'status' => 'required|in:active,inactive,suspended',
         ]);
-
-        // In a real application, you might have an 'active' field in users table
-        // For now, we'll just show a success message
-        $status = $request->active ? 'activated' : 'deactivated';
         
-        return back()->with('success', "User {$status} successfully.");
+        $user->update(['status' => $validated['status']]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'User status updated successfully',
+            'new_status' => $validated['status']
+        ]);
     }
 
     /**
@@ -197,23 +246,73 @@ class AdminUserManagementController extends Controller
      */
     public function impersonate($id)
     {
-        $user = User::findOrFail($id);
-        
-        // Store admin session info
-        session(['admin_impersonating' => Auth::guard('admin')->id()]);
-        
-        // Login as user
-        Auth::guard('web')->login($user);
-        
-        if (request()->expectsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => "Now impersonating {$user->name}",
-                'redirect_url' => route('dashboard')
+        try {
+            $user = User::findOrFail($id);
+            
+            // Check if admin is authenticated
+            if (!Auth::guard('admin')->check()) {
+                if (request()->expectsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Admin authentication required'
+                    ], 401);
+                }
+                return redirect()->route('admin.login')->with('error', 'Admin authentication required');
+            }
+            
+            $adminId = Auth::guard('admin')->id();
+            
+            // Store original admin session ID for restoration
+            $originalAdminSessionId = session()->getId();
+            session(['original_admin_session_id' => $originalAdminSessionId]);
+            
+            // Login as user first
+            Auth::guard('web')->login($user);
+            
+            // Store impersonation data AFTER logging in as user
+            \App\Helpers\ImpersonationHelper::startImpersonation($adminId, $user->id, $user->name);
+            
+            // Log impersonation start
+            Log::info('Admin started impersonation', [
+                'admin_id' => $adminId,
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
             ]);
+            
+            // Create audit log entry if available
+            if (class_exists('\App\Models\AdminAuditLog')) {
+                \App\Models\AdminAuditLog::create([
+                    'admin_id' => $adminId,
+                    'action' => 'impersonate_user',
+                    'description' => "Started impersonating user: {$user->name} (ID: {$user->id})",
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                ]);
+            }
+            
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Now impersonating {$user->name}",
+                    'redirect_url' => url('/dashboard')
+                ]);
+            }
+            
+            return redirect()->route('dashboard')->with('success', "Now impersonating {$user->name}");
+        } catch (\Exception $e) {
+            Log::error('Impersonation error: ' . $e->getMessage());
+            
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to impersonate user: ' . $e->getMessage()
+                ], 500);
+            }
+            
+            return redirect()->back()->with('error', 'Failed to impersonate user: ' . $e->getMessage());
         }
-        
-        return redirect()->route('dashboard')->with('success', "Now impersonating {$user->name}");
     }
 
     /**
@@ -221,20 +320,65 @@ class AdminUserManagementController extends Controller
      */
     public function stopImpersonating()
     {
-        $adminId = session('admin_impersonating');
-        
-        if ($adminId) {
-            Auth::guard('web')->logout();
-            session()->forget('admin_impersonating');
+        try {
+            $adminId = \App\Helpers\ImpersonationHelper::getAdminId();
+            $impersonatedUserName = \App\Helpers\ImpersonationHelper::getImpersonatedUserName();
             
-            $admin = \App\Models\Admin::find($adminId);
-            if ($admin) {
-                Auth::guard('admin')->login($admin);
-                return redirect()->route('admin.dashboard')->with('success', 'Stopped impersonating user.');
+            if (!$adminId) {
+                // If no impersonation session, check if admin is already logged in
+                if (Auth::guard('admin')->check()) {
+                    return redirect()->route('admin.dashboard')->with('info', 'No active impersonation session.');
+                }
+                return redirect()->route('admin.login')->with('error', 'No active impersonation session.');
             }
+            
+            // Log impersonation stop
+            Log::info('Admin stopped impersonation', [
+                'admin_id' => $adminId,
+                'impersonated_user_name' => $impersonatedUserName,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+            
+            // Create audit log entry if available
+            if (class_exists('\App\Models\AdminAuditLog')) {
+                \App\Models\AdminAuditLog::create([
+                    'admin_id' => $adminId,
+                    'action' => 'stop_impersonate_user',
+                    'description' => "Stopped impersonating user: {$impersonatedUserName}",
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                ]);
+            }
+            
+            // Logout from user session
+            Auth::guard('web')->logout();
+            
+            // Clear impersonation session data
+            \App\Helpers\ImpersonationHelper::stopImpersonation();
+            session()->forget(['original_admin_session_id']);
+            
+            // Restore admin session
+            $admin = \App\Models\Admin::find($adminId);
+            if ($admin && $admin->active) {
+                Auth::guard('admin')->login($admin);
+                
+                // Regenerate session for security
+                session()->regenerate();
+                
+                return redirect()->route('admin.dashboard')->with('success', "Stopped impersonating {$impersonatedUserName}.");
+            } else {
+                return redirect()->route('admin.login')->with('error', 'Admin account not found or inactive.');
+            }
+        } catch (\Exception $e) {
+            Log::error('Stop impersonation error: ' . $e->getMessage());
+            
+            // Clear any remaining impersonation data
+            \App\Helpers\ImpersonationHelper::stopImpersonation();
+            session()->forget(['original_admin_session_id']);
+            
+            return redirect()->route('admin.login')->with('error', 'Error stopping impersonation. Please log in again.');
         }
-        
-        return redirect()->route('admin.dashboard')->with('error', 'No active impersonation session.');
     }
 
     /**
@@ -271,10 +415,10 @@ class AdminUserManagementController extends Controller
     /**
      * Edit user form.
      */
-    public function edit($id)
-    {
+    public function edit($id) {
         $user = User::findOrFail($id);
-        return view('admin.users.edit', compact('user'));
+        $plans = \App\Models\Plan::where('is_active', true)->get();
+        return view('admin.user-management.edit', compact('user', 'plans'));
     }
 
     /**
@@ -331,27 +475,36 @@ class AdminUserManagementController extends Controller
      */
     public function getUserStats($id)
     {
-        $user = User::findOrFail($id);
-
-        $stats = [
-            'connected_networks' => $user->networkConnections()->where('is_connected', true)->count(),
-            'total_campaigns' => $user->campaigns()->count(),
-            'total_revenue' => $user->purchases()->sum('revenue'),
-            'total_orders' => $user->purchases()->count(),
-            'this_month_revenue' => $user->purchases()
-                ->whereMonth('order_date', now()->month)
-                ->whereYear('order_date', now()->year)
-                ->sum('revenue'),
-            'this_month_orders' => $user->purchases()
+        try {
+            // Use the same optimized method as show()
+            $usageStats = $this->getUserUsageStats($id);
+            
+            // Add additional stats for AJAX requests
+            $additionalStats = [
+                'this_month_revenue' => Purchase::where('user_id', $id)
+                    ->whereMonth('order_date', now()->month)
+                    ->whereYear('order_date', now()->year)
+                    ->sum('revenue'),
+            'this_month_orders' => Purchase::where('user_id', $id)
                 ->whereMonth('order_date', now()->month)
                 ->whereYear('order_date', now()->year)
                 ->count(),
-            'last_sync' => SyncLog::where('user_id', $id)
-                ->latest('started_at')
-                ->first()?->started_at,
         ];
 
-        return response()->json($stats);
+            $stats = array_merge($usageStats, $additionalStats);
+
+            return response()->json([
+                'success' => true,
+                'data' => $stats
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Get user stats error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load user statistics: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -368,4 +521,182 @@ class AdminUserManagementController extends Controller
             'is_active' => $proxy->is_active,
         ]);
     }
+
+    /**
+     * Update user password.
+     */
+    public function updatePassword(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+        
+        $validated = $request->validate([
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+        
+        $user->update([
+            'password' => Hash::make($validated['new_password'])
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Password updated successfully'
+        ]);
+    }
+
+    /**
+     * Send email to user.
+     */
+    public function sendEmail(Request $request, $id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            
+            $validated = $request->validate([
+                'subject' => 'required|string|max:255',
+                'message' => 'required|string|max:1000',
+            ]);
+            
+            Mail::raw($validated['message'], function ($message) use ($user, $validated) {
+                $message->to($user->email)
+                        ->subject($validated['subject']);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email sent successfully!'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send email: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Bulk delete users.
+     */
+    public function bulkDelete(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:users,id',
+        ]);
+
+        $deleted = 0;
+        $errors = [];
+
+        foreach ($validated['ids'] as $id) {
+            try {
+                $user = User::findOrFail($id);
+                
+                // Check if user has important data
+                $hasData = $user->campaigns()->count() > 0 || 
+                           $user->purchases()->count() > 0 || 
+                           $user->networkConnections()->count() > 0;
+
+                if ($hasData) {
+                    $errors[] = "User {$user->name} has associated data and cannot be deleted";
+                    continue;
+                }
+
+                $user->delete();
+                $deleted++;
+            } catch (\Exception $e) {
+                $errors[] = "Failed to delete user ID {$id}: " . $e->getMessage();
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Deleted {$deleted} users successfully",
+            'deleted' => $deleted,
+            'errors' => $errors
+        ]);
+    }
+
+    /**
+     * Bulk export users.
+     */
+    public function bulkExport(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:users,id',
+            'format' => 'in:csv,excel,json',
+        ]);
+
+        $users = User::whereIn('id', $validated['ids'])->get();
+        
+        $data = $users->map(function ($user) {
+            return [
+                'ID' => $user->id,
+                'Name' => $user->name,
+                'Email' => $user->email,
+                'Status' => $user->status ?? 'active',
+                'Created At' => $user->created_at->format('Y-m-d H:i:s'),
+                'Last Login' => $user->last_login_at ? $user->last_login_at->format('Y-m-d H:i:s') : 'Never',
+                'Total Campaigns' => $user->campaigns()->count(),
+                'Total Purchases' => $user->purchases()->count(),
+                'Total Revenue' => $user->purchases()->sum('revenue'),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+            'filename' => 'users_export_' . now()->format('Y-m-d_H-i-s') . '.' . ($validated['format'] ?? 'csv')
+        ]);
+    }
+
+    /**
+     * Bulk status update.
+     */
+    public function bulkStatusUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'exists:users,id',
+            'status' => 'required|in:active,inactive,suspended',
+        ]);
+
+        $updated = User::whereIn('id', $validated['ids'])
+            ->update(['status' => $validated['status']]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Updated {$updated} users to {$validated['status']} status",
+            'updated' => $updated
+        ]);
+    }
+
+    /**
+     * Get user activity log.
+     */
+    public function activityLog($id)
+    {
+        $user = User::findOrFail($id);
+        
+        // This would need an activity log model/table
+        $activities = collect([
+            [
+                'action' => 'Login',
+                'description' => 'User logged in',
+                'timestamp' => $user->last_login_at,
+                'ip_address' => '192.168.1.1',
+            ],
+            [
+                'action' => 'Campaign Created',
+                'description' => 'Created new campaign',
+                'timestamp' => $user->campaigns()->latest()->first()?->created_at,
+                'ip_address' => '192.168.1.1',
+            ],
+        ])->filter(fn($activity) => $activity['timestamp']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $activities
+        ]);
+    }
+
 }

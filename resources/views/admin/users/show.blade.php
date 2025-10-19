@@ -97,23 +97,23 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <span class="text-muted">Connected Networks</span>
-                    <span class="fw-semibold text-primary">{{ $usageStats['connected_networks'] }}</span>
+                    <span class="fw-semibold text-primary">{{ $usageStats['connected_networks'] ?? 0 }}</span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <span class="text-muted">Total Campaigns</span>
-                    <span class="fw-semibold text-info">{{ $user->campaigns->count() }}</span>
+                    <span class="fw-semibold text-info">{{ $user->campaigns->count() ?? 0 }}</span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <span class="text-muted">Total Orders</span>
-                    <span class="fw-semibold text-warning">{{ number_format($usageStats['total_orders']) }}</span>
+                    <span class="fw-semibold text-warning">{{ number_format($usageStats['total_orders'] ?? 0) }}</span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <span class="text-muted">Total Revenue</span>
-                    <span class="fw-semibold text-success">${{ number_format($usageStats['total_revenue'], 2) }}</span>
+                    <span class="fw-semibold text-success">${{ number_format($usageStats['total_revenue'] ?? 0, 2) }}</span>
                 </div>
                 <div class="d-flex justify-content-between align-items-center">
                     <span class="text-muted">Last Sync</span>
-                    <span class="fw-semibold">{{ $usageStats['last_sync'] ? $usageStats['last_sync']->format('M d, H:i') : 'Never' }}</span>
+                    <span class="fw-semibold">{{ isset($usageStats['last_sync']) && $usageStats['last_sync'] ? $usageStats['last_sync']->format('M d, H:i') : 'Never' }}</span>
                 </div>
             </div>
         </div>
@@ -179,7 +179,7 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span class="text-muted">Syncs</span>
-                                <span class="fw-semibold">{{ $usageStats['daily_syncs'] }}</span>
+                                <span class="fw-semibold">{{ $usageStats['daily_syncs'] ?? 0 }}</span>
                             </div>
                         </div>
                     </div>
@@ -188,7 +188,7 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <span class="text-muted">Syncs</span>
-                                <span class="fw-semibold">{{ $usageStats['monthly_syncs'] }}</span>
+                                <span class="fw-semibold">{{ $usageStats['monthly_syncs'] ?? 0 }}</span>
                             </div>
                         </div>
                     </div>
@@ -376,27 +376,44 @@
 
 @section('scripts')
 <script>
+// Wait for jQuery to be available
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure jQuery is available
+    if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded');
+        return;
+    }
+});
+
 function impersonateUser(userId) {
     if (confirm('Are you sure you want to impersonate this user? You will be logged in as them.')) {
-        fetch(`/admin/user-management/${userId}/impersonate`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-            },
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.location.href = data.redirect_url;
-            } else {
-                alert('Error: ' + (data.message || 'Failed to impersonate user'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error impersonating user');
-        });
+        // Show loading indicator
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="ti ti-loader me-1"></i>Impersonating...';
+        button.disabled = true;
+        
+        window.ajaxHelper.post(`/admin/user-management/${userId}/impersonate`)
+            .then(data => {
+                if (data.success) {
+                    // Show success message briefly before redirect
+                    alert('تم تسجيل الدخول كالمستخدم بنجاح! سيتم توجيهك الآن...');
+                    // Redirect to user dashboard
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('فشل في تسجيل الدخول كالمستخدم: ' + (data.message || 'خطأ غير معروف'));
+                    // Restore button
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('خطأ في تسجيل الدخول كالمستخدم: ' + error.message);
+                // Restore button
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
     }
 }
 </script>

@@ -5,6 +5,23 @@
 @endsection
 
 @section('content')
+
+@if(session('admin_impersonating'))
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <i class="ti ti-user-shield me-2"></i>
+            <strong>Admin Impersonation Active:</strong> You are currently viewing {{ session('admin_impersonating_user_name', 'this user') }}'s account as an admin. 
+            <form action="{{ route('emergency.stop-impersonating') }}" method="POST" class="d-inline">
+                @csrf
+                <button type="submit" class="btn btn-link p-0 text-decoration-underline border-0 bg-transparent">Return to Admin Panel</button>
+            </form>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="row">
     <div class="col-12">
         <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column">

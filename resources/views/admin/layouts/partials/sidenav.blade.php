@@ -64,20 +64,20 @@
 
             <!-- Admin Users Section -->
             <li class="side-nav-item">
-                <a data-bs-toggle="collapse" href="#sidebarAdmins" aria-expanded="false" aria-controls="sidebarAdmins" class="side-nav-link {{ request()->is('admin/users*') ? 'active' : '' }}">
+                <a data-bs-toggle="collapse" href="#sidebarAdmins" aria-expanded="false" aria-controls="sidebarAdmins" class="side-nav-link {{ request()->routeIs('admin.admin-users.*') ? 'active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-user-shield"></i></span>
                     <span class="menu-text"> Admin Users </span>
                     <span class="menu-arrow"></span>
                 </a>
-                <div class="collapse {{ request()->is('admin/users*') ? 'show' : '' }}" id="sidebarAdmins">
+                <div class="collapse {{ request()->routeIs('admin.admin-users.*') ? 'show' : '' }}" id="sidebarAdmins">
                     <ul class="sub-menu">
                         <li class="side-nav-item">
-                            <a href="{{ route('admin.users.index') }}" class="side-nav-link {{ request()->routeIs('admin.users.index') ? 'active' : '' }}">
+                            <a href="{{ route('admin.admin-users.index') }}" class="side-nav-link {{ request()->routeIs('admin.admin-users.index') ? 'active' : '' }}">
                                 <span class="menu-text">All Admins</span>
                             </a>
                         </li>
                         <li class="side-nav-item">
-                            <a href="{{ route('admin.users.create') }}" class="side-nav-link {{ request()->routeIs('admin.users.create') ? 'active' : '' }}">
+                            <a href="{{ route('admin.admin-users.create') }}" class="side-nav-link {{ request()->routeIs('admin.admin-users.create') ? 'active' : '' }}">
                                 <span class="menu-text">Add Admin</span>
                             </a>
                         </li>
@@ -135,68 +135,54 @@
 
             <!-- Subscriptions Section -->
             <li class="side-nav-item">
-                <a href="{{ route('admin.subscriptions.index') }}" class="side-nav-link {{ request()->is('admin/subscriptions*') ? 'active' : '' }}">
+                <a data-bs-toggle="collapse" href="#sidebarSubscriptions" aria-expanded="false" aria-controls="sidebarSubscriptions" class="side-nav-link {{ request()->is('admin/subscriptions*') ? 'active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-credit-card"></i></span>
                     <span class="menu-text"> Subscriptions </span>
-                </a>
-            </li>
-
-            <li class="side-nav-title mt-2">Reports & Analytics</li>
-
-            <!-- Reports Section -->
-            <li class="side-nav-item">
-                <a data-bs-toggle="collapse" href="#sidebarReports" aria-expanded="false" aria-controls="sidebarReports" class="side-nav-link {{ request()->is('admin/reports*') ? 'active' : '' }}">
-                    <span class="menu-icon"><i class="ti ti-report"></i></span>
-                    <span class="menu-text"> Reports </span>
                     <span class="menu-arrow"></span>
                 </a>
-                <div class="collapse {{ request()->is('admin/reports*') ? 'show' : '' }}" id="sidebarReports">
+                <div class="collapse {{ request()->is('admin/subscriptions*') ? 'show' : '' }}" id="sidebarSubscriptions">
                     <ul class="sub-menu">
                         <li class="side-nav-item">
-                            <a href="{{ route('admin.reports.index') }}" class="side-nav-link {{ request()->routeIs('admin.reports.index') ? 'active' : '' }}">
-                                <span class="menu-text">Overview</span>
+                            <a href="{{ route('admin.subscriptions.index') }}" class="side-nav-link {{ request()->routeIs('admin.subscriptions.index') ? 'active' : '' }}">
+                                <span class="menu-text">All Subscriptions</span>
                             </a>
                         </li>
                         <li class="side-nav-item">
-                            <a href="{{ route('admin.reports.user-sessions') }}" class="side-nav-link {{ request()->routeIs('admin.reports.user-sessions') ? 'active' : '' }}">
-                                <span class="menu-text">User Sessions</span>
-                            </a>
-                        </li>
-                        <li class="side-nav-item">
-                            <a href="{{ route('admin.reports.network-sessions') }}" class="side-nav-link {{ request()->routeIs('admin.reports.network-sessions') ? 'active' : '' }}">
-                                <span class="menu-text">Network Sessions</span>
-                            </a>
-                        </li>
-                        <li class="side-nav-item">
-                            <a href="{{ route('admin.reports.sync-logs') }}" class="side-nav-link {{ request()->routeIs('admin.reports.sync-logs') ? 'active' : '' }}">
-                                <span class="menu-text">Sync Logs</span>
-                            </a>
-                        </li>
-                        <li class="side-nav-item">
-                            <a href="{{ route('admin.reports.sync-statistics') }}" class="side-nav-link {{ request()->routeIs('admin.reports.sync-statistics') ? 'active' : '' }}">
-                                <span class="menu-text">Sync Statistics</span>
+                            <a href="{{ route('admin.subscriptions.statistics') }}" class="side-nav-link {{ request()->routeIs('admin.subscriptions.statistics') ? 'active' : '' }}">
+                                <span class="menu-text">Statistics</span>
                             </a>
                         </li>
                     </ul>
                 </div>
             </li>
 
-            <li class="side-nav-title mt-2">System Configuration</li>
 
-            <!-- Countries Section -->
+            <!-- Sessions Section -->
             <li class="side-nav-item">
-                <a href="{{ route('admin.countries.index') }}" class="side-nav-link {{ request()->is('admin/countries*') ? 'active' : '' }}">
-                    <span class="menu-icon"><i class="ti ti-world"></i></span>
-                    <span class="menu-text"> Countries </span>
+                <a data-bs-toggle="collapse" href="#sidebarSessions" aria-expanded="false" aria-controls="sidebarSessions" class="side-nav-link {{ request()->is('admin/sessions*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-device-desktop"></i></span>
+                    <span class="menu-text"> Sessions </span>
+                    <span class="menu-arrow"></span>
                 </a>
-            </li>
-
-            <!-- Campaigns Section -->
-            <li class="side-nav-item">
-                <a href="{{ route('admin.campaigns.index') }}" class="side-nav-link {{ request()->is('admin/campaigns*') ? 'active' : '' }}">
-                    <span class="menu-icon"><i class="ti ti-speakerphone"></i></span>
-                    <span class="menu-text"> Campaigns </span>
-                </a>
+                <div class="collapse {{ request()->is('admin/sessions*') ? 'show' : '' }}" id="sidebarSessions">
+                    <ul class="sub-menu">
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.sessions.index') }}" class="side-nav-link {{ request()->routeIs('admin.sessions.index') ? 'active' : '' }}">
+                                <span class="menu-text">Active Sessions</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.sessions.my-sessions') }}" class="side-nav-link {{ request()->routeIs('admin.sessions.my-sessions') ? 'active' : '' }}">
+                                <span class="menu-text">My Sessions</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.sessions.statistics') }}" class="side-nav-link {{ request()->routeIs('admin.sessions.statistics') ? 'active' : '' }}">
+                                <span class="menu-text">Statistics</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </li>
 
             <!-- Roles & Permissions Section -->
@@ -222,6 +208,101 @@
                 </div>
             </li>
 
+            <!-- Audit Logs Section -->
+            <li class="side-nav-item">
+                <a data-bs-toggle="collapse" href="#sidebarAuditLogs" aria-expanded="false" aria-controls="sidebarAuditLogs" class="side-nav-link {{ request()->is('admin/audit-logs*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-file-text"></i></span>
+                    <span class="menu-text"> Audit Logs </span>
+                    <span class="menu-arrow"></span>
+                </a>
+                <div class="collapse {{ request()->is('admin/audit-logs*') ? 'show' : '' }}" id="sidebarAuditLogs">
+                    <ul class="sub-menu">
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.audit-logs.index') }}" class="side-nav-link {{ request()->routeIs('admin.audit-logs.index') ? 'active' : '' }}">
+                                <span class="menu-text">All Logs</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.audit-logs.export') }}" class="side-nav-link {{ request()->routeIs('admin.audit-logs.export') ? 'active' : '' }}">
+                                <span class="menu-text">Export Logs</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Notifications Section -->
+            <li class="side-nav-item">
+                <a href="{{ route('admin.notifications.index') }}" class="side-nav-link {{ request()->routeIs('admin.notifications.*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-bell"></i></span>
+                    <span class="menu-text"> Notifications </span>
+                </a>
+            </li>
+
+            <li class="side-nav-title mt-2">Reports & Analytics</li>
+
+            <!-- Reports Section -->
+            <li class="side-nav-item">
+                <a data-bs-toggle="collapse" href="#sidebarReports" aria-expanded="false" aria-controls="sidebarReports" class="side-nav-link {{ request()->is('admin/reports*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-report"></i></span>
+                    <span class="menu-text"> Reports </span>
+                    <span class="menu-arrow"></span>
+                </a>
+                <div class="collapse {{ request()->is('admin/reports*') ? 'show' : '' }}" id="sidebarReports">
+                    <ul class="sub-menu">
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.reports.advanced') }}" class="side-nav-link {{ request()->routeIs('admin.reports.advanced') ? 'active' : '' }}">
+                                <span class="menu-text">Advanced Reports</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.reports.index') }}" class="side-nav-link {{ request()->routeIs('admin.reports.index') ? 'active' : '' }}">
+                                <span class="menu-text">Overview</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.reports.user-sessions.index') }}" class="side-nav-link {{ request()->routeIs('admin.reports.user-sessions.*') ? 'active' : '' }}">
+                                <span class="menu-text">User Sessions</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.reports.network-sessions.index') }}" class="side-nav-link {{ request()->routeIs('admin.reports.network-sessions.*') ? 'active' : '' }}">
+                                <span class="menu-text">Network Sessions</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.reports.sync-logs.index') }}" class="side-nav-link {{ request()->routeIs('admin.reports.sync-logs.*') ? 'active' : '' }}">
+                                <span class="menu-text">Sync Logs</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('admin.reports.sync-statistics.index') }}" class="side-nav-link {{ request()->routeIs('admin.reports.sync-statistics.*') ? 'active' : '' }}">
+                                <span class="menu-text">Sync Statistics</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <li class="side-nav-title mt-2">System Configuration</li>
+
+            <!-- Countries Section -->
+            <li class="side-nav-item">
+                <a href="{{ route('admin.countries.index') }}" class="side-nav-link {{ request()->routeIs('admin.countries.*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-world"></i></span>
+                    <span class="menu-text"> Countries </span>
+                </a>
+            </li>
+
+            <!-- Campaigns Section -->
+            <li class="side-nav-item">
+                <a href="{{ route('admin.campaigns.index') }}" class="side-nav-link {{ request()->routeIs('admin.campaigns.*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-speakerphone"></i></span>
+                    <span class="menu-text"> Campaigns </span>
+                </a>
+            </li>
+
+
             <!-- Settings Section -->
             <li class="side-nav-item">
                 <a data-bs-toggle="collapse" href="#sidebarSettings" aria-expanded="false" aria-controls="sidebarSettings" class="side-nav-link {{ request()->is('admin/settings*') ? 'active' : '' }}">
@@ -237,22 +318,22 @@
                             </a>
                         </li>
                         <li class="side-nav-item">
-                            <a href="{{ route('admin.settings.branding') }}" class="side-nav-link {{ request()->routeIs('admin.settings.branding') ? 'active' : '' }}">
+                            <a href="{{ route('admin.settings.branding.index') }}" class="side-nav-link {{ request()->routeIs('admin.settings.branding.*') ? 'active' : '' }}">
                                 <span class="menu-text">Branding</span>
                             </a>
                         </li>
                         <li class="side-nav-item">
-                            <a href="{{ route('admin.settings.smtp') }}" class="side-nav-link {{ request()->routeIs('admin.settings.smtp') ? 'active' : '' }}">
+                            <a href="{{ route('admin.settings.smtp.index') }}" class="side-nav-link {{ request()->routeIs('admin.settings.smtp.*') ? 'active' : '' }}">
                                 <span class="menu-text">SMTP</span>
                             </a>
                         </li>
                         <li class="side-nav-item">
-                            <a href="{{ route('admin.settings.seo') }}" class="side-nav-link {{ request()->routeIs('admin.settings.seo') ? 'active' : '' }}">
+                            <a href="{{ route('admin.settings.seo.index') }}" class="side-nav-link {{ request()->routeIs('admin.settings.seo.*') ? 'active' : '' }}">
                                 <span class="menu-text">SEO</span>
                             </a>
                         </li>
                         <li class="side-nav-item">
-                            <a href="{{ route('admin.settings.payment') }}" class="side-nav-link {{ request()->routeIs('admin.settings.payment') ? 'active' : '' }}">
+                            <a href="{{ route('admin.settings.payment.index') }}" class="side-nav-link {{ request()->routeIs('admin.settings.payment.*') ? 'active' : '' }}">
                                 <span class="menu-text">Payment</span>
                             </a>
                         </li>
@@ -262,7 +343,7 @@
 
             <!-- Site Settings Section -->
             <li class="side-nav-item">
-                <a href="{{ route('admin.site-settings.dashboard') }}" class="side-nav-link {{ request()->is('admin/site-settings*') ? 'active' : '' }}">
+                <a href="{{ route('admin.site-settings.dashboard') }}" class="side-nav-link {{ request()->routeIs('admin.site-settings.*') ? 'active' : '' }}">
                     <span class="menu-icon"><i class="ti ti-database"></i></span>
                     <span class="menu-text"> Site Settings </span>
                 </a>

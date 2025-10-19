@@ -18,10 +18,10 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Total Syncs Today</h5>
-                <h3 class="mb-0 fw-bold text-primary">{{ $stats['today_syncs'] }}</h3>
+                <h3 class="mb-0 fw-bold text-primary">{{ $stats['syncs_today'] ?? 0 }}</h3>
                 <small class="text-success">
                     <i class="ti ti-trending-up me-1"></i>
-                    {{ $stats['today_syncs_growth'] }}% vs yesterday
+                    {{ $stats['today_syncs_growth'] ?? 0 }}% vs yesterday
                 </small>
             </div>
         </div>
@@ -31,8 +31,8 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Success Rate</h5>
-                <h3 class="mb-0 fw-bold text-success">{{ $stats['success_rate'] }}%</h3>
-                <small class="text-muted">Last 7 days</small>
+                <h3 class="mb-0 fw-bold text-success">{{ $stats['success_rate'] ?? 0 }}%</h3>
+                <small class="text-muted">Overall</small>
             </div>
         </div>
     </div>
@@ -41,7 +41,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Avg Duration</h5>
-                <h3 class="mb-0 fw-bold text-info">{{ $stats['avg_duration'] }}</h3>
+                <h3 class="mb-0 fw-bold text-info">{{ $stats['avg_duration'] ?? 0 }}s</h3>
                 <small class="text-muted">Per sync operation</small>
             </div>
         </div>
@@ -50,9 +50,9 @@
     <div class="col">
         <div class="card">
             <div class="card-body">
-                <h5 class="text-muted fs-13 text-uppercase">Records Processed</h5>
-                <h3 class="mb-0 fw-bold text-warning">{{ number_format($stats['total_records']) }}</h3>
-                <small class="text-muted">This month</small>
+                <h5 class="text-muted fs-13 text-uppercase">Records Synced</h5>
+                <h3 class="mb-0 fw-bold text-warning">{{ number_format($stats['total_records_synced'] ?? 0) }}</h3>
+                <small class="text-muted">All time</small>
             </div>
         </div>
     </div>
@@ -102,7 +102,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($networkStats as $network)
+                            @foreach($networkStats ?? [] as $network)
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -157,35 +157,35 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($userStats as $user)
+                            @foreach($topUsers ?? [] as $user)
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="avatar-sm bg-info-subtle rounded me-2">
                                                 <span class="avatar-title bg-info-subtle text-info">
-                                                    {{ substr($user->name, 0, 1) }}
+                                                    {{ substr($user['name'], 0, 1) }}
                                                 </span>
                                             </div>
                                             <div>
-                                                <h6 class="mb-0">{{ $user->name }}</h6>
-                                                <small class="text-muted">{{ $user->email }}</small>
+                                                <h6 class="mb-0">{{ $user['name'] }}</h6>
+                                                <small class="text-muted">{{ $user['email'] }}</small>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="fw-bold">{{ $user->sync_count }}</span>
+                                        <span class="fw-bold">{{ $user['total_syncs'] }}</span>
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="progress me-2" style="width: 50px; height: 6px;">
-                                                <div class="progress-bar {{ $user->success_rate >= 90 ? 'bg-success' : ($user->success_rate >= 70 ? 'bg-warning' : 'bg-danger') }}" 
-                                                     style="width: {{ $user->success_rate }}%"></div>
+                                                <div class="progress-bar {{ $user['success_rate'] >= 90 ? 'bg-success' : ($user['success_rate'] >= 70 ? 'bg-warning' : 'bg-danger') }}" 
+                                                     style="width: {{ $user['success_rate'] }}%"></div>
                                             </div>
-                                            <span class="text-muted">{{ $user->success_rate }}%</span>
+                                            <span class="text-muted">{{ $user['success_rate'] }}%</span>
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="text-muted">{{ number_format($user->total_records) }}</span>
+                                        <span class="text-muted">{{ number_format($user['total_records_synced']) }}</span>
                                     </td>
                                 </tr>
                             @endforeach
@@ -219,21 +219,21 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($recentActivity as $activity)
+                            @forelse($recentActivity ?? [] as $activity)
                                 <tr>
                                     <td>
-                                        <div>{{ $activity->started_at->format('M d, Y') }}</div>
-                                        <small class="text-muted">{{ $activity->started_at->format('H:i:s') }}</small>
+                                        <div>{{ $activity->started_at ? $activity->started_at->format('M d, Y') : 'N/A' }}</div>
+                                        <small class="text-muted">{{ $activity->started_at ? $activity->started_at->format('H:i:s') : 'N/A' }}</small>
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
                                             <div class="avatar-sm bg-primary-subtle rounded me-2">
                                                 <span class="avatar-title bg-primary-subtle text-primary">
-                                                    {{ substr($activity->user->name, 0, 1) }}
+                                                    {{ $activity->user ? substr($activity->user->name, 0, 1) : 'N' }}
                                                 </span>
                                             </div>
                                             <div>
-                                                <h6 class="mb-0">{{ $activity->user->name }}</h6>
+                                                <h6 class="mb-0">{{ $activity->user->name ?? 'N/A' }}</h6>
                                             </div>
                                         </div>
                                     </td>
@@ -241,37 +241,36 @@
                                         <div class="d-flex align-items-center">
                                             <div class="avatar-sm bg-info-subtle rounded me-2">
                                                 <span class="avatar-title bg-info-subtle text-info">
-                                                    {{ substr($activity->network->display_name, 0, 1) }}
+                                                    {{ $activity->network ? substr($activity->network->display_name, 0, 1) : 'N' }}
                                                 </span>
                                             </div>
                                             <div>
-                                                <h6 class="mb-0">{{ $activity->network->display_name }}</h6>
+                                                <h6 class="mb-0">{{ $activity->network->display_name ?? 'N/A' }}</h6>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
-                                        <span class="badge bg-secondary">{{ ucfirst($activity->sync_type) }}</span>
+                                        <span class="badge bg-secondary">{{ ucfirst($activity->sync_type ?? 'N/A') }}</span>
                                     </td>
                                     <td>
-                                        @if($activity->status === 'success')
-                                            <span class="badge bg-success">Success</span>
+                                        @if($activity->status === 'completed')
+                                            <span class="badge bg-success">Completed</span>
                                         @elseif($activity->status === 'failed')
                                             <span class="badge bg-danger">Failed</span>
-                                        @elseif($activity->status === 'in_progress')
-                                            <span class="badge bg-warning">In Progress</span>
+                                        @elseif($activity->status === 'processing')
+                                            <span class="badge bg-warning">Processing</span>
                                         @else
-                                            <span class="badge bg-info">{{ ucfirst($activity->status) }}</span>
+                                            <span class="badge bg-info">{{ ucfirst($activity->status ?? 'Unknown') }}</span>
                                         @endif
                                     </td>
                                     <td>
-                                        @if($activity->started_at && $activity->completed_at)
+                                        @if($activity->duration_seconds)
                                             @php
-                                                $duration = $activity->started_at->diffInSeconds($activity->completed_at);
-                                                $minutes = floor($duration / 60);
-                                                $seconds = $duration % 60;
+                                                $minutes = floor($activity->duration_seconds / 60);
+                                                $seconds = $activity->duration_seconds % 60;
                                             @endphp
                                             <div>{{ $minutes }}m {{ $seconds }}s</div>
-                                        @elseif($activity->started_at)
+                                        @elseif($activity->started_at && !$activity->completed_at)
                                             <div class="text-warning">Running...</div>
                                         @else
                                             <div class="text-muted">N/A</div>
@@ -280,9 +279,6 @@
                                     <td>
                                         <div class="text-center">
                                             <div class="fw-bold">{{ $activity->records_processed ?? 0 }}</div>
-                                            @if($activity->records_processed && $activity->records_total)
-                                                <small class="text-muted">of {{ $activity->records_total }}</small>
-                                            @endif
                                         </div>
                                     </td>
                                 </tr>
@@ -314,16 +310,16 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(activityCtx, {
         type: 'line',
         data: {
-            labels: {!! json_encode($chartData['labels']) !!},
+            labels: {!! json_encode($chartData['labels'] ?? []) !!},
             datasets: [{
                 label: 'Successful Syncs',
-                data: {!! json_encode($chartData['successful']) !!},
+                data: {!! json_encode($chartData['successful'] ?? []) !!},
                 borderColor: 'rgb(34, 197, 94)',
                 backgroundColor: 'rgba(34, 197, 94, 0.1)',
                 tension: 0.4
             }, {
                 label: 'Failed Syncs',
-                data: {!! json_encode($chartData['failed']) !!},
+                data: {!! json_encode($chartData['failed'] ?? []) !!},
                 borderColor: 'rgb(239, 68, 68)',
                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
                 tension: 0.4
@@ -350,12 +346,12 @@ document.addEventListener('DOMContentLoaded', function() {
     new Chart(statusCtx, {
         type: 'doughnut',
         data: {
-            labels: ['Successful', 'Failed', 'In Progress'],
+            labels: ['Successful', 'Failed', 'Processing'],
             datasets: [{
                 data: [
-                    {{ $stats['successful_syncs'] }},
-                    {{ $stats['failed_syncs'] }},
-                    {{ $stats['in_progress_syncs'] }}
+                    {{ $stats['successful_syncs'] ?? 0 }},
+                    {{ $stats['failed_syncs'] ?? 0 }},
+                    {{ $stats['running_syncs'] ?? 0 }}
                 ],
                 backgroundColor: [
                     'rgb(34, 197, 94)',

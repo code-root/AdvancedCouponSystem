@@ -18,6 +18,7 @@ use App\Http\Controllers\SessionController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\User\SubscriptionController as UserSubscriptionController;
 
 // Guest Routes (Authentication)
 Route::middleware('guest')->group(function () {
@@ -33,7 +34,7 @@ Route::middleware('guest')->group(function () {
 
 // Email Verification Routes
 Route::middleware(['auth'])->group(function () {
-    // Subscriptions
+    // Subscriptions (Legacy)
     Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
         Route::get('plans', [SubscriptionController::class, 'plans'])->name('plans');
         Route::get('compare', [SubscriptionController::class, 'compare'])->name('compare');
@@ -42,6 +43,19 @@ Route::middleware(['auth'])->group(function () {
         Route::post('plans/{plan}/activate', [SubscriptionController::class, 'activate'])->name('activate');
         Route::post('plans/{plan}/checkout', [BillingController::class, 'checkout'])->name('checkout');
         Route::post('cancel', [SubscriptionController::class, 'cancel'])->name('cancel');
+    });
+
+    // New Subscription Management
+    Route::prefix('subscription')->name('subscription.')->middleware('verified')->group(function () {
+        Route::get('/', [UserSubscriptionController::class, 'index'])->name('index');
+        Route::get('/plans', [UserSubscriptionController::class, 'plans'])->name('plans');
+        Route::post('/subscribe', [UserSubscriptionController::class, 'subscribe'])->name('subscribe');
+        Route::post('/cancel', [UserSubscriptionController::class, 'cancel'])->name('cancel');
+        Route::post('/resume', [UserSubscriptionController::class, 'resume'])->name('resume');
+        Route::post('/change-plan', [UserSubscriptionController::class, 'changePlan'])->name('change-plan');
+        Route::get('/invoices', [UserSubscriptionController::class, 'invoices'])->name('invoices');
+        Route::get('/invoices/{id}/download', [UserSubscriptionController::class, 'downloadInvoice'])->name('invoice.download');
+        Route::get('/usage', [UserSubscriptionController::class, 'usage'])->name('usage');
     });
     Route::get('email/verify', [VerifyEmailController::class, 'notice'])->name('verification.notice');
     Route::get('email/verify/{id}/{hash}', [VerifyEmailController::class, 'verify'])
@@ -55,11 +69,19 @@ Route::middleware(['auth'])->group(function () {
 // Authenticated Routes
 Route::middleware(['auth', 'ensure.user.type:user'])->group(function () {
     Route::post('logout', [LoginController::class, 'logout'])->name('logout');
+    
+    // Stop impersonation route for when admin is impersonating
+    Route::post('stop-impersonating', [App\Http\Controllers\admin\AdminUserManagementController::class, 'stopImpersonating'])
+        ->name('stop-impersonating');
+    
     Broadcast::routes();
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('verified')
         ->name('dashboard');
+    Route::get('/dashboard/real-time-data', [DashboardController::class, 'getRealTimeData'])
+        ->middleware('verified')
+        ->name('dashboard.real-time-data');
 
     Route::prefix('dashboard')->name('dashboard.')->middleware('verified')->group(function () {
         Route::get('overview', [DashboardController::class, 'overview'])->name('overview');

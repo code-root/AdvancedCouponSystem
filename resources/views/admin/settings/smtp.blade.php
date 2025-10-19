@@ -1,6 +1,6 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.ajax-wrapper')
 
-@section('admin-content')
+@section('content')
 <div class="row">
     <div class="col-12">
         <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column">
@@ -19,7 +19,11 @@
                 <h5 class="card-title mb-0">Email Configuration</h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.settings.smtp.save') }}">
+                <form method="POST" action="{{ route('admin.settings.smtp.save') }}" 
+                      data-ajax="true" 
+                      data-ajax-url="{{ route('admin.settings.smtp.save') }}"
+                      data-success-message="SMTP settings updated successfully"
+                      data-real-time-validation="true">
                     @csrf
                     
                     <div class="row">
@@ -245,24 +249,16 @@ document.addEventListener('DOMContentLoaded', function() {
         this.disabled = true;
         this.innerHTML = '<i class="ti ti-loader me-1"></i>Sending...';
         
-        fetch('{{ route("admin.settings.test-email") }}', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
+        // Use AJAX helper for better error handling
+        window.ajaxHelper.post('{{ route("admin.settings.smtp.test-email") }}', formData, {
+            loadingElement: this
         })
-        .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                alert('Test email sent successfully!');
-                testEmailModal.hide();
-            } else {
-                alert('Failed to send test email: ' + (data.message || 'Unknown error'));
-            }
+            window.notificationManager.success('Test email sent successfully!');
+            testEmailModal.hide();
         })
         .catch(error => {
-            alert('Error sending test email: ' + error.message);
+            window.notificationManager.error('Failed to send test email: ' + error.message);
         })
         .finally(() => {
             this.disabled = false;

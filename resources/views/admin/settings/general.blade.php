@@ -1,6 +1,6 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.ajax-wrapper')
 
-@section('admin-content')
+@section('content')
 <div class="row">
     <div class="col-12">
         <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column">
@@ -19,7 +19,11 @@
                 <h5 class="card-title mb-0">Site Configuration</h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.settings.general.save') }}">
+                <form method="POST" action="{{ route('admin.settings.general.save') }}" 
+                      data-ajax="true" 
+                      data-ajax-url="{{ route('admin.settings.general.save') }}"
+                      data-success-message="General settings updated successfully"
+                      data-real-time-validation="true">
                     @csrf
                     
                     <div class="row">
@@ -27,7 +31,8 @@
                             <div class="mb-3">
                                 <label for="site_name" class="form-label">Site Name <span class="text-danger">*</span></label>
                                 <input type="text" class="form-control @error('site_name') is-invalid @enderror" 
-                                       id="site_name" name="site_name" value="{{ old('site_name', $settings['site_name'] ?? '') }}" required>
+                                       id="site_name" name="site_name" value="{{ old('site_name', $settings['site_name'] ?? '') }}" 
+                                       required maxlength="255" data-validation="required">
                                 @error('site_name')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -38,7 +43,8 @@
                             <div class="mb-3">
                                 <label for="site_url" class="form-label">Site URL</label>
                                 <input type="url" class="form-control @error('site_url') is-invalid @enderror" 
-                                       id="site_url" name="site_url" value="{{ old('site_url', $settings['site_url'] ?? '') }}">
+                                       id="site_url" name="site_url" value="{{ old('site_url', $settings['site_url'] ?? '') }}"
+                                       maxlength="255" data-validation="url">
                                 @error('site_url')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
@@ -122,7 +128,7 @@
                     </div>
                     
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" data-loading-text="Saving...">
                             <i class="ti ti-device-floppy me-1"></i>Save Settings
                         </button>
                         <a href="{{ route('admin.settings.index') }}" class="btn btn-outline-secondary">
@@ -167,25 +173,28 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Form validation
-    const form = document.querySelector('form');
-    
-    form.addEventListener('submit', function(e) {
-        if (!form.checkValidity()) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        form.classList.add('was-validated');
-    });
-    
     // Maintenance mode warning
     const maintenanceMode = document.getElementById('maintenance_mode');
-    maintenanceMode.addEventListener('change', function() {
-        if (this.value === '1') {
-            if (!confirm('Are you sure you want to enable maintenance mode? This will block all public access to the site.')) {
-                this.value = '0';
+    if (maintenanceMode) {
+        maintenanceMode.addEventListener('change', function() {
+            if (this.checked) {
+                if (!confirm('Are you sure you want to enable maintenance mode? This will block all public access to the site.')) {
+                    this.checked = false;
+                }
             }
-        }
+        });
+    }
+    
+    // Form success handler
+    document.addEventListener('form:success', function(e) {
+        // Additional success handling if needed
+        console.log('General settings saved successfully');
+    });
+    
+    // Form error handler
+    document.addEventListener('form:error', function(e) {
+        // Additional error handling if needed
+        console.error('Error saving general settings:', e.detail.error);
     });
 });
 </script>

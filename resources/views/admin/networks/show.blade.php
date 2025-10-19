@@ -11,12 +11,17 @@
             <div class="mt-3 mt-sm-0">
                 <div class="row g-2 mb-0 align-items-center">
                     <div class="col-auto">
-                        <a href="{{ route('admin.networks.index') }}" class="btn btn-outline-secondary">
+                        <a href="{{ route('admin.legacy.networks.index') }}" class="btn btn-outline-secondary">
                             <i class="ti ti-arrow-left me-1"></i>Back to Networks
                         </a>
                     </div>
                     <div class="col-auto">
-                        <form action="{{ route('admin.networks.toggle-status', $network->id) }}" method="POST" class="d-inline">
+                        <a href="{{ route('admin.legacy.networks.edit', $network->id) }}" class="btn btn-primary">
+                            <i class="ti ti-edit me-1"></i>Edit Network
+                        </a>
+                    </div>
+                    <div class="col-auto">
+                        <form action="{{ route('admin.legacy.networks.toggle-status', $network->id) }}" method="POST" class="d-inline">
                             @csrf
                             <input type="hidden" name="is_active" value="{{ $network->is_active ? 0 : 1 }}">
                             <button type="submit" class="btn btn-{{ $network->is_active ? 'warning' : 'success' }}">
@@ -26,6 +31,52 @@
                         </form>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row row-cols-xxl-4 row-cols-md-2 row-cols-1 text-center mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">Total Revenue</h5>
+                <h3 class="mb-0 fw-bold text-primary">${{ number_format($stats['total_revenue'] ?? 0, 2) }}</h3>
+                <small class="text-success">
+                    <i class="ti ti-trending-up me-1"></i>
+                    {{ $stats['monthly_growth'] ?? 0 }}% vs last month
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">Active Connections</h5>
+                <h3 class="mb-0 fw-bold text-success">{{ $stats['active_connections'] ?? 0 }}</h3>
+                <small class="text-muted">of {{ $stats['total_connections'] ?? 0 }} total</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">Total Campaigns</h5>
+                <h3 class="mb-0 fw-bold text-info">{{ $stats['total_campaigns'] ?? 0 }}</h3>
+                <small class="text-muted">{{ $stats['active_campaigns'] ?? 0 }} active</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="text-muted fs-13 text-uppercase">This Month Revenue</h5>
+                <h3 class="mb-0 fw-bold text-warning">${{ number_format($stats['this_month_revenue'] ?? 0, 2) }}</h3>
+                <small class="text-muted">{{ $stats['this_month_orders'] ?? 0 }} orders</small>
             </div>
         </div>
     </div>

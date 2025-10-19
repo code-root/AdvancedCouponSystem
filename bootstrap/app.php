@@ -18,11 +18,19 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\ApplyUserScope::class,
             \App\Http\Middleware\TrackUserSession::class,
         ]);
+        
+        $middleware->web(append: [
+            \App\Http\Middleware\AuditAdminActions::class,
+            \App\Http\Middleware\TrackAdminSession::class,
+        ]);
         $middleware->alias([
             'ensure.subscribed' => \App\Http\Middleware\EnsureSubscribed::class,
             'enforce.plan' => \App\Http\Middleware\EnforcePlanLimits::class,
+            'enforce.subscription' => \App\Http\Middleware\EnforceSubscriptionLimits::class,
             'redirect.user.type' => \App\Http\Middleware\RedirectBasedOnUserType::class,
             'ensure.user.type' => \App\Http\Middleware\EnsureUserType::class,
+            'admin.permission' => \App\Http\Middleware\CheckAdminPermission::class,
+            'admin.rate.limit' => \App\Http\Middleware\AdminRateLimit::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

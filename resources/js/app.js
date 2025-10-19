@@ -14,9 +14,25 @@ window.jQuery = window.$ = $
 import bootstrap from 'bootstrap/dist/js/bootstrap.min.js'
 window.bootstrap = bootstrap;
 
-// Import Pusher for real-time features
+// Import Pusher and Echo for real-time features
 import Pusher from 'pusher-js';
+import Echo from 'laravel-echo';
+
 window.Pusher = Pusher;
+
+// Initialize Echo
+window.Echo = new Echo({
+    broadcaster: 'pusher',
+    key: import.meta.env.VITE_PUSHER_APP_KEY,
+    cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
+    forceTLS: true,
+    authEndpoint: '/broadcasting/auth',
+    auth: {
+        headers: {
+            Authorization: 'Bearer ' + document.querySelector('meta[name="csrf-token"]')?.getAttribute('content'),
+        },
+    },
+});
 
 import 'simplebar'
 import 'flatpickr'

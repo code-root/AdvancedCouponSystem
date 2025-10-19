@@ -153,6 +153,17 @@
                         </a>
                         @endcan
 
+                        @if(session('admin_impersonating'))
+                        <div class="dropdown-divider my-1"></div>
+                        <form action="{{ route('emergency.stop-impersonating') }}" method="POST" class="d-inline">
+                            @csrf
+                            <button type="submit" class="dropdown-item text-warning border-0 bg-transparent w-100 text-start">
+                                <i class="ti ti-user-shield me-2 fs-18 align-middle"></i>
+                                <span>Return to Admin Panel</span>
+                            </button>
+                        </form>
+                        @endif
+
                         <div class="dropdown-divider my-1"></div>
 
                         <!-- item-->

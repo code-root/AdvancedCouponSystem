@@ -161,8 +161,90 @@
     </div>
 </div>
 
-<!-- Failed Syncs and Active Sessions -->
+<!-- System Health and Quick Actions -->
 <div class="row">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header border-bottom">
+                <h4 class="card-title mb-0">System Health</h4>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">Database</span>
+                    <span class="badge bg-success-subtle text-success">
+                        <i class="ti ti-check me-1"></i>Healthy
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">Cache</span>
+                    <span class="badge bg-success-subtle text-success">
+                        <i class="ti ti-check me-1"></i>Active
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">Queue</span>
+                    @php
+                        $queueStatus = $stats['queue_status'] ?? 'unknown';
+                    @endphp
+                    <span class="badge bg-{{ $queueStatus == 'running' ? 'success' : 'warning' }}-subtle text-{{ $queueStatus == 'running' ? 'success' : 'warning' }}">
+                        <i class="ti ti-{{ $queueStatus == 'running' ? 'check' : 'alert-triangle' }} me-1"></i>
+                        {{ ucfirst($queueStatus) }}
+                    </span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">Storage</span>
+                    <span class="badge bg-info-subtle text-info">
+                        {{ $stats['storage_usage'] ?? '0' }}% Used
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header border-bottom">
+                <h4 class="card-title mb-0">Quick Actions</h4>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ route('admin.user-management.index') }}" class="btn btn-outline-primary">
+                        <i class="ti ti-users me-2"></i>Manage Users
+                    </a>
+                    <a href="{{ route('admin.subscriptions.index') }}" class="btn btn-outline-success">
+                        <i class="ti ti-credit-card me-2"></i>View Subscriptions
+                    </a>
+                    <a href="{{ route('admin.audit-logs.index') }}" class="btn btn-outline-info">
+                        <i class="ti ti-file-text me-2"></i>Audit Logs
+                    </a>
+                    <a href="{{ route('admin.sessions.index') }}" class="btn btn-outline-warning">
+                        <i class="ti ti-device-desktop me-2"></i>Active Sessions
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header border-bottom">
+                <h4 class="card-title mb-0">Recent Notifications</h4>
+            </div>
+            <div class="card-body">
+                <div id="recentNotifications">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Failed Syncs and Active Sessions -->
+<div class="row mt-4">
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header border-bottom">
@@ -183,7 +265,7 @@
     <div class="col-lg-6">
         <div class="card">
             <div class="card-header border-bottom">
-                <h4 class="card-title mb-0">Active Sessions</h4>
+                <h4 class="card-title mb-0">Active Admin Sessions</h4>
             </div>
             <div class="card-body">
                 <div id="activeSessionsTable">
@@ -373,6 +455,7 @@ function renderTables(tables) {
     renderRecentSubscriptions(tables.recent_subscriptions || []);
     renderFailedSyncs(tables.failed_syncs || []);
     renderActiveSessions(tables.active_sessions || []);
+    renderRecentNotifications(tables.recent_notifications || []);
 }
 
 function renderRecentUsers(users) {
@@ -478,6 +561,41 @@ function renderActiveSessions(sessions) {
     });
     
     html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function renderRecentNotifications(notifications) {
+    const container = document.getElementById('recentNotifications');
+    
+    if (!notifications || notifications.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted">No recent notifications</p>';
+        return;
+    }
+    
+    let html = '';
+    
+    notifications.forEach(notification => {
+        const isUnread = !notification.read_at;
+        const icon = notification.data?.icon || 'ti-bell';
+        const color = notification.data?.color || 'primary';
+        
+        html += `
+            <div class="d-flex align-items-start mb-3 ${isUnread ? 'bg-light rounded p-2' : ''}">
+                <div class="avatar-sm bg-${color}-subtle rounded me-3">
+                    <span class="avatar-title bg-${color}-subtle text-${color}">
+                        <i class="ti ${icon}"></i>
+                    </span>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="mb-1 fs-14">${notification.data?.title || 'Notification'}</h6>
+                    <p class="mb-1 fs-13 text-muted">${notification.data?.message?.substring(0, 60) || ''}...</p>
+                    <small class="text-muted">${new Date(notification.created_at).diffForHumans()}</small>
+                </div>
+                ${isUnread ? '<span class="badge bg-warning-subtle text-warning">New</span>' : ''}
+            </div>
+        `;
+    });
+    
     container.innerHTML = html;
 }
 

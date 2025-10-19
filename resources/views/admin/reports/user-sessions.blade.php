@@ -18,7 +18,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Total Sessions</h5>
-                <h3 class="mb-0 fw-bold text-primary">{{ $stats['total_sessions'] }}</h3>
+                <h3 class="mb-0 fw-bold text-primary">{{ $stats['total_sessions'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -27,7 +27,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Active Sessions</h5>
-                <h3 class="mb-0 fw-bold text-success">{{ $stats['active_sessions'] }}</h3>
+                <h3 class="mb-0 fw-bold text-success">{{ $stats['active_sessions'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -36,7 +36,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Unique Users</h5>
-                <h3 class="mb-0 fw-bold text-info">{{ $stats['unique_users'] }}</h3>
+                <h3 class="mb-0 fw-bold text-info">{{ $stats['unique_users'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -45,7 +45,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Today's Sessions</h5>
-                <h3 class="mb-0 fw-bold text-warning">{{ $stats['today_sessions'] }}</h3>
+                <h3 class="mb-0 fw-bold text-warning">{{ $stats['today_sessions'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -58,7 +58,7 @@
                 <h5 class="card-title mb-0">Session Filters</h5>
             </div>
             <div class="card-body">
-                <form method="GET" action="{{ route('admin.reports.user-sessions') }}" class="row g-3">
+                <form method="GET" action="{{ route('admin.reports.user-sessions.index') }}" class="row g-3">
                     <div class="col-md-3">
                         <label for="status" class="form-label">Status</label>
                         <select class="form-select" id="status" name="status">
@@ -96,7 +96,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="ti ti-search me-1"></i>Filter Sessions
                         </button>
-                        <a href="{{ route('admin.reports.user-sessions') }}" class="btn btn-outline-secondary">
+                        <a href="{{ route('admin.reports.user-sessions.index') }}" class="btn btn-outline-secondary">
                             <i class="ti ti-refresh me-1"></i>Clear Filters
                         </a>
                     </div>
@@ -247,44 +247,36 @@
 <script>
 function viewSessionDetails(sessionId) {
     // Load session details via AJAX
-    fetch(`/admin/reports/user-sessions/${sessionId}/details`)
-        .then(response => response.json())
+    window.ajaxHelper.get(`/admin/reports/user-sessions/${sessionId}/details`)
         .then(data => {
             if (data.success) {
                 document.getElementById('sessionDetailsContent').innerHTML = data.html;
                 new bootstrap.Modal(document.getElementById('sessionDetailsModal')).show();
             } else {
-                alert('Failed to load session details');
+                window.showNotification('Failed to load session details', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error loading session details');
+            window.showNotification('Error loading session details', 'error');
         });
 }
 
 function terminateSession(sessionId) {
     if (confirm('Are you sure you want to terminate this session?')) {
-        fetch(`/admin/reports/user-sessions/${sessionId}/terminate`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Session terminated successfully');
-                location.reload();
-            } else {
-                alert('Failed to terminate session: ' + (data.message || 'Unknown error'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error terminating session');
-        });
+        window.ajaxHelper.post(`/admin/reports/user-sessions/${sessionId}/terminate`)
+            .then(data => {
+                if (data.success) {
+                    window.showNotification('Session terminated successfully', 'success');
+                    location.reload();
+                } else {
+                    window.showNotification('Failed to terminate session: ' + (data.message || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                window.showNotification('Error terminating session', 'error');
+            });
     }
 }
 

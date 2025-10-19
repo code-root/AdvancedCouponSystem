@@ -18,7 +18,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Total Sessions</h5>
-                <h3 class="mb-0 fw-bold text-primary">{{ $stats['total_sessions'] }}</h3>
+                <h3 class="mb-0 fw-bold text-primary">{{ $stats['total_sessions'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -27,7 +27,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Active Sessions</h5>
-                <h3 class="mb-0 fw-bold text-success">{{ $stats['active_sessions'] }}</h3>
+                <h3 class="mb-0 fw-bold text-success">{{ $stats['active_sessions'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -36,7 +36,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Connected Networks</h5>
-                <h3 class="mb-0 fw-bold text-info">{{ $stats['connected_networks'] }}</h3>
+                <h3 class="mb-0 fw-bold text-info">{{ $stats['connected_networks'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -44,8 +44,8 @@
     <div class="col">
         <div class="card">
             <div class="card-body">
-                <h5 class="text-muted fs-13 text-uppercase">Failed Logins</h5>
-                <h3 class="mb-0 fw-bold text-danger">{{ $stats['failed_logins'] }}</h3>
+                <h5 class="text-muted fs-13 text-uppercase">Expired Sessions</h5>
+                <h3 class="mb-0 fw-bold text-warning">{{ $stats['expired_sessions'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -58,7 +58,7 @@
                 <h5 class="card-title mb-0">Session Filters</h5>
             </div>
             <div class="card-body">
-                <form method="GET" action="{{ route('admin.reports.network-sessions') }}" class="row g-3">
+                <form method="GET" action="{{ route('admin.reports.network-sessions.index') }}" class="row g-3">
                     <div class="col-md-3">
                         <label for="network_id" class="form-label">Network</label>
                         <select class="form-select" id="network_id" name="network_id">
@@ -97,7 +97,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="ti ti-search me-1"></i>Filter Sessions
                         </button>
-                        <a href="{{ route('admin.reports.network-sessions') }}" class="btn btn-outline-secondary">
+                        <a href="{{ route('admin.reports.network-sessions.index') }}" class="btn btn-outline-secondary">
                             <i class="ti ti-refresh me-1"></i>Clear Filters
                         </a>
                     </div>

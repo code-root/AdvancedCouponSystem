@@ -10,6 +10,7 @@ use Jenssegers\Agent\Agent;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use App\Events\NewSessionCreated;
 use App\Notifications\NewLoginNotification;
 
@@ -20,8 +21,8 @@ class TrackUserSession
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Only track sessions for regular users, not admins
-        if (auth()->check() && !auth()->guard('admin')->check()) {
+        // Track sessions for regular users and when admin is impersonating
+        if (Auth::check() && (!Auth::guard('admin')->check() || session('admin_impersonating'))) {
             $this->updateOrCreateSession($request);
         }
 
@@ -35,7 +36,7 @@ class TrackUserSession
     protected function updateOrCreateSession(Request $request): void
     {
         $sessionId = session()->getId();
-        $userId = auth()->id();
+        $userId = Auth::id();
 
         // First, check if session exists for this user
         $userSession = UserSession::where('session_id', $sessionId)

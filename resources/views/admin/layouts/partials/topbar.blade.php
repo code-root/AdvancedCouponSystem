@@ -72,7 +72,7 @@
                             <span class="text-muted fs-13">{{ Auth::guard('admin')->user()->email ?? '' }}</span>
                         </div>
                         <!-- item-->
-                        <a href="{{ route('admin.profile') }}" class="dropdown-item">
+                        <a href="{{ route('admin.profile.index') }}" class="dropdown-item">
                             <i class="ti ti-user me-2 fs-18 align-middle"></i>
                             <span>My Account</span>
                         </a>

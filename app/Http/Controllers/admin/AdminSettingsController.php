@@ -54,8 +54,8 @@ class AdminSettingsController extends Controller
     public function smtp()
     {
         $settings = SiteSetting::whereIn('key', [
-            'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 
-            'smtp_encryption', 'smtp_from_name', 'smtp_from_email'
+            'mail_mailer', 'mail_host', 'mail_port', 'mail_username', 'mail_password', 
+            'mail_encryption', 'mail_from_address', 'mail_from_name', 'mail_verify_peer'
         ])->pluck('value', 'key');
 
         return view('admin.settings.smtp', compact('settings'));
@@ -67,13 +67,15 @@ class AdminSettingsController extends Controller
     public function saveSmtp(Request $request)
     {
         $validated = $request->validate([
-            'smtp_host' => 'nullable|string|max:255',
-            'smtp_port' => 'nullable|integer|min:1|max:65535',
-            'smtp_username' => 'nullable|string|max:255',
-            'smtp_password' => 'nullable|string|max:255',
-            'smtp_encryption' => 'nullable|in:tls,ssl',
-            'smtp_from_name' => 'nullable|string|max:255',
-            'smtp_from_email' => 'nullable|email|max:255',
+            'mail_mailer' => 'nullable|string|max:255',
+            'mail_host' => 'nullable|string|max:255',
+            'mail_port' => 'nullable|integer|min:1|max:65535',
+            'mail_username' => 'nullable|string|max:255',
+            'mail_password' => 'nullable|string|max:255',
+            'mail_encryption' => 'nullable|in:tls,ssl',
+            'mail_from_address' => 'nullable|email|max:255',
+            'mail_from_name' => 'nullable|string|max:255',
+            'mail_verify_peer' => 'nullable|boolean',
         ]);
 
         $adminId = Auth::guard('admin')->id();
@@ -100,7 +102,10 @@ class AdminSettingsController extends Controller
     public function seo()
     {
         $settings = SiteSetting::whereIn('key', [
-            'google_analytics_id', 'google_tag_manager_id', 'meta_keywords', 'og_image'
+            'meta_description', 'meta_keywords', 'meta_author', 'robots_meta',
+            'og_title', 'og_description', 'facebook_url', 'twitter_url', 
+            'linkedin_url', 'instagram_url', 'google_analytics_id', 
+            'google_tag_manager_id', 'facebook_pixel_id'
         ])->pluck('value', 'key');
 
         return view('admin.settings.seo', compact('settings'));
@@ -112,10 +117,19 @@ class AdminSettingsController extends Controller
     public function saveSeo(Request $request)
     {
         $validated = $request->validate([
+            'meta_description' => 'nullable|string|max:160',
+            'meta_keywords' => 'nullable|string|max:500',
+            'meta_author' => 'nullable|string|max:255',
+            'robots_meta' => 'nullable|string|max:255',
+            'og_title' => 'nullable|string|max:60',
+            'og_description' => 'nullable|string|max:160',
+            'facebook_url' => 'nullable|url|max:255',
+            'twitter_url' => 'nullable|url|max:255',
+            'linkedin_url' => 'nullable|url|max:255',
+            'instagram_url' => 'nullable|url|max:255',
             'google_analytics_id' => 'nullable|string|max:50',
             'google_tag_manager_id' => 'nullable|string|max:50',
-            'meta_keywords' => 'nullable|string|max:500',
-            'og_image' => 'nullable|string|max:500',
+            'facebook_pixel_id' => 'nullable|string|max:50',
         ]);
 
         $adminId = Auth::guard('admin')->id();
@@ -142,8 +156,8 @@ class AdminSettingsController extends Controller
     public function general()
     {
         $settings = SiteSetting::whereIn('key', [
-            'timezone', 'date_format', 'time_format', 'currency', 
-            'currency_symbol', 'language', 'maintenance_mode'
+            'site_name', 'site_url', 'timezone', 'locale', 'maintenance_mode',
+            'maintenance_message', 'registration_enabled'
         ])->pluck('value', 'key');
 
         return view('admin.settings.general', compact('settings'));
@@ -155,13 +169,13 @@ class AdminSettingsController extends Controller
     public function saveGeneral(Request $request)
     {
         $validated = $request->validate([
-            'timezone' => 'nullable|string|max:50',
-            'date_format' => 'nullable|string|max:20',
-            'time_format' => 'nullable|string|max:20',
-            'currency' => 'nullable|string|max:3',
-            'currency_symbol' => 'nullable|string|max:5',
-            'language' => 'nullable|string|max:5',
-            'maintenance_mode' => 'boolean',
+            'site_name' => 'required|string|max:255',
+            'site_url' => 'nullable|url|max:255',
+            'timezone' => 'nullable|string|max:255',
+            'locale' => 'nullable|string|max:10',
+            'maintenance_mode' => 'nullable|boolean',
+            'maintenance_message' => 'nullable|string|max:500',
+            'registration_enabled' => 'nullable|boolean',
         ]);
 
         $adminId = Auth::guard('admin')->id();
@@ -265,6 +279,7 @@ class AdminSettingsController extends Controller
 
         return back()->with('success', 'Payment settings saved successfully');
     }
+
 }
 
 

@@ -232,7 +232,14 @@
 
 @section('scripts')
 <script>
-$(document).ready(function() {
+// Wait for jQuery to be available
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure jQuery is available
+    if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded');
+        return;
+    }
+
     // Initialize DataTable
     $('#usersTable').DataTable({
         responsive: true,
@@ -256,25 +263,33 @@ $(document).ready(function() {
 
 function impersonateUser(userId) {
     if (confirm('Are you sure you want to impersonate this user? You will be logged in as them.')) {
-        fetch(`/admin/user-management/${userId}/impersonate`, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-            },
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.location.href = data.redirect_url;
-            } else {
-                alert('Error: ' + (data.message || 'Failed to impersonate user'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error impersonating user');
-        });
+        // Show loading indicator
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="ti ti-loader me-1"></i>Impersonating...';
+        button.disabled = true;
+        
+        window.ajaxHelper.post(`/admin/user-management/${userId}/impersonate`)
+            .then(data => {
+                if (data.success) {
+                    // Show success message briefly before redirect
+                    alert('تم تسجيل الدخول كالمستخدم بنجاح! سيتم توجيهك الآن...');
+                    // Redirect to user dashboard
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('فشل في تسجيل الدخول كالمستخدم: ' + (data.message || 'خطأ غير معروف'));
+                    // Restore button
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('خطأ في تسجيل الدخول كالمستخدم: ' + error.message);
+                // Restore button
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
     }
 }
 </script>

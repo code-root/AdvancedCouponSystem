@@ -23,7 +23,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Total Countries</h5>
-                <h3 class="mb-0 fw-bold text-primary">{{ $stats['total_countries'] }}</h3>
+                <h3 class="mb-0 fw-bold text-primary">{{ $stats['total_countries'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -32,7 +32,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Active Countries</h5>
-                <h3 class="mb-0 fw-bold text-success">{{ $stats['active_countries'] }}</h3>
+                <h3 class="mb-0 fw-bold text-success">{{ $stats['active_countries'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -41,7 +41,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Inactive Countries</h5>
-                <h3 class="mb-0 fw-bold text-warning">{{ $stats['inactive_countries'] }}</h3>
+                <h3 class="mb-0 fw-bold text-warning">{{ $stats['inactive_countries'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -50,7 +50,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Recently Added</h5>
-                <h3 class="mb-0 fw-bold text-info">{{ $stats['recent_countries'] }}</h3>
+                <h3 class="mb-0 fw-bold text-info">{{ $stats['recent_countries'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -78,11 +78,11 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($countries as $country)
+                            @forelse($countries ?? [] as $country)
                                 <tr>
                                     <td>
-                                        @if($country->flag)
-                                            <img src="{{ $country->flag }}" alt="{{ $country->name }}" 
+                                        @if($country->flag ?? false)
+                                            <img src="{{ $country->flag }}" alt="{{ $country->name ?? 'Country' }}" 
                                                  class="img-thumbnail" style="width: 32px; height: 24px;">
                                         @else
                                             <div class="bg-light rounded d-flex align-items-center justify-content-center" 
@@ -93,19 +93,19 @@
                                     </td>
                                     <td>
                                         <div>
-                                            <h6 class="mb-0">{{ $country->name }}</h6>
-                                            @if($country->native_name && $country->native_name !== $country->name)
+                                            <h6 class="mb-0">{{ $country->name ?? 'N/A' }}</h6>
+                                            @if(($country->native_name ?? false) && $country->native_name !== $country->name)
                                                 <small class="text-muted">{{ $country->native_name }}</small>
                                             @endif
                                         </div>
                                     </td>
                                     <td>
-                                        <code>{{ $country->code }}</code>
+                                        <code>{{ $country->code ?? 'N/A' }}</code>
                                     </td>
                                     <td>
                                         <div>
-                                            <span class="fw-bold">{{ $country->currency_code }}</span>
-                                            @if($country->currency_symbol)
+                                            <span class="fw-bold">{{ $country->currency_code ?? 'N/A' }}</span>
+                                            @if($country->currency_symbol ?? false)
                                                 <small class="text-muted">({{ $country->currency_symbol }})</small>
                                             @endif
                                         </div>
@@ -114,15 +114,15 @@
                                         <span class="text-muted">{{ $country->timezone ?? 'N/A' }}</span>
                                     </td>
                                     <td>
-                                        @if($country->is_active)
+                                        @if($country->is_active ?? false)
                                             <span class="badge bg-success">Active</span>
                                         @else
                                             <span class="badge bg-secondary">Inactive</span>
                                         @endif
                                     </td>
                                     <td>
-                                        <div>{{ $country->created_at->format('M d, Y') }}</div>
-                                        <small class="text-muted">{{ $country->created_at->format('H:i:s') }}</small>
+                                        <div>{{ $country->created_at ? $country->created_at->format('M d, Y') : 'N/A' }}</div>
+                                        <small class="text-muted">{{ $country->created_at ? $country->created_at->format('H:i:s') : 'N/A' }}</small>
                                     </td>
                                     <td>
                                         <div class="dropdown">
@@ -132,19 +132,19 @@
                                             </button>
                                             <ul class="dropdown-menu">
                                                 <li>
-                                                    <a class="dropdown-item" href="{{ route('admin.countries.edit', $country->id) }}">
+                                                    <a class="dropdown-item" href="{{ route('admin.countries.edit', $country->id ?? 0) }}">
                                                         <i class="ti ti-edit me-2"></i>Edit
                                                     </a>
                                                 </li>
                                                 <li>
-                                                    <a class="dropdown-item" href="#" onclick="toggleCountryStatus({{ $country->id }}, {{ $country->is_active ? 'false' : 'true' }})">
-                                                        <i class="ti ti-{{ $country->is_active ? 'eye-off' : 'eye' }} me-2"></i>
-                                                        {{ $country->is_active ? 'Deactivate' : 'Activate' }}
+                                                    <a class="dropdown-item" href="#" onclick="toggleCountryStatus({{ $country->id ?? 0 }}, {{ ($country->is_active ?? false) ? 'false' : 'true' }})">
+                                                        <i class="ti ti-{{ ($country->is_active ?? false) ? 'eye-off' : 'eye' }} me-2"></i>
+                                                        {{ ($country->is_active ?? false) ? 'Deactivate' : 'Activate' }}
                                                     </a>
                                                 </li>
                                                 <li><hr class="dropdown-divider"></li>
                                                 <li>
-                                                    <a class="dropdown-item text-danger" href="#" onclick="deleteCountry({{ $country->id }})">
+                                                    <a class="dropdown-item text-danger" href="#" onclick="deleteCountry({{ $country->id ?? 0 }})">
                                                         <i class="ti ti-trash me-2"></i>Delete
                                                     </a>
                                                 </li>
@@ -166,7 +166,7 @@
                     </table>
                 </div>
                 
-                @if($countries->hasPages())
+                @if(($countries ?? null) && $countries->hasPages())
                     <div class="d-flex justify-content-center mt-3">
                         {{ $countries->links() }}
                     </div>

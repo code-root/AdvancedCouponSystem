@@ -24,3 +24,23 @@ Broadcast::channel('session.{sessionId}', function ($user, $sessionId) {
     return session()->getId() === $sessionId;
 });
 
+// Private channel for admin notifications
+Broadcast::channel('admin.{id}', function ($admin, $id) {
+    return (int) $admin->id === (int) $id;
+});
+
+// Public channel for admin sessions (admin only)
+Broadcast::channel('admin-sessions', function ($admin) {
+    return $admin instanceof \App\Models\Admin;
+});
+
+// Public channel for subscription updates (admin only)
+Broadcast::channel('subscription-updates', function ($admin) {
+    return $admin instanceof \App\Models\Admin;
+});
+
+// Private channel for user subscription updates
+Broadcast::channel('user-subscription.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
+

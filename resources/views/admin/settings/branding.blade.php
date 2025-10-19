@@ -1,6 +1,6 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.ajax-wrapper')
 
-@section('admin-content')
+@section('content')
 <div class="row">
     <div class="col-12">
         <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column">
@@ -19,7 +19,11 @@
                 <h5 class="card-title mb-0">Logo & Favicon</h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ route('admin.settings.branding.save') }}" enctype="multipart/form-data">
+                <form method="POST" action="{{ route('admin.settings.branding.save') }}" enctype="multipart/form-data"
+                      data-ajax="true" 
+                      data-ajax-url="{{ route('admin.settings.branding.save') }}"
+                      data-success-message="Branding settings updated successfully"
+                      data-real-time-validation="true">
                     @csrf
                     
                     <!-- Site Name -->

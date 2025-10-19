@@ -18,7 +18,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Total Syncs</h5>
-                <h3 class="mb-0 fw-bold text-primary">{{ $stats['total_syncs'] }}</h3>
+                <h3 class="mb-0 fw-bold text-primary">{{ $stats['total_syncs'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -27,7 +27,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Successful</h5>
-                <h3 class="mb-0 fw-bold text-success">{{ $stats['successful_syncs'] }}</h3>
+                <h3 class="mb-0 fw-bold text-success">{{ $stats['successful_syncs'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -36,7 +36,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">Failed</h5>
-                <h3 class="mb-0 fw-bold text-danger">{{ $stats['failed_syncs'] }}</h3>
+                <h3 class="mb-0 fw-bold text-danger">{{ $stats['failed_syncs'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -45,7 +45,7 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="text-muted fs-13 text-uppercase">In Progress</h5>
-                <h3 class="mb-0 fw-bold text-warning">{{ $stats['in_progress_syncs'] }}</h3>
+                <h3 class="mb-0 fw-bold text-warning">{{ $stats['in_progress_syncs'] ?? 0 }}</h3>
             </div>
         </div>
     </div>
@@ -58,7 +58,7 @@
                 <h5 class="card-title mb-0">Sync Log Filters</h5>
             </div>
             <div class="card-body">
-                <form method="GET" action="{{ route('admin.reports.sync-logs') }}" class="row g-3">
+                <form method="GET" action="{{ route('admin.reports.sync-logs.index') }}" class="row g-3">
                     <div class="col-md-3">
                         <label for="status" class="form-label">Status</label>
                         <select class="form-select" id="status" name="status">
@@ -74,7 +74,7 @@
                         <label for="network_id" class="form-label">Network</label>
                         <select class="form-select" id="network_id" name="network_id">
                             <option value="">All Networks</option>
-                            @foreach($networks as $network)
+                            @foreach($networks ?? [] as $network)
                                 <option value="{{ $network->id }}" {{ request('network_id') == $network->id ? 'selected' : '' }}>
                                     {{ $network->display_name }}
                                 </option>
@@ -86,7 +86,7 @@
                         <label for="user_id" class="form-label">User</label>
                         <select class="form-select" id="user_id" name="user_id">
                             <option value="">All Users</option>
-                            @foreach($users as $user)
+                            @foreach($users ?? [] as $user)
                                 <option value="{{ $user->id }}" {{ request('user_id') == $user->id ? 'selected' : '' }}>
                                     {{ $user->name }}
                                 </option>
@@ -110,7 +110,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="ti ti-search me-1"></i>Filter Logs
                         </button>
-                        <a href="{{ route('admin.reports.sync-logs') }}" class="btn btn-outline-secondary">
+                        <a href="{{ route('admin.reports.sync-logs.index') }}" class="btn btn-outline-secondary">
                             <i class="ti ti-refresh me-1"></i>Clear Filters
                         </a>
                         <button type="button" class="btn btn-outline-info" onclick="exportLogs()">
@@ -364,7 +364,7 @@ function exportLogs() {
     const params = new URLSearchParams(window.location.search);
     params.set('export', 'csv');
     
-    window.open(`{{ route('admin.reports.sync-logs') }}?${params.toString()}`, '_blank');
+    window.open(`{{ route('admin.reports.sync-logs.index') }}?${params.toString()}`, '_blank');
 }
 
 document.addEventListener('DOMContentLoaded', function() {

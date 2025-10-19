@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Events\SubscriptionCreated;
+use App\Events\SubscriptionCancelled;
+use App\Events\SubscriptionUpgraded;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\Auditable;
 
 class Subscription extends Model
 {
-    use HasFactory;
+    use HasFactory, Auditable;
 
     protected $fillable = [
         'user_id',
@@ -33,6 +37,14 @@ class Subscription extends Model
         'cancelled_at' => 'datetime',
         'paid_until' => 'datetime',
         'meta' => 'array',
+    ];
+
+    /**
+     * The event map for the model.
+     */
+    protected $dispatchesEvents = [
+        'created' => SubscriptionCreated::class,
+        'updated' => SubscriptionUpgraded::class,
     ];
 
     public function user()

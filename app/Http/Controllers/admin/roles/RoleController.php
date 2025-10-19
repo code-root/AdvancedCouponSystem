@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 class RoleController extends Controller
@@ -82,14 +83,19 @@ class RoleController extends Controller
             $permissionsData[$model] = $modelPermissions;
         }
 
-        // Get all roles with users
-        $rolesWithUsers = Role::with('users')->get();
+        // Get all roles with users count
+        $roles = Role::withCount('users')->orderBy('id', 'DESC')->get();
 
-        // Get all roles ordered by ID in descending order
-        $roles = Role::orderBy('id', 'DESC')->get();
+        // Get statistics
+        $stats = [
+            'total_roles' => Role::count(),
+            'total_permissions' => Permission::count(),
+            'users_with_roles' => User::whereHas('roles')->count(),
+            'admin_users' => \App\Models\Admin::count(),
+        ];
 
         // Return the view with the data
-        return view('admin.roles.index', compact('roles', 'permissionsData', 'rolesWithUsers'));
+        return view('admin.roles.index', compact('roles', 'permissionsData', 'stats'));
     }
 
 
@@ -100,8 +106,17 @@ class RoleController extends Controller
      */
     public function create()
     {
-        $permission = Permission::get();
-        return view('admin.roles.create',compact('permission'));
+        // Get permissions grouped by resource
+        $permissions = Permission::orderBy('name')->get();
+        $permissionsData = [];
+        
+        foreach ($permissions as $permission) {
+            $parts = explode('-', $permission->name);
+            $group = $parts[0] ?? 'other';
+            $permissionsData[$group][] = $permission;
+        }
+        
+        return view('admin.roles.create', compact('permissionsData'));
     }
 
     /**
@@ -144,9 +159,7 @@ class RoleController extends Controller
             $role->syncPermissions($toSync);
         }
 
-        return [
-            'msg' => 'Role added successfully'
-        ];
+        return redirect()->route('admin.roles.index')->with('success', 'Role created successfully');
     }
 
     /**
@@ -173,20 +186,19 @@ class RoleController extends Controller
      */
     public function edit($id)
     {
-        $role = Role::find($id);
-        $permission = Permission::orderBy('name')->get();
-        // Group permissions by resource part (after first '-') for organized UI
-        $groupedPermissions = [];
-        foreach ($permission as $perm) {
-            $parts = explode('-', $perm->name, 2);
-            $resource = $parts[1] ?? $parts[0];
-            $groupedPermissions[$resource][] = $perm;
+        $role = Role::findOrFail($id);
+        
+        // Get permissions grouped by resource
+        $permissions = Permission::orderBy('name')->get();
+        $permissionsData = [];
+        
+        foreach ($permissions as $permission) {
+            $parts = explode('-', $permission->name);
+            $group = $parts[0] ?? 'other';
+            $permissionsData[$group][] = $permission;
         }
-        $rolePermissions = DB::table("role_has_permissions")->where("role_has_permissions.role_id",$id)
-            ->pluck('role_has_permissions.permission_id','role_has_permissions.permission_id')
-            ->all();
 
-        return view('admin.roles.edit',compact('role','permission','rolePermissions','groupedPermissions'));
+        return view('admin.roles.edit', compact('role', 'permissionsData'));
     }
 
     /**
@@ -198,23 +210,28 @@ class RoleController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $this->validate($request, [
-            'name' => 'required|string|max:255',
-            'permission' => 'required|array|min:1',
-            'permission.*' => 'integer|exists:permissions,id',
+        $role = Role::findOrFail($id);
+        
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:roles,name,' . $id,
+            'display_name' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:500',
+            'permissions' => 'array',
+            'permissions.*' => 'exists:permissions,id',
         ]);
 
-        $role = Role::find($id);
-        $role->name = $request->input('name');
-        $role->guard_name = 'admin';
-        $role->save();
+        $role->update([
+            'name' => $validated['name'],
+            'display_name' => $validated['display_name'],
+            'description' => $validated['description'],
+        ]);
 
-        $permIds = $request->input('permission', []);
-        $permissions = Permission::whereIn('id', $permIds)->get();
-        $role->syncPermissions($permissions);
-        return [
-            'msg' => 'Role updated successfully'
-        ];
+        if (isset($validated['permissions'])) {
+            $permissions = Permission::whereIn('id', $validated['permissions'])->get();
+            $role->syncPermissions($permissions);
+        }
+
+        return redirect()->route('admin.roles.index')->with('success', 'Role updated successfully');
     }
     /**
      * Remove the specified resource from storage.
@@ -224,8 +241,29 @@ class RoleController extends Controller
      */
     public function destroy($id)
     {
-        DB::table("roles")->where('id',$id)->delete();
-        return redirect()->back()
-                        ->with('success','Role deleted successfully');
+        $role = Role::findOrFail($id);
+        
+        // Prevent deletion of super-admin role
+        if ($role->name === 'super-admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot delete super-admin role'
+            ], 403);
+        }
+        
+        // Check if role has users
+        if ($role->users()->count() > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot delete role that has assigned users'
+            ], 403);
+        }
+        
+        $role->delete();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Role deleted successfully'
+        ]);
     }
 }

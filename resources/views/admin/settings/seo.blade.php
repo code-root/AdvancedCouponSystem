@@ -1,6 +1,6 @@
-@extends('admin.layouts.app')
+@extends('admin.layouts.ajax-wrapper')
 
-@section('admin-content')
+@section('content')
 <div class="row">
     <div class="col-12">
         <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column">

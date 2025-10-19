@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
+use App\Helpers\ImpersonationHelper;
 
 class EnsureUserType
 {
@@ -24,6 +25,30 @@ class EnsureUserType
             
             // Check if admin is trying to access user pages
             if (Auth::guard('admin')->check()) {
+                // Allow if admin is impersonating a user
+                if (ImpersonationHelper::isImpersonating()) {
+                    // Validate impersonation session
+                    if (!ImpersonationHelper::validateImpersonation()) {
+                        ImpersonationHelper::stopImpersonation();
+                        return redirect()->route('admin.login')->with('error', 'Impersonation session expired or invalid.');
+                    }
+
+                    // Check if impersonation session is expired (2 hours timeout)
+                    if (ImpersonationHelper::isImpersonationExpired(120)) {
+                        ImpersonationHelper::stopImpersonation();
+                        return redirect()->route('admin.login')->with('error', 'Impersonation session expired.');
+                    }
+
+                    // Add impersonation data to request for use in controllers/views
+                    $request->merge([
+                        'is_impersonating' => true,
+                        'impersonated_user_id' => ImpersonationHelper::getImpersonatedUserId(),
+                        'impersonated_user_name' => ImpersonationHelper::getImpersonatedUserName(),
+                        'impersonating_admin_id' => ImpersonationHelper::getAdminId(),
+                    ]);
+
+                    return $next($request);
+                }
                 return redirect()->route('admin.dashboard')->with('error', 'Access denied. You are logged in as admin.');
             }
         }
