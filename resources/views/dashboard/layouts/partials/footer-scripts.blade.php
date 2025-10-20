@@ -167,3 +167,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 @endauth
 
+<!-- Subscription Helper Script -->
+<script src="{{ asset('assets/js/subscription-helper.js') }}"></script>
+

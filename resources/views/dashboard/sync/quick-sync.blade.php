@@ -7,6 +7,9 @@
 @section('content')
     @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Data Sync', 'title' => 'Quick Sync'])
 
+    <!-- Subscription Banner -->
+    <x-subscription-banner />
+
     <div class="row">
         <div class="col-lg-8">
             <!-- Quick Sync Form -->
@@ -89,9 +92,15 @@
 
                         <!-- Submit Button -->
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg" id="syncButton">
-                                <i class="ti ti-refresh me-2"></i>Start Sync Now
-                            </button>
+                            @if(isset($subscriptionContext) && $subscriptionContext['canSyncData'])
+                                <button type="submit" class="btn btn-primary btn-lg" id="syncButton">
+                                    <i class="ti ti-refresh me-2"></i>Start Sync Now
+                                </button>
+                            @else
+                                <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#upgradeModal" data-feature="sync-data">
+                                    <i class="ti ti-lock me-2"></i>Start Sync Now
+                                </button>
+                            @endif
                         </div>
                     </form>
                 </div>
@@ -534,6 +543,15 @@ function showToast(type, message) {
     
     setTimeout(() => toastElement.remove(), 5000);
 }
+
+// Subscription Context for JavaScript
+@if(isset($subscriptionContext))
+window.subscriptionContext = @json($subscriptionContext);
+@endif
 </script>
+
+<!-- Upgrade Modal -->
+<x-upgrade-prompt type="modal" feature="sync-data" title="Sync Data" message="Subscribe to sync data in real-time." />
+
 @endsection
 

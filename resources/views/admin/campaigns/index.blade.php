@@ -8,6 +8,20 @@
                 <h4 class="fs-18 fw-semibold m-0">Campaigns Management</h4>
                 <p class="text-muted mb-0">Monitor and manage affiliate campaigns across all networks</p>
             </div>
+            <div class="mt-3 mt-sm-0">
+                <div class="row g-2 mb-0 align-items-center">
+                    <div class="col-auto">
+                        <button class="btn btn-outline-primary" onclick="refreshCampaigns()">
+                            <i class="ti ti-refresh me-1"></i>Refresh Data
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary" onclick="exportCampaigns()">
+                            <i class="ti ti-download me-1"></i>Export
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -50,10 +64,6 @@
         </div>
     </div>
 </div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <div class="row">
     <div class="col-12">
@@ -63,7 +73,7 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover">
+                    <table class="table table-hover align-middle mb-0" id="campaignsTable">
                         <thead>
                             <tr>
                                 <th>Campaign</th>
@@ -107,13 +117,13 @@
                                     </td>
                                     <td>
                                         @if($campaign->status === 'active')
-                                            <span class="badge bg-success">Active</span>
+                                            <span class="badge bg-success-subtle text-success">Active</span>
                                         @elseif($campaign->status === 'paused')
-                                            <span class="badge bg-warning">Paused</span>
+                                            <span class="badge bg-warning-subtle text-warning">Paused</span>
                                         @elseif($campaign->status === 'inactive')
-                                            <span class="badge bg-secondary">Inactive</span>
+                                            <span class="badge bg-secondary-subtle text-secondary">Inactive</span>
                                         @else
-                                            <span class="badge bg-info">{{ ucfirst($campaign->status) }}</span>
+                                            <span class="badge bg-info-subtle text-info">{{ ucfirst($campaign->status) }}</span>
                                         @endif
                                     </td>
                                     <td>
@@ -144,7 +154,7 @@
                                     </td>
                                     <td>
                                         <div class="dropdown">
-                                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
+                                            <button class="btn btn-soft-secondary btn-sm dropdown-toggle" type="button" 
                                                     data-bs-toggle="dropdown" aria-expanded="false">
                                                 <i class="ti ti-dots-vertical"></i>
                                             </button>
@@ -159,6 +169,7 @@
                                                         <i class="ti ti-chart-bar me-2"></i>View Statistics
                                                     </a>
                                                 </li>
+                                                <li><hr class="dropdown-divider"></li>
                                                 @if($campaign->status === 'active')
                                                     <li>
                                                         <a class="dropdown-item text-warning" href="#" onclick="pauseCampaign({{ $campaign->id }})">
@@ -183,9 +194,10 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="text-center py-4">
+                                    <td colspan="8" class="text-center py-5">
                                         <div class="text-muted">
                                             <i class="ti ti-speakerphone-off fs-48 mb-3"></i>
+                                            <h5>No Campaigns Found</h5>
                                             <p>No campaigns found. Campaigns will appear here once users connect their networks.</p>
                                         </div>
                                     </td>
@@ -336,6 +348,26 @@ function syncCampaign(campaignId) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    if (typeof $ === 'undefined') {
+        console.error('jQuery is not loaded');
+        return;
+    }
+
+    // Initialize DataTable
+    $('#campaignsTable').DataTable({
+        responsive: true,
+        pageLength: 25,
+        order: [[0, 'asc']],
+        columnDefs: [
+            { orderable: false, targets: [7] }
+        ],
+        language: {
+            search: "",
+            searchPlaceholder: "Search campaigns...",
+            infoFiltered: ""
+        }
+    });
+
     // Auto-refresh every 5 minutes for campaign data
     setInterval(function() {
         if (document.visibilityState === 'visible') {
@@ -343,5 +375,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 300000);
 });
+
+function refreshCampaigns() {
+    location.reload();
+}
+
+function exportCampaigns() {
+    // Implement export functionality
+    alert('Export functionality will be implemented soon');
+}
 </script>
 @endpush

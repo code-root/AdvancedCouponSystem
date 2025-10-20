@@ -93,6 +93,9 @@
 @section('content')
     @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Analytics', 'title' => 'Reports'])
 
+    <!-- Subscription Banner -->
+    <x-subscription-banner />
+
     <!-- Filters -->
     <div class="row mb-3">
         <div class="col-12">
@@ -551,5 +554,14 @@ function exportReport() {
     const params = new URLSearchParams(filters);
     window.open(`{{ route('reports.export', ['type' => 'pdf']) }}?${params}`, '_blank');
 }
+
+// Subscription Context for JavaScript
+@if(isset($subscriptionContext))
+window.subscriptionContext = @json($subscriptionContext);
+@endif
 </script>
+
+<!-- Upgrade Modal -->
+<x-upgrade-prompt type="modal" feature="advanced-analytics" title="Advanced Analytics" message="Subscribe to unlock advanced analytics and insights." />
+
 @endsection

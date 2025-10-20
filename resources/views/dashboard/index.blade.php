@@ -22,6 +22,64 @@
 </div>
 @endif
 
+<!-- Subscription Banner -->
+<x-subscription-banner />
+
+<!-- Subscription Status Card -->
+@if(isset($subscriptionContext))
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card {{ $subscriptionContext['isReadOnly'] ? 'border-warning' : 'border-success' }}">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center">
+                            <div class="avatar-sm me-3">
+                                <div class="avatar-title bg-{{ $subscriptionContext['isReadOnly'] ? 'warning' : 'success' }}-subtle text-{{ $subscriptionContext['isReadOnly'] ? 'warning' : 'success' }} rounded-circle">
+                                    <i class="ti ti-{{ $subscriptionContext['isReadOnly'] ? 'lock' : 'crown' }}"></i>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 class="mb-1">
+                                    @if($subscriptionContext['hasSubscription'])
+                                        {{ $subscriptionContext['plan']->name ?? 'Unknown Plan' }}
+                                    @else
+                                        No Subscription
+                                    @endif
+                                </h5>
+                                <p class="text-muted mb-0">
+                                    @if($subscriptionContext['isReadOnly'])
+                                        <i class="ti ti-eye me-1"></i>Read-only mode
+                                    @else
+                                        <i class="ti ti-check-circle me-1"></i>Full access
+                                    @endif
+                                    @if($subscriptionContext['isTrialing'] && $subscriptionContext['trialEndsIn'] > 0)
+                                        • Trial ends in {{ $subscriptionContext['trialEndsIn'] }} days
+                                    @elseif($subscriptionContext['daysRemaining'] > 0)
+                                        • {{ $subscriptionContext['daysRemaining'] }} days remaining
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        @if($subscriptionContext['isReadOnly'])
+                            <a href="{{ route('subscription.plans') }}" class="btn btn-warning">
+                                <i class="ti ti-crown me-1"></i>Upgrade Now
+                            </a>
+                        @else
+                            <a href="{{ route('subscription.index') }}" class="btn btn-outline-primary">
+                                <i class="ti ti-settings me-1"></i>Manage Subscription
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="row">
     <div class="col-12">
         <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column">
@@ -637,5 +695,48 @@ function getStatusBadge(status) {
     };
     return badges[status] || '<span class="badge bg-secondary">Unknown</span>';
 }
+
+// Subscription Context for JavaScript
+@if(isset($subscriptionContext))
+window.subscriptionContext = @json($subscriptionContext);
+@endif
+
+// Subscription Helper Functions
+function canPerformAction(feature) {
+    if (!window.subscriptionContext) return false;
+    return window.subscriptionContext[feature] === true;
+}
+
+function showUpgradePrompt(feature, message) {
+    const modal = new bootstrap.Modal(document.getElementById('upgradeModal'));
+    document.getElementById('upgradeModal').setAttribute('data-feature', feature);
+    modal.show();
+}
+
+function handleRestrictedAction(button, feature) {
+    button.onclick = (e) => {
+        e.preventDefault();
+        showUpgradePrompt(feature);
+    };
+}
+
+// Mark read-only elements
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.subscriptionContext && window.subscriptionContext.isReadOnly) {
+        // Add visual indicators for read-only mode
+        document.body.classList.add('read-only-mode');
+        
+        // Disable action buttons
+        const actionButtons = document.querySelectorAll('[data-requires-subscription]');
+        actionButtons.forEach(button => {
+            const feature = button.getAttribute('data-requires-subscription');
+            if (!canPerformAction(feature)) {
+                button.disabled = true;
+                button.classList.add('disabled');
+                button.title = 'Subscribe to unlock this feature';
+            }
+        });
+    }
+});
 </script>
 @endsection

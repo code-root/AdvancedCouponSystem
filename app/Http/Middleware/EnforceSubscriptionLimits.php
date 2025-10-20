@@ -17,26 +17,50 @@ class EnforceSubscriptionLimits
     {
         $user = $request->user();
         
-        if (!$user || !$user->hasActiveSubscription()) {
-            // Check if this is a read-only operation
-            if ($this->isReadOnlyOperation($request)) {
-                // Allow read-only access but mark as read-only
+        if (!$user) {
+            return $next($request);
+        }
+        
+        $hasActiveSubscription = $user->hasActiveSubscription();
+        $subscription = $user->activeSubscription;
+        
+        // Always allow read-only operations (GET, HEAD, OPTIONS)
+        if ($this->isReadOnlyOperation($request)) {
+            // Mark as read-only if no active subscription
+            if (!$hasActiveSubscription) {
                 $request->attributes->set('read_only', true);
-                return $next($request);
+                $request->attributes->set('subscription_status', 'none');
+            } else {
+                $request->attributes->set('read_only', false);
+                $request->attributes->set('subscription_status', $subscription->status);
             }
-            
-            // Block write operations for non-subscribers
+            return $next($request);
+        }
+        
+        // For write operations, check subscription
+        if (!$hasActiveSubscription) {
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Active subscription required for this action. Please subscribe to continue.',
+                    'message' => 'Active subscription required for this action. Subscribe now to unlock all features!',
                     'subscription_required' => true,
-                    'redirect_url' => route('subscription.plans')
-                ], 403);
+                    'redirect_url' => route('subscription.plans'),
+                    'upgrade_prompt' => [
+                        'title' => 'Unlock Full Access',
+                        'message' => 'Subscribe to start managing your networks, campaigns, and data.',
+                        'benefits' => [
+                            'Connect unlimited networks',
+                            'Manage campaigns',
+                            'Export data',
+                            'Priority support'
+                        ]
+                    ]
+                ], 402);
             }
             
             return redirect()->route('subscription.plans')
-                ->with('error', 'Active subscription required for this action. Please subscribe to continue.');
+                ->with('error', 'Active subscription required for this action. Subscribe now to unlock all features!')
+                ->with('upgrade_prompt', 'Subscribe to start managing your networks, campaigns, and data.');
         }
         
         // Check feature-specific limits if specified
@@ -44,15 +68,27 @@ class EnforceSubscriptionLimits
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Your current plan doesn't support this feature. Please upgrade your subscription.",
+                    'message' => "Your current plan doesn't support this feature. Upgrade to unlock more capabilities!",
                     'upgrade_required' => true,
-                    'redirect_url' => route('subscription.plans')
+                    'redirect_url' => route('subscription.plans'),
+                    'feature' => $feature,
+                    'upgrade_prompt' => [
+                        'title' => 'Upgrade Required',
+                        'message' => "This feature requires a higher plan. Upgrade now to unlock {$feature}.",
+                        'current_plan' => $subscription->plan->name ?? 'Free',
+                        'benefits' => $this->getFeatureBenefits($feature)
+                    ]
                 ], 403);
             }
             
             return redirect()->route('subscription.plans')
-                ->with('error', "Your current plan doesn't support this feature. Please upgrade your subscription.");
+                ->with('error', "Your current plan doesn't support this feature. Upgrade to unlock more capabilities!")
+                ->with('upgrade_prompt', "This feature requires a higher plan. Upgrade now to unlock {$feature}.");
         }
+        
+        // Mark as full access for active subscribers
+        $request->attributes->set('read_only', false);
+        $request->attributes->set('subscription_status', $subscription->status);
         
         return $next($request);
     }
@@ -152,6 +188,50 @@ class EnforceSubscriptionLimits
             ->count();
             
         return $currentMonthSyncs < $limit;
+    }
+    
+    /**
+     * Get benefits for a specific feature.
+     */
+    private function getFeatureBenefits(string $feature): array
+    {
+        return match ($feature) {
+            'add-network' => [
+                'Connect unlimited networks',
+                'Sync data from all sources',
+                'Advanced network management'
+            ],
+            'add-campaign' => [
+                'Create unlimited campaigns',
+                'Advanced campaign analytics',
+                'Automated campaign optimization'
+            ],
+            'sync-data' => [
+                'Unlimited data sync',
+                'Real-time updates',
+                'Custom sync schedules'
+            ],
+            'export-data' => [
+                'Export all your data',
+                'Multiple export formats',
+                'Scheduled exports'
+            ],
+            'api-access' => [
+                'Full API access',
+                'Webhook integrations',
+                'Custom integrations'
+            ],
+            'advanced-analytics' => [
+                'Advanced reporting',
+                'Custom dashboards',
+                'Data insights'
+            ],
+            default => [
+                'Unlock premium features',
+                'Get priority support',
+                'Access to all tools'
+            ]
+        };
     }
 }
 

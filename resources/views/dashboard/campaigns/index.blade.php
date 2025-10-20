@@ -7,12 +7,21 @@
 @section('content')
     @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Marketing', 'title' => 'Campaigns'])
 
+    <!-- Subscription Banner -->
+    <x-subscription-banner />
+
     <div class="row">
         <div class="col-12 mb-3">
             <div class="d-flex justify-content-end">
-                <a href="{{ route('campaigns.create') }}" class="btn btn-primary">
-                    <i class="ti ti-plus me-1"></i> Create Campaign
-                </a>
+                @if(isset($subscriptionContext) && $subscriptionContext['canAddCampaign'])
+                    <a href="{{ route('campaigns.create') }}" class="btn btn-primary">
+                        <i class="ti ti-plus me-1"></i> Create Campaign
+                    </a>
+                @else
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#upgradeModal" data-feature="add-campaign">
+                        <i class="ti ti-lock me-1"></i> Create Campaign
+                    </button>
+                @endif
             </div>
         </div>
     </div>
@@ -458,5 +467,14 @@ function deleteCampaign(campaignId) {
         }
     });
 }
+
+// Subscription Context for JavaScript
+@if(isset($subscriptionContext))
+window.subscriptionContext = @json($subscriptionContext);
+@endif
 </script>
+
+<!-- Upgrade Modal -->
+<x-upgrade-prompt type="modal" feature="add-campaign" title="Create Campaigns" message="Subscribe to create and manage unlimited campaigns." />
+
 @endsection

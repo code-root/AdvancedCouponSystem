@@ -150,6 +150,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::get('/create', 'create')->name('create');
                 Route::post('/', 'store')->name('store');
+                Route::get('/{id}', 'show')->name('show');
                 Route::get('/{id}/edit', 'edit')->name('edit');
                 Route::put('/{id}', 'update')->name('update');
                 Route::delete('/{id}', 'destroy')->name('destroy');
@@ -190,6 +191,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
                 Route::delete('/{id}', 'destroy')->name('destroy');
                 Route::post('/{id}/toggle-status', 'toggleStatus')->name('toggle-status');
                 Route::put('/{id}/roles', 'assignRoles')->name('assign-roles');
+                Route::get('/{id}/permissions', 'permissions')->name('permissions');
                 
                 // AJAX variants
                 Route::post('/ajax', 'storeAjax')->name('store.ajax');

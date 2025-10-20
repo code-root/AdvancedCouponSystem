@@ -103,8 +103,8 @@
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover table-nowrap" id="adminUsersTable">
-                <thead class="table-light">
+            <table class="table table-hover align-middle mb-0" id="adminUsersTable">
+                <thead>
                     <tr>
                         <th>Admin</th>
                         <th>Email</th>
@@ -216,12 +216,6 @@
             </table>
         </div>
         
-        <!-- Pagination -->
-        @if($admins->hasPages())
-        <div class="d-flex justify-content-center mt-3">
-            {{ $admins->links() }}
-        </div>
-        @endif
     </div>
 </div>
 @endsection

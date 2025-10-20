@@ -117,6 +117,58 @@
                 </div>
             </div>
 
+            <!-- Subscription Status Badge -->
+            @if(isset($subscriptionContext))
+            <div class="topbar-item d-none d-lg-flex">
+                <div class="dropdown">
+                    <a class="topbar-link dropdown-toggle" data-bs-toggle="dropdown" type="button">
+                        <span class="badge bg-{{ $subscriptionContext['isReadOnly'] ? 'warning' : 'success' }}-subtle text-{{ $subscriptionContext['isReadOnly'] ? 'warning' : 'success' }} px-2 py-1">
+                            <i class="ti ti-{{ $subscriptionContext['isReadOnly'] ? 'lock' : 'crown' }} me-1"></i>
+                            @if($subscriptionContext['hasSubscription'])
+                                {{ $subscriptionContext['plan']->name ?? 'Unknown' }}
+                            @else
+                                Free
+                            @endif
+                        </span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end">
+                        <div class="dropdown-header">
+                            <h6 class="m-0">Subscription Status</h6>
+                        </div>
+                        <div class="px-3 py-2">
+                            @if($subscriptionContext['hasSubscription'])
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="ti ti-{{ $subscriptionContext['isReadOnly'] ? 'eye' : 'check-circle' }} me-2 text-{{ $subscriptionContext['isReadOnly'] ? 'warning' : 'success' }}"></i>
+                                    <span class="fw-medium">{{ $subscriptionContext['plan']->name ?? 'Unknown Plan' }}</span>
+                                </div>
+                                @if($subscriptionContext['isTrialing'] && $subscriptionContext['trialEndsIn'] > 0)
+                                    <small class="text-muted">Trial ends in {{ $subscriptionContext['trialEndsIn'] }} days</small>
+                                @elseif($subscriptionContext['daysRemaining'] > 0)
+                                    <small class="text-muted">{{ $subscriptionContext['daysRemaining'] }} days remaining</small>
+                                @endif
+                            @else
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="ti ti-lock me-2 text-warning"></i>
+                                    <span class="fw-medium">No Subscription</span>
+                                </div>
+                                <small class="text-muted">Read-only access</small>
+                            @endif
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        @if($subscriptionContext['isReadOnly'])
+                            <a href="{{ route('subscription.plans') }}" class="dropdown-item">
+                                <i class="ti ti-crown me-2"></i>Upgrade Now
+                            </a>
+                        @else
+                            <a href="{{ route('subscription.index') }}" class="dropdown-item">
+                                <i class="ti ti-settings me-2"></i>Manage Subscription
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+            @endif
+
             <!-- User Dropdown -->
             <div class="topbar-item nav-user">
                 <div class="dropdown">

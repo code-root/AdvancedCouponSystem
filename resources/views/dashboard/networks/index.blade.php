@@ -7,6 +7,9 @@
 @section('content')
     @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Affiliate', 'title' => 'Network Integration'])
 
+    <!-- Subscription Banner -->
+    <x-subscription-banner />
+
     <div class="row">
         <div class="col-12">
             @if(session('success'))
@@ -114,9 +117,15 @@
                                 <input type="text" class="form-control ps-4 form-control-sm" id="searchConnections" placeholder="Search connections">
                                 <i class="ti ti-search position-absolute top-50 translate-middle-y ms-2"></i>
                             </div>
-                            <a href="{{ route('networks.create') }}" class="btn btn-primary btn-sm">
-                                <i class="ti ti-plug-connected me-1"></i> Connect Network
-                            </a>
+                            @if(isset($subscriptionContext) && $subscriptionContext['canAddNetwork'])
+                                <a href="{{ route('networks.create') }}" class="btn btn-primary btn-sm">
+                                    <i class="ti ti-plug-connected me-1"></i> Connect Network
+                                </a>
+                            @else
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#upgradeModal" data-feature="add-network">
+                                    <i class="ti ti-lock me-1"></i> Connect Network
+                                </button>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -156,10 +165,14 @@
                                 </td>
                                 <td>
                                     <div class="d-flex align-items-center gap-1">
-                                        <img src="/images/flags/{{ strtolower($connection->network->country) }}.svg" 
-                                             class="me-1" alt="{{ $connection->network->country }}" height="16" 
-                                             onerror="this.style.display='none'">
-                                        <span>{{ $connection->network->country }}</span>
+                                        @if($connection->network->country)
+                                            <img src="/images/flags/{{ strtolower($connection->network->country) }}.svg" 
+                                                 class="me-1" alt="{{ $connection->network->country }}" height="16" 
+                                                 onerror="this.style.display='none'">
+                                            <span>{{ $connection->network->country }}</span>
+                                        @else
+                                            <span class="text-muted">N/A</span>
+                                        @endif
                                     </div>
                                 </td>
                                 <td>
@@ -491,5 +504,14 @@ document.getElementById('searchConnections')?.addEventListener('input', function
         row.style.display = text.includes(searchTerm) ? '' : 'none';
     });
 });
+
+// Subscription Context for JavaScript
+@if(isset($subscriptionContext))
+window.subscriptionContext = @json($subscriptionContext);
+@endif
 </script>
+
+<!-- Upgrade Modal -->
+<x-upgrade-prompt type="modal" feature="add-network" title="Connect Networks" message="Subscribe to connect and manage unlimited networks." />
+
 @endsection

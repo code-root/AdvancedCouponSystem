@@ -1,6 +1,4 @@
-@extends('layouts.app')
-
-@section('title', 'Subscription Plans')
+@extends('dashboard.layouts.vertical', ['title' => 'Subscription Plans'])
 
 @section('content')
 <div class="container-fluid">
@@ -346,4 +344,11 @@
     }
 </style>
 @endpush
+
+<script>
+// Subscription Context for JavaScript
+@if(isset($subscriptionContext))
+window.subscriptionContext = @json($subscriptionContext);
+@endif
+</script>
 

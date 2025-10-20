@@ -4,6 +4,7 @@ namespace App\Http\Controllers\admin\Reports;
 
 use App\Http\Controllers\Controller;
 use App\Models\NetworkSession;
+use App\Models\Network;
 use Illuminate\Http\Request;
 
 class NetworkSessionReportController extends Controller
@@ -25,7 +26,12 @@ class NetworkSessionReportController extends Controller
         // Get statistics with optimized queries
         $stats = $this->getNetworkSessionStatistics();
 
-        return view('admin.reports.network-sessions', compact('sessions', 'stats'));
+        // Get networks for filter dropdown
+        $networks = Network::where('is_active', true)
+            ->orderBy('display_name')
+            ->get(['id', 'display_name', 'name']);
+
+        return view('admin.reports.network-sessions', compact('sessions', 'stats', 'networks'));
     }
 
     /**
@@ -33,6 +39,14 @@ class NetworkSessionReportController extends Controller
      */
     private function applyNetworkSessionFilters($query, Request $request): void
     {
+        if ($request->filled('network_id')) {
+            // Get network name from network_id
+            $network = Network::find($request->network_id);
+            if ($network) {
+                $query->where('network_name', $network->name);
+            }
+        }
+
         if ($request->filled('network_name')) {
             $query->where('network_name', 'like', '%' . $request->network_name . '%');
         }

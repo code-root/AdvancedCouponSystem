@@ -34,21 +34,22 @@ Route::middleware('guest')->group(function () {
 
 // Email Verification Routes
 Route::middleware(['auth'])->group(function () {
-    // Subscriptions (Legacy)
+    // Subscriptions (Legacy) - Redirect to new routes
     Route::prefix('subscriptions')->name('subscriptions.')->group(function () {
-        Route::get('plans', [SubscriptionController::class, 'plans'])->name('plans');
-        Route::get('compare', [SubscriptionController::class, 'compare'])->name('compare');
-        Route::get('manage', [SubscriptionController::class, 'manage'])->name('manage');
-        Route::post('plans/{plan}/trial', [SubscriptionController::class, 'startTrial'])->name('trial');
-        Route::post('plans/{plan}/activate', [SubscriptionController::class, 'activate'])->name('activate');
-        Route::post('plans/{plan}/checkout', [BillingController::class, 'checkout'])->name('checkout');
-        Route::post('cancel', [SubscriptionController::class, 'cancel'])->name('cancel');
+        Route::get('plans', fn() => redirect()->route('subscription.plans'))->name('plans');
+        Route::get('compare', fn() => redirect()->route('subscription.plans'))->name('compare');
+        Route::get('manage', fn() => redirect()->route('subscription.index'))->name('manage');
+        Route::post('plans/{plan}/trial', fn() => redirect()->route('subscription.plans'))->name('trial');
+        Route::post('plans/{plan}/activate', fn() => redirect()->route('subscription.plans'))->name('activate');
+        Route::post('plans/{plan}/checkout', fn() => redirect()->route('subscription.plans'))->name('checkout');
+        Route::post('cancel', fn() => redirect()->route('subscription.index'))->name('cancel');
     });
 
     // New Subscription Management
     Route::prefix('subscription')->name('subscription.')->middleware('verified')->group(function () {
         Route::get('/', [UserSubscriptionController::class, 'index'])->name('index');
         Route::get('/plans', [UserSubscriptionController::class, 'plans'])->name('plans');
+        Route::get('/compare', [UserSubscriptionController::class, 'compare'])->name('compare');
         Route::post('/subscribe', [UserSubscriptionController::class, 'subscribe'])->name('subscribe');
         Route::post('/cancel', [UserSubscriptionController::class, 'cancel'])->name('cancel');
         Route::post('/resume', [UserSubscriptionController::class, 'resume'])->name('resume');
@@ -77,15 +78,15 @@ Route::middleware(['auth', 'ensure.user.type:user'])->group(function () {
     Broadcast::routes();
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->middleware('verified')
+        ->middleware(['verified', 'enforce.subscription'])
         ->name('dashboard');
     Route::get('/dashboard/real-time-data', [DashboardController::class, 'getRealTimeData'])
-        ->middleware('verified')
+        ->middleware(['verified', 'enforce.subscription'])
         ->name('dashboard.real-time-data');
 
-    Route::prefix('dashboard')->name('dashboard.')->middleware('verified')->group(function () {
+    Route::prefix('dashboard')->name('dashboard.')->middleware(['verified', 'enforce.subscription'])->group(function () {
         Route::get('overview', [DashboardController::class, 'overview'])->name('overview');
-        Route::get('analytics', [DashboardController::class, 'analytics'])->name('analytics');
+        Route::get('analytics', [DashboardController::class, 'analytics'])->middleware('enforce.subscription:advanced-analytics')->name('analytics');
         Route::get('recent-activities', [DashboardController::class, 'recentActivities'])->name('activities');
         Route::get('profile', [DashboardController::class, 'profile'])->name('profile');
         Route::put('profile', [DashboardController::class, 'updateProfile'])->name('profile.update');
@@ -93,56 +94,56 @@ Route::middleware(['auth', 'ensure.user.type:user'])->group(function () {
         Route::put('password', [DashboardController::class, 'updatePassword'])->name('password.update');
     });
 
-    Route::prefix('networks')->name('networks.')->middleware(['verified', 'enforce.plan:add-network'])->group(function () {
+    Route::prefix('networks')->name('networks.')->middleware(['verified', 'enforce.subscription'])->group(function () {
         Route::get('/', [NetworkController::class, 'index'])->name('index');
-        Route::get('create', [NetworkController::class, 'create'])->name('create');
-        Route::post('/', [NetworkController::class, 'store'])->name('store');
-        Route::get('connections/{connection}/edit', [NetworkController::class, 'edit'])->name('edit');
-        Route::put('connections/{connection}', [NetworkController::class, 'update'])->name('update');
-        Route::delete('connections/{connection}', [NetworkController::class, 'destroy'])->name('destroy');
+        Route::get('create', [NetworkController::class, 'create'])->middleware('enforce.subscription:add-network')->name('create');
+        Route::post('/', [NetworkController::class, 'store'])->middleware('enforce.subscription:add-network')->name('store');
+        Route::get('connections/{connection}/edit', [NetworkController::class, 'edit'])->middleware('enforce.subscription:add-network')->name('edit');
+        Route::put('connections/{connection}', [NetworkController::class, 'update'])->middleware('enforce.subscription:add-network')->name('update');
+        Route::delete('connections/{connection}', [NetworkController::class, 'destroy'])->middleware('enforce.subscription:add-network')->name('destroy');
         Route::get('connections/{connection}', [NetworkController::class, 'show'])->name('show');
-        Route::post('connections/{connection}/sync', [NetworkController::class, 'syncConnection'])->name('sync');
+        Route::post('connections/{connection}/sync', [NetworkController::class, 'syncConnection'])->middleware('enforce.subscription:sync-data')->name('sync');
         Route::get('{network}/data', [NetworkController::class, 'getData'])->name('data');
         Route::get('{network}/config', [NetworkController::class, 'getNetworkConfig'])->name('config');
-        Route::post('{network}/connections', [NetworkController::class, 'createConnection'])->name('connections.create');
-        Route::post('test-connection', [NetworkController::class, 'testConnection'])->name('test-connection');
-        Route::post('verify-password', [NetworkController::class, 'verifyPassword'])->name('verify-password');
-        Route::post('reconnect', [NetworkController::class, 'reconnect'])->name('reconnect');
+        Route::post('{network}/connections', [NetworkController::class, 'createConnection'])->middleware('enforce.subscription:add-network')->name('connections.create');
+        Route::post('test-connection', [NetworkController::class, 'testConnection'])->middleware('enforce.subscription:add-network')->name('test-connection');
+        Route::post('verify-password', [NetworkController::class, 'verifyPassword'])->middleware('enforce.subscription:add-network')->name('verify-password');
+        Route::post('reconnect', [NetworkController::class, 'reconnect'])->middleware('enforce.subscription:add-network')->name('reconnect');
     });
 
     Route::get('/admitad/callback', [NetworkController::class, 'admitadCallback'])->name('admitad.callback');
 
-    Route::prefix('campaigns')->name('campaigns.')->middleware('verified')->group(function () {
+    Route::prefix('campaigns')->name('campaigns.')->middleware(['verified', 'enforce.subscription'])->group(function () {
         Route::get('/', [CampaignController::class, 'index'])->name('index');
-        Route::get('create', [CampaignController::class, 'create'])->name('create');
-        Route::post('/', [CampaignController::class, 'store'])->name('store');
+        Route::get('create', [CampaignController::class, 'create'])->middleware('enforce.subscription:add-campaign')->name('create');
+        Route::post('/', [CampaignController::class, 'store'])->middleware('enforce.subscription:add-campaign')->name('store');
         Route::get('{campaign}', [CampaignController::class, 'show'])->name('show');
-        Route::get('{campaign}/edit', [CampaignController::class, 'edit'])->name('edit');
-        Route::put('{campaign}', [CampaignController::class, 'update'])->name('update');
-        Route::delete('{campaign}', [CampaignController::class, 'destroy'])->name('destroy');
-        Route::post('{campaign}/activate', [CampaignController::class, 'activate'])->name('activate');
-        Route::post('{campaign}/deactivate', [CampaignController::class, 'deactivate'])->name('deactivate');
+        Route::get('{campaign}/edit', [CampaignController::class, 'edit'])->middleware('enforce.subscription:add-campaign')->name('edit');
+        Route::put('{campaign}', [CampaignController::class, 'update'])->middleware('enforce.subscription:add-campaign')->name('update');
+        Route::delete('{campaign}', [CampaignController::class, 'destroy'])->middleware('enforce.subscription:add-campaign')->name('destroy');
+        Route::post('{campaign}/activate', [CampaignController::class, 'activate'])->middleware('enforce.subscription:add-campaign')->name('activate');
+        Route::post('{campaign}/deactivate', [CampaignController::class, 'deactivate'])->middleware('enforce.subscription:add-campaign')->name('deactivate');
         Route::get('{campaign}/statistics', [CampaignController::class, 'statistics'])->name('statistics');
         Route::get('{campaign}/coupons', [CampaignController::class, 'coupons'])->name('coupons');
         Route::get('{campaign}/coupon-stats', [CampaignController::class, 'getCouponStats'])->name('coupon-stats');
     });
 
-    Route::prefix('coupons')->name('coupons.')->middleware('verified')->group(function () {
+    Route::prefix('coupons')->name('coupons.')->middleware(['verified', 'enforce.subscription'])->group(function () {
         Route::get('/', [CouponController::class, 'index'])->name('index');
-        Route::get('create', [CouponController::class, 'create'])->name('create');
-        Route::post('/', [CouponController::class, 'store'])->name('store');
+        Route::get('create', [CouponController::class, 'create'])->middleware('enforce.subscription:add-campaign')->name('create');
+        Route::post('/', [CouponController::class, 'store'])->middleware('enforce.subscription:add-campaign')->name('store');
         Route::get('{coupon}', [CouponController::class, 'show'])->name('show');
-        Route::get('{coupon}/edit', [CouponController::class, 'edit'])->name('edit');
-        Route::put('{coupon}', [CouponController::class, 'update'])->name('update');
-        Route::delete('{coupon}', [CouponController::class, 'destroy'])->name('destroy');
+        Route::get('{coupon}/edit', [CouponController::class, 'edit'])->middleware('enforce.subscription:add-campaign')->name('edit');
+        Route::put('{coupon}', [CouponController::class, 'update'])->middleware('enforce.subscription:add-campaign')->name('update');
+        Route::delete('{coupon}', [CouponController::class, 'destroy'])->middleware('enforce.subscription:add-campaign')->name('destroy');
         Route::post('validate', [CouponController::class, 'validate'])->name('validate');
         Route::post('{coupon}/redeem', [CouponController::class, 'redeem'])->name('redeem');
-        Route::post('{coupon}/activate', [CouponController::class, 'activate'])->name('activate');
-        Route::post('{coupon}/deactivate', [CouponController::class, 'deactivate'])->name('deactivate');
+        Route::post('{coupon}/activate', [CouponController::class, 'activate'])->middleware('enforce.subscription:add-campaign')->name('activate');
+        Route::post('{coupon}/deactivate', [CouponController::class, 'deactivate'])->middleware('enforce.subscription:add-campaign')->name('deactivate');
         Route::get('{coupon}/history', [CouponController::class, 'history'])->name('history');
         Route::get('{coupon}/daily-stats', [CouponController::class, 'getDailyStats'])->name('daily-stats');
-        Route::post('bulk-generate', [CouponController::class, 'bulkGenerate'])->name('bulk-generate');
-        Route::post('export', [CouponController::class, 'export'])->name('export');
+        Route::post('bulk-generate', [CouponController::class, 'bulkGenerate'])->middleware('enforce.subscription:add-campaign')->name('bulk-generate');
+        Route::post('export', [CouponController::class, 'export'])->middleware('enforce.subscription:export-data')->name('export');
     });
 
     Route::prefix('dashboard/sessions')->name('sessions.')->group(function () {

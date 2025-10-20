@@ -26,7 +26,6 @@ class SubscriptionController extends Controller
             $subscription = $user->subscriptions()->with('plan')->latest()->first();
             $plans = Cache::remember('active_plans_for_user', 300, function () {
                 return Plan::where('is_active', true)
-                    ->select('id', 'name', 'description', 'price', 'billing_cycle', 'features')
                     ->orderBy('price')
                     ->get();
             });
@@ -41,6 +40,25 @@ class SubscriptionController extends Controller
     }
 
     /**
+     * Display plan comparison.
+     */
+    public function compare()
+    {
+        try {
+            $user = Auth::user();
+            $plans = Plan::where('is_active', true)
+                ->orderBy('price')
+                ->get();
+            
+            $subscription = $user->activeSubscription;
+            
+            return view('dashboard.subscription.compare', compact('plans', 'subscription'));
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to load plan comparison: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Display available plans.
      */
     public function plans()
@@ -48,16 +66,44 @@ class SubscriptionController extends Controller
         try {
             $user = Auth::user();
             $plans = Plan::where('is_active', true)
-                ->select('id', 'name', 'description', 'price', 'billing_cycle', 'features', 'is_popular')
                 ->orderBy('price')
                 ->get();
 
             $currentSubscription = $user->subscriptions()->with('plan')->latest()->first();
+            
+            // Get subscription context for the view
+            $subscriptionContext = $this->getSubscriptionContext($user, $currentSubscription);
 
-            return view('dashboard.subscription.plans', compact('plans', 'currentSubscription'));
+            return view('dashboard.subscription.plans', compact('plans', 'currentSubscription', 'subscriptionContext'));
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to load plans: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Get subscription context for views
+     */
+    protected function getSubscriptionContext($user, $subscription = null)
+    {
+        $subscription = $subscription ?? $user->activeSubscription;
+        
+        return [
+            'hasSubscription' => $subscription !== null,
+            'isReadOnly' => !$subscription || $subscription->status !== 'active',
+            'subscription' => $subscription,
+            'plan' => $subscription?->plan,
+            'features' => $subscription?->plan?->features ?? [],
+            'daysRemaining' => $subscription?->ends_at?->diffInDays(now(), false) ?? 0,
+            'isTrialing' => $subscription?->status === 'trialing',
+            'trialEndsIn' => $subscription?->trial_ends_at?->diffInDays(now(), false) ?? 0,
+            'status' => $subscription?->status ?? 'none',
+            'canAddNetwork' => $this->canAddNetwork($user, $subscription),
+            'canAddCampaign' => $this->canAddCampaign($user, $subscription),
+            'canSyncData' => $this->canSyncData($user, $subscription),
+            'canExportData' => $this->canExportData($subscription),
+            'canAccessAPI' => $this->canAccessAPI($subscription),
+            'canAdvancedAnalytics' => $this->canAdvancedAnalytics($subscription),
+        ];
     }
 
     /**
@@ -378,6 +424,110 @@ class SubscriptionController extends Controller
         }
 
         return $usage;
+    }
+
+    /**
+     * Check if user can add networks
+     */
+    protected function canAddNetwork($user, $subscription)
+    {
+        if (!$subscription || $subscription->status !== 'active') {
+            return false;
+        }
+
+        $plan = $subscription->plan;
+        $networksLimit = $plan->features['networks_limit'] ?? 0;
+        
+        if ($networksLimit === -1) {
+            return true; // Unlimited
+        }
+
+        $currentNetworks = $user->networks()->count();
+        return $currentNetworks < $networksLimit;
+    }
+
+    /**
+     * Check if user can add campaigns
+     */
+    protected function canAddCampaign($user, $subscription)
+    {
+        if (!$subscription || $subscription->status !== 'active') {
+            return false;
+        }
+
+        $plan = $subscription->plan;
+        $campaignsLimit = $plan->features['campaigns_limit'] ?? 0;
+        
+        if ($campaignsLimit === -1) {
+            return true; // Unlimited
+        }
+
+        $currentCampaigns = $user->campaigns()->count();
+        return $currentCampaigns < $campaignsLimit;
+    }
+
+    /**
+     * Check if user can sync data
+     */
+    protected function canSyncData($user, $subscription)
+    {
+        if (!$subscription || $subscription->status !== 'active') {
+            return false;
+        }
+
+        $plan = $subscription->plan;
+        $syncsLimit = $plan->features['syncs_per_month'] ?? 0;
+        
+        if ($syncsLimit === -1) {
+            return true; // Unlimited
+        }
+
+        // Check current month syncs
+        $currentMonthSyncs = $user->syncLogs()
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+
+        return $currentMonthSyncs < $syncsLimit;
+    }
+
+    /**
+     * Check if user can export data
+     */
+    protected function canExportData($subscription)
+    {
+        if (!$subscription || $subscription->status !== 'active') {
+            return false;
+        }
+
+        $plan = $subscription->plan;
+        return $plan->features['export_data'] ?? false;
+    }
+
+    /**
+     * Check if user can access API
+     */
+    protected function canAccessAPI($subscription)
+    {
+        if (!$subscription || $subscription->status !== 'active') {
+            return false;
+        }
+
+        $plan = $subscription->plan;
+        return $plan->features['api_access'] ?? false;
+    }
+
+    /**
+     * Check if user can access advanced analytics
+     */
+    protected function canAdvancedAnalytics($subscription)
+    {
+        if (!$subscription || $subscription->status !== 'active') {
+            return false;
+        }
+
+        $plan = $subscription->plan;
+        return $plan->features['advanced_analytics'] ?? false;
     }
 }
 

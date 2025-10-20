@@ -56,6 +56,10 @@
 
 @section('content')
     @include('dashboard.layouts.partials.page-title', ['subtitle' => 'Orders', 'title' => 'Reports'])
+
+    <!-- Subscription Banner -->
+    <x-subscription-banner />
+
     <!-- Statistics Cards -->
     <div class="row row-cols-xxl-6 row-cols-md-3 row-cols-1 text-center mb-3" id="statsCards">
         <div class="col">
@@ -226,9 +230,15 @@
                             <button type="button" class="btn btn-light" onclick="resetFilters()" id="resetFiltersBtn">
                                 <i class="ti ti-x me-1"></i> Reset
                             </button>
-                            <button type="button" class="btn btn-success" onclick="exportPurchases()" id="exportBtn">
-                                <i class="ti ti-file-export me-1"></i> Export
-                            </button>
+                            @if(isset($subscriptionContext) && $subscriptionContext['canExportData'])
+                                <button type="button" class="btn btn-success" onclick="exportPurchases()" id="exportBtn">
+                                    <i class="ti ti-file-export me-1"></i> Export
+                                </button>
+                            @else
+                                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#upgradeModal" data-feature="export-data">
+                                    <i class="ti ti-lock me-1"></i> Export
+                                </button>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -1035,5 +1045,14 @@ function reloadDataTable() {
 
 
 // DataTable is initialized in the window load event above
+
+// Subscription Context for JavaScript
+@if(isset($subscriptionContext))
+window.subscriptionContext = @json($subscriptionContext);
+@endif
 </script>
+
+<!-- Upgrade Modal -->
+<x-upgrade-prompt type="modal" feature="export-data" title="Export Data" message="Subscribe to export all your data." />
+
 @endsection

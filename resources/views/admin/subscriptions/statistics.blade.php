@@ -4,6 +4,38 @@
 @section('subtitle', 'Analytics and Insights')
 
 @section('admin-content')
+<div class="row">
+    <div class="col-12">
+        <div class="page-title-head d-flex align-items-sm-center flex-sm-row flex-column">
+            <div class="flex-grow-1">
+                <h4 class="fs-18 fw-semibold m-0">Subscription Statistics</h4>
+                <p class="text-muted mb-0">Analytics and insights for subscription performance</p>
+            </div>
+            <div class="mt-3 mt-sm-0">
+                <div class="row g-2 mb-0 align-items-center">
+                    <div class="col-auto">
+                        <a href="{{ route('admin.subscriptions.index') }}" class="btn btn-outline-secondary">
+                            <i class="ti ti-arrow-left me-1"></i>Back to Subscriptions
+                        </a>
+                    </div>
+                    <div class="col-auto">
+                        <div class="input-group">
+                            <input type="date" class="form-control" id="dateFrom" value="{{ request('date_from', now()->subMonths(6)->format('Y-m-d')) }}">
+                            <span class="input-group-text">to</span>
+                            <input type="date" class="form-control" id="dateTo" value="{{ request('date_to', now()->format('Y-m-d')) }}">
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-primary" onclick="updateDateRange()">
+                            <i class="ti ti-refresh me-1"></i>Update
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Key Metrics -->
 <div class="row row-cols-xxl-4 row-cols-md-2 row-cols-1 text-center mb-4">
     <div class="col">
@@ -178,6 +210,18 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// Update date range function
+function updateDateRange() {
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+    
+    if (dateFrom && dateTo) {
+        const url = new URL(window.location);
+        url.searchParams.set('date_from', dateFrom);
+        url.searchParams.set('date_to', dateTo);
+        window.location.href = url.toString();
+    }
+}
 // Monthly Subscriptions Chart
 const monthlyCtx = document.getElementById('monthlySubscriptionsChart').getContext('2d');
 const monthlyData = @json($monthlyData ?? []);
