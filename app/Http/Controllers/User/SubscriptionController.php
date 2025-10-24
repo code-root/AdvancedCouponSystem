@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Payment;
 use App\Services\SubscriptionService;
+use App\Services\SubscriptionLimitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -14,7 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class SubscriptionController extends Controller
 {
-    public function __construct(private SubscriptionService $subscriptionService) {}
+    public function __construct(
+        private SubscriptionService $subscriptionService,
+        private SubscriptionLimitService $limitService
+    ) {}
 
     /**
      * Display the current user's subscription.
@@ -97,12 +101,16 @@ class SubscriptionController extends Controller
             'isTrialing' => $subscription?->status === 'trialing',
             'trialEndsIn' => $subscription?->trial_ends_at?->diffInDays(now(), false) ?? 0,
             'status' => $subscription?->status ?? 'none',
-            'canAddNetwork' => $this->canAddNetwork($user, $subscription),
-            'canAddCampaign' => $this->canAddCampaign($user, $subscription),
-            'canSyncData' => $this->canSyncData($user, $subscription),
+            'canAddNetwork' => $this->limitService->canAddNetwork($user),
+            'canAddCampaign' => $this->limitService->canAddCampaign($user),
+            'canSyncData' => $this->limitService->canSyncData($user),
+            'canCreateOrder' => $this->limitService->canCreateOrder($user),
             'canExportData' => $this->canExportData($subscription),
             'canAccessAPI' => $this->canAccessAPI($subscription),
             'canAdvancedAnalytics' => $this->canAdvancedAnalytics($subscription),
+            'usageStats' => $this->limitService->getUsageStatistics($user),
+            'remainingOrders' => $this->limitService->getRemainingOrders($user),
+            'remainingRevenue' => $this->limitService->getRemainingRevenue($user),
         ];
     }
 
@@ -302,30 +310,43 @@ class SubscriptionController extends Controller
     /**
      * Get subscription usage statistics.
      */
-    public function usage()
+    public function usage(Request $request)
     {
         try {
             $user = Auth::user();
             $subscription = $user->subscriptions()->with('plan')->latest()->first();
 
-            if (!$subscription) {
+            // Get subscription statistics
+            $stats = $this->getUserSubscriptionStats($user);
+
+            // If AJAX request, return JSON
+            if ($request->ajax()) {
+                if (!$subscription) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No subscription found.',
+                    ], 404);
+                }
+
+                $usage = $this->getSubscriptionUsage($subscription);
+
                 return response()->json([
-                    'success' => false,
-                    'message' => 'No subscription found.',
-                ], 404);
+                    'success' => true,
+                    'usage' => $usage,
+                ]);
             }
 
-            $usage = $this->getSubscriptionUsage($subscription);
-
-            return response()->json([
-                'success' => true,
-                'usage' => $usage,
-            ]);
+            // Return view for regular requests
+            return view('dashboard.subscription.usage', compact('subscription', 'stats'));
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get usage data: ' . $e->getMessage(),
-            ], 500);
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to get usage data: ' . $e->getMessage(),
+                ], 500);
+            }
+            
+            return redirect()->back()->with('error', 'Failed to load usage statistics: ' . $e->getMessage());
         }
     }
 
@@ -336,13 +357,25 @@ class SubscriptionController extends Controller
     {
         return Cache::remember("user_subscription_stats_{$user->id}", 300, function () use ($user) {
             $subscriptions = $user->subscriptions();
+            $activeSubscription = $subscriptions->where('status', 'active')->first();
+            
+            // Calculate total paid amount correctly
+            $totalPaid = 0;
+            if ($activeSubscription) {
+                $totalPaid = Payment::where('user_id', $user->id)
+                    ->where('status', 'completed')
+                    ->sum('amount');
+            }
+            
+            $nextBillingDate = $this->getNextBillingDate($user);
             
             return [
                 'total_subscriptions' => $subscriptions->count(),
-                'active_subscription' => $subscriptions->where('status', 'active')->first(),
-                'total_paid' => $subscriptions->where('status', 'active')->sum('plan.price'),
+                'active_subscription' => $activeSubscription,
+                'total_paid' => $totalPaid,
                 'days_remaining' => $this->getDaysRemaining($user),
-                'next_billing_date' => $this->getNextBillingDate($user),
+                'next_billing_date' => $nextBillingDate,
+                'usage_stats' => $this->limitService->getUsageStatistics($user),
             ];
         });
     }
@@ -380,115 +413,7 @@ class SubscriptionController extends Controller
      */
     private function getSubscriptionUsage($subscription)
     {
-        $plan = $subscription->plan;
-        $user = $subscription->user;
-
-        // Get current usage based on plan features
-        $usage = [];
-
-        if (isset($plan->features['networks_limit'])) {
-            $networksCount = $user->networks()->count();
-            $usage['networks'] = [
-                'used' => $networksCount,
-                'limit' => $plan->features['networks_limit'],
-                'percentage' => $plan->features['networks_limit'] > 0 
-                    ? round(($networksCount / $plan->features['networks_limit']) * 100, 2)
-                    : 0,
-            ];
-        }
-
-        if (isset($plan->features['campaigns_limit'])) {
-            $campaignsCount = $user->campaigns()->count();
-            $usage['campaigns'] = [
-                'used' => $campaignsCount,
-                'limit' => $plan->features['campaigns_limit'],
-                'percentage' => $plan->features['campaigns_limit'] > 0 
-                    ? round(($campaignsCount / $plan->features['campaigns_limit']) * 100, 2)
-                    : 0,
-            ];
-        }
-
-        if (isset($plan->features['syncs_per_month'])) {
-            $currentMonthSyncs = $user->syncLogs()
-                ->whereMonth('created_at', now()->month)
-                ->whereYear('created_at', now()->year)
-                ->count();
-            
-            $usage['syncs'] = [
-                'used' => $currentMonthSyncs,
-                'limit' => $plan->features['syncs_per_month'],
-                'percentage' => $plan->features['syncs_per_month'] > 0 
-                    ? round(($currentMonthSyncs / $plan->features['syncs_per_month']) * 100, 2)
-                    : 0,
-            ];
-        }
-
-        return $usage;
-    }
-
-    /**
-     * Check if user can add networks
-     */
-    protected function canAddNetwork($user, $subscription)
-    {
-        if (!$subscription || $subscription->status !== 'active') {
-            return false;
-        }
-
-        $plan = $subscription->plan;
-        $networksLimit = $plan->features['networks_limit'] ?? 0;
-        
-        if ($networksLimit === -1) {
-            return true; // Unlimited
-        }
-
-        $currentNetworks = $user->networks()->count();
-        return $currentNetworks < $networksLimit;
-    }
-
-    /**
-     * Check if user can add campaigns
-     */
-    protected function canAddCampaign($user, $subscription)
-    {
-        if (!$subscription || $subscription->status !== 'active') {
-            return false;
-        }
-
-        $plan = $subscription->plan;
-        $campaignsLimit = $plan->features['campaigns_limit'] ?? 0;
-        
-        if ($campaignsLimit === -1) {
-            return true; // Unlimited
-        }
-
-        $currentCampaigns = $user->campaigns()->count();
-        return $currentCampaigns < $campaignsLimit;
-    }
-
-    /**
-     * Check if user can sync data
-     */
-    protected function canSyncData($user, $subscription)
-    {
-        if (!$subscription || $subscription->status !== 'active') {
-            return false;
-        }
-
-        $plan = $subscription->plan;
-        $syncsLimit = $plan->features['syncs_per_month'] ?? 0;
-        
-        if ($syncsLimit === -1) {
-            return true; // Unlimited
-        }
-
-        // Check current month syncs
-        $currentMonthSyncs = $user->syncLogs()
-            ->whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
-            ->count();
-
-        return $currentMonthSyncs < $syncsLimit;
+        return $this->limitService->getUsageStatistics($subscription->user);
     }
 
     /**

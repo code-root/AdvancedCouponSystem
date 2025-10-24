@@ -377,33 +377,43 @@ class NetworkDataProcessor
     }
     
     /**
-     * Normalize ICW data format (Google Sheets)
+     * Normalize ICW data format (API)
      */
     private static function normalizeICWData(array $item): array
     {
         // Generate a unique campaign_id if not provided
         $campaignId = $item['campaign_id'] ?? null;
-        if (empty($campaignId) || $campaignId === 'NA') {
+        if (empty($campaignId)) {
             $campaignName = $item['campaign_name'] ?? 'Unknown';
             $campaignId = 'ICW_' . md5($campaignName);
         }
         
+        // Format dates properly
+        $orderDate = self::formatDateYmd($item['order_date'] ?? $item['date'] ?? null);
+        $purchaseDate = self::formatDateYmd($item['purchase_date'] ?? $item['date'] ?? null);
+        
+        // Ensure numeric values are properly cast
+        $salesAmount = is_numeric($item['sales_amount'] ?? 0) ? (float)$item['sales_amount'] : 0.0;
+        $revenue = is_numeric($item['revenue'] ?? 0) ? (float)$item['revenue'] : 0.0;
+        $quantity = is_numeric($item['quantity'] ?? $item['conversions'] ?? 1) ? (int)($item['quantity'] ?? $item['conversions'] ?? 1) : 1;
+        
         return [
-            'campaign_id' => $campaignId,
+            'campaign_id' => (string)$campaignId,
             'purchase_type' => $item['purchase_type'] ?? 'coupon',
             'campaign_name' => $item['campaign_name'] ?? 'Unknown',
             'campaign_logo' => null,
-            'code' => $item['coupon_code'] ?? 'NA',
+            'code' => $item['code'] ?? $item['coupon_code'] ?? 'NA',
             'country' => $item['country'] ?? 'NA',
-            'order_id' => $item['transaction_id'] ?? null,
-            'network_order_id' => $item['transaction_id'] ?? null,
-            'sales_amount' => $item['sale_amount'] ?? 0,
-            'revenue' => $item['revenue'] ?? 0,
-            'quantity' => $item['conversions'] ?? 1,
-            'customer_type' => $item['customer_type'] ?? 'unknown',
-            'status' => $item['status'] ?? 'approved',
-            'order_date' => $item['date'] ?? now()->format('Y-m-d'), // تاريخ الطلب من API
-            'purchase_date' => $item['date'] ?? now()->format('Y-m-d'), // نفس التاريخ
+            'country_code' => strtoupper($item['country'] ?? 'NA'),
+            'order_id' => $item['order_id'] ?? null,
+            'network_order_id' => $item['network_order_id'] ?? null,
+            'sales_amount' => $salesAmount,
+            'revenue' => $revenue,
+            'quantity' => $quantity,
+            'customer_type' => strtolower(trim($item['customer_type'] ?? 'unknown')),
+            'status' => strtolower(trim($item['status'] ?? 'approved')),
+            'order_date' => $orderDate,
+            'purchase_date' => $purchaseDate,
         ];
     }
     

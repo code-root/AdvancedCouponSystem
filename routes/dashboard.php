@@ -98,9 +98,9 @@ Route::middleware(['auth', 'ensure.user.type:user'])->group(function () {
         Route::get('/', [NetworkController::class, 'index'])->name('index');
         Route::get('create', [NetworkController::class, 'create'])->middleware('enforce.subscription:add-network')->name('create');
         Route::post('/', [NetworkController::class, 'store'])->middleware('enforce.subscription:add-network')->name('store');
-        Route::get('connections/{connection}/edit', [NetworkController::class, 'edit'])->middleware('enforce.subscription:add-network')->name('edit');
-        Route::put('connections/{connection}', [NetworkController::class, 'update'])->middleware('enforce.subscription:add-network')->name('update');
-        Route::delete('connections/{connection}', [NetworkController::class, 'destroy'])->middleware('enforce.subscription:add-network')->name('destroy');
+        Route::get('connections/{connection}/edit', [NetworkController::class, 'edit'])->name('edit');
+        Route::put('connections/{connection}', [NetworkController::class, 'update'])->name('update');
+        Route::delete('connections/{connection}', [NetworkController::class, 'destroy'])->name('destroy');
         Route::get('connections/{connection}', [NetworkController::class, 'show'])->name('show');
         Route::post('connections/{connection}/sync', [NetworkController::class, 'syncConnection'])->middleware('enforce.subscription:sync-data')->name('sync');
         Route::get('{network}/data', [NetworkController::class, 'getData'])->name('data');
@@ -108,7 +108,7 @@ Route::middleware(['auth', 'ensure.user.type:user'])->group(function () {
         Route::post('{network}/connections', [NetworkController::class, 'createConnection'])->middleware('enforce.subscription:add-network')->name('connections.create');
         Route::post('test-connection', [NetworkController::class, 'testConnection'])->middleware('enforce.subscription:add-network')->name('test-connection');
         Route::post('verify-password', [NetworkController::class, 'verifyPassword'])->middleware('enforce.subscription:add-network')->name('verify-password');
-        Route::post('reconnect', [NetworkController::class, 'reconnect'])->middleware('enforce.subscription:add-network')->name('reconnect');
+        Route::post('reconnect', [NetworkController::class, 'reconnect'])->name('reconnect');
     });
 
     Route::get('/admitad/callback', [NetworkController::class, 'admitadCallback'])->name('admitad.callback');

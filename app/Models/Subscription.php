@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Events\SubscriptionCreated;
 use App\Events\SubscriptionCancelled;
 use App\Events\SubscriptionUpgraded;
+use App\Events\SubscriptionUpdated;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\Auditable;
@@ -37,6 +38,8 @@ class Subscription extends Model
         'cancelled_at' => 'datetime',
         'paid_until' => 'datetime',
         'meta' => 'array',
+        'user_id' => 'integer',
+        'plan_id' => 'integer',
     ];
 
     /**
@@ -44,7 +47,7 @@ class Subscription extends Model
      */
     protected $dispatchesEvents = [
         'created' => SubscriptionCreated::class,
-        'updated' => SubscriptionUpgraded::class,
+        'updated' => SubscriptionUpdated::class,
     ];
 
     public function user()
@@ -55,6 +58,11 @@ class Subscription extends Model
     public function plan()
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
     }
 }
 

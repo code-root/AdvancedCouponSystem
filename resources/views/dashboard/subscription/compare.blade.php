@@ -75,10 +75,40 @@
                                         @endforeach
                                     </tr>
 
-                                    <!-- Monthly Syncs -->
+                                    <!-- Sync Frequency -->
                                     <tr>
                                         <td class="fw-medium">
-                                            <i class="ti ti-refresh me-2 text-warning"></i>Monthly Syncs
+                                            <i class="ti ti-clock me-2 text-warning"></i>Sync Frequency
+                                        </td>
+                                        @foreach($plans as $plan)
+                                            <td class="text-center">
+                                                <span class="fw-medium">{{ $plan->features['sync_frequency'] ?? '1 day' }}</span>
+                                            </td>
+                                        @endforeach
+                                    </tr>
+
+                                    <!-- Daily Sync Limit -->
+                                    <tr>
+                                        <td class="fw-medium">
+                                            <i class="ti ti-refresh me-2 text-info"></i>Daily Sync Limit
+                                        </td>
+                                        @foreach($plans as $plan)
+                                            <td class="text-center">
+                                                @if(($plan->features['syncs_per_day'] ?? 0) === -1)
+                                                    <span class="text-success fw-bold">Unlimited</span>
+                                                @elseif(($plan->features['syncs_per_day'] ?? 0) === 0)
+                                                    <span class="text-muted">None</span>
+                                                @else
+                                                    <span class="fw-medium">{{ number_format($plan->features['syncs_per_day']) }}</span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    </tr>
+
+                                    <!-- Monthly Sync Limit -->
+                                    <tr>
+                                        <td class="fw-medium">
+                                            <i class="ti ti-calendar me-2 text-warning"></i>Monthly Sync Limit
                                         </td>
                                         @foreach($plans as $plan)
                                             <td class="text-center">
@@ -87,7 +117,43 @@
                                                 @elseif(($plan->features['syncs_per_month'] ?? 0) === 0)
                                                     <span class="text-muted">None</span>
                                                 @else
-                                                    <span class="fw-medium">{{ $plan->features['syncs_per_month'] }}</span>
+                                                    <span class="fw-medium">{{ number_format($plan->features['syncs_per_month']) }}</span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    </tr>
+
+                                    <!-- Orders Limit -->
+                                    <tr>
+                                        <td class="fw-medium">
+                                            <i class="ti ti-shopping-cart me-2 text-success"></i>Monthly Orders Limit
+                                        </td>
+                                        @foreach($plans as $plan)
+                                            <td class="text-center">
+                                                @if(($plan->features['orders_limit'] ?? 0) === -1)
+                                                    <span class="text-success fw-bold">Unlimited</span>
+                                                @elseif(($plan->features['orders_limit'] ?? 0) === 0)
+                                                    <span class="text-muted">None</span>
+                                                @else
+                                                    <span class="fw-medium">{{ number_format($plan->features['orders_limit']) }}</span>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    </tr>
+
+                                    <!-- Revenue Limit -->
+                                    <tr>
+                                        <td class="fw-medium">
+                                            <i class="ti ti-currency-dollar me-2 text-success"></i>Monthly Revenue Limit
+                                        </td>
+                                        @foreach($plans as $plan)
+                                            <td class="text-center">
+                                                @if(($plan->features['revenue_limit'] ?? 0) === -1)
+                                                    <span class="text-success fw-bold">Unlimited</span>
+                                                @elseif(($plan->features['revenue_limit'] ?? 0) === 0)
+                                                    <span class="text-muted">None</span>
+                                                @else
+                                                    <span class="fw-medium">${{ number_format($plan->features['revenue_limit']) }}</span>
                                                 @endif
                                             </td>
                                         @endforeach

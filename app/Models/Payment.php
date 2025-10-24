@@ -27,6 +27,8 @@ class Payment extends Model
         'amount' => 'decimal:2',
         'paid_at' => 'datetime',
         'meta' => 'array',
+        'user_id' => 'integer',
+        'subscription_id' => 'integer',
     ];
 
     public function user()

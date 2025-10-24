@@ -124,6 +124,159 @@
                 </div>
             </li>
 
+            <li class="side-nav-title mt-2">Subscription Management</li>
+
+            <!-- Subscription Section -->
+            <li class="side-nav-item">
+                <a data-bs-toggle="collapse" href="#sidebarSubscription" aria-expanded="false" aria-controls="sidebarSubscription" class="side-nav-link {{ request()->is('subscription*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-credit-card"></i></span>
+                    <span class="menu-text"> Subscription </span>
+                    <span class="menu-arrow"></span>
+                    @if(auth()->check() && auth()->user()->hasActiveSubscription())
+                        <span class="badge bg-success rounded-pill ms-auto">Active</span>
+                    @elseif(auth()->check() && auth()->user()->subscriptions()->where('status', 'trialing')->exists())
+                        <span class="badge bg-info rounded-pill ms-auto">Trial</span>
+                    @else
+                        <span class="badge bg-warning rounded-pill ms-auto">Inactive</span>
+                    @endif
+                </a>
+                <div class="collapse {{ request()->is('subscription*') ? 'show' : '' }}" id="sidebarSubscription">
+                    <ul class="sub-menu">
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.index') }}" class="side-nav-link {{ request()->routeIs('subscription.index') ? 'active' : '' }}">
+                                <span class="menu-text">My Subscription</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.plans') }}" class="side-nav-link {{ request()->routeIs('subscription.plans') ? 'active' : '' }}">
+                                <span class="menu-text">Available Plans</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.compare') }}" class="side-nav-link {{ request()->routeIs('subscription.compare') ? 'active' : '' }}">
+                                <span class="menu-text">Compare Plans</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.invoices') }}" class="side-nav-link {{ request()->routeIs('subscription.invoices') ? 'active' : '' }}">
+                                <span class="menu-text">Invoices & Billing</span>
+                                @if(auth()->check())
+                                    @php
+                                        $pendingInvoices = \App\Models\Payment::where('user_id', auth()->id())
+                                            ->where('status', 'pending')
+                                            ->count();
+                                    @endphp
+                                    @if($pendingInvoices > 0)
+                                        <span class="badge bg-danger rounded-pill ms-auto">{{ $pendingInvoices }}</span>
+                                    @endif
+                                @endif
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.usage') }}" class="side-nav-link {{ request()->routeIs('subscription.usage') ? 'active' : '' }}">
+                                <span class="menu-text">Usage Statistics</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Billing & Invoices Section -->
+            <li class="side-nav-item">
+                <a data-bs-toggle="collapse" href="#sidebarBilling" aria-expanded="false" aria-controls="sidebarBilling" class="side-nav-link {{ request()->is('billing*') || request()->is('invoices*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-receipt"></i></span>
+                    <span class="menu-text"> Billing & Invoices </span>
+                    <span class="menu-arrow"></span>
+                    @if(auth()->check())
+                        @php
+                            $pendingPayments = \App\Models\Payment::where('user_id', auth()->id())
+                                ->where('status', 'pending')
+                                ->count();
+                        @endphp
+                        @if($pendingPayments > 0)
+                            <span class="badge bg-danger rounded-pill ms-auto">{{ $pendingPayments }}</span>
+                        @endif
+                    @endif
+                </a>
+                <div class="collapse {{ request()->is('billing*') || request()->is('invoices*') ? 'show' : '' }}" id="sidebarBilling">
+                    <ul class="sub-menu">
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.invoices') }}" class="side-nav-link {{ request()->routeIs('subscription.invoices') ? 'active' : '' }}">
+                                <span class="menu-text">All Invoices</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.invoices') }}?status=pending" class="side-nav-link">
+                                <span class="menu-text">Pending Payments</span>
+                                @if(auth()->check())
+                                    @php
+                                        $pendingCount = \App\Models\Payment::where('user_id', auth()->id())
+                                            ->where('status', 'pending')
+                                            ->count();
+                                    @endphp
+                                    @if($pendingCount > 0)
+                                        <span class="badge bg-warning rounded-pill ms-auto">{{ $pendingCount }}</span>
+                                    @endif
+                                @endif
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.invoices') }}?status=paid" class="side-nav-link">
+                                <span class="menu-text">Paid Invoices</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.invoices') }}?status=failed" class="side-nav-link">
+                                <span class="menu-text">Failed Payments</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
+            <!-- Usage Monitoring Section -->
+            <li class="side-nav-item">
+                <a data-bs-toggle="collapse" href="#sidebarUsage" aria-expanded="false" aria-controls="sidebarUsage" class="side-nav-link {{ request()->is('usage*') ? 'active' : '' }}">
+                    <span class="menu-icon"><i class="ti ti-chart-bar"></i></span>
+                    <span class="menu-text"> Usage Monitoring </span>
+                    <span class="menu-arrow"></span>
+                </a>
+                <div class="collapse {{ request()->is('usage*') ? 'show' : '' }}" id="sidebarUsage">
+                    <ul class="sub-menu">
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.usage') }}" class="side-nav-link {{ request()->routeIs('subscription.usage') ? 'active' : '' }}">
+                                <span class="menu-text">Usage Overview</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.usage') }}#networks" class="side-nav-link">
+                                <span class="menu-text">Network Usage</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.usage') }}#campaigns" class="side-nav-link">
+                                <span class="menu-text">Campaign Usage</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.usage') }}#syncs" class="side-nav-link">
+                                <span class="menu-text">Sync Usage</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.usage') }}#orders" class="side-nav-link">
+                                <span class="menu-text">Order Usage</span>
+                            </a>
+                        </li>
+                        <li class="side-nav-item">
+                            <a href="{{ route('subscription.usage') }}#revenue" class="side-nav-link">
+                                <span class="menu-text">Revenue Usage</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </li>
+
             <li class="side-nav-title mt-2">Configuration</li>
 
             <!-- Data Sync Section -->

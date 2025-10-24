@@ -21,11 +21,17 @@
                         <div class="col-md-3">
                             <label class="form-label">Networks</label>
                             <select id="networkFilter" class="form-select" multiple="multiple" data-toggle="select2">
+                                @foreach($networks as $network)
+                                    <option value="{{ $network->id }}">{{ $network->name }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Campaigns</label>
                             <select id="campaignFilter" class="form-select" multiple="multiple" data-toggle="select2">
+                                @foreach($campaigns as $campaign)
+                                    <option value="{{ $campaign->id }}">{{ $campaign->name }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="col-md-2">
@@ -59,7 +65,7 @@
                             </span>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0" id="totalPurchases">0</h4>
+                            <h4 class="mb-0" id="totalPurchases">{{ $initialStats['total_orders'] ?? 0 }}</h4>
                             <p class="text-muted mb-0">Total Purchases</p>
                         </div>
                     </div>
@@ -77,7 +83,7 @@
                             </span>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0" id="approvedPurchases">0</h4>
+                            <h4 class="mb-0" id="approvedPurchases">{{ $initialStats['approved_orders'] ?? 0 }}</h4>
                             <p class="text-muted mb-0">Approved</p>
                         </div>
                     </div>
@@ -95,7 +101,7 @@
                             </span>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0" id="totalRevenue">$0</h4>
+                            <h4 class="mb-0" id="totalRevenue">${{ $initialStats['total_revenue'] ?? '0' }}</h4>
                             <p class="text-muted mb-0">Total Revenue</p>
                         </div>
                     </div>
@@ -113,7 +119,7 @@
                             </span>
                         </div>
                         <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0" id="totalOrderValue">$0</h4>
+                            <h4 class="mb-0" id="totalOrderValue">${{ $initialStats['total_sales_amount'] ?? '0' }}</h4>
                             <p class="text-muted mb-0">Order Value</p>
                         </div>
                     </div>

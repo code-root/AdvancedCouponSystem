@@ -69,6 +69,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('coupons/{coupon}/deactivate', [\App\Http\Controllers\CouponController::class, 'deactivate'])->name('api.coupons.deactivate');
     Route::get('coupons/{coupon}/history', [\App\Http\Controllers\CouponController::class, 'history'])->name('api.coupons.history');
     
+    // Subscription Coupon Routes
+    Route::post('validate-coupon', [\App\Http\Controllers\Api\SubscriptionCouponController::class, 'validate'])->name('api.subscription.coupon.validate');
+    
     // Purchase Routes
     Route::apiResource('purchases', \App\Http\Controllers\PurchaseController::class)->names([
         'index' => 'api.orders.index',

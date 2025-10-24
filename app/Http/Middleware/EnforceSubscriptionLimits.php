@@ -42,48 +42,59 @@ class EnforceSubscriptionLimits
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Active subscription required for this action. Subscribe now to unlock all features!',
+                    'message' => '🚫 Active subscription required for this action. Subscribe now to unlock all features!',
                     'subscription_required' => true,
                     'redirect_url' => route('subscription.plans'),
                     'upgrade_prompt' => [
-                        'title' => 'Unlock Full Access',
-                        'message' => 'Subscribe to start managing your networks, campaigns, and data.',
+                        'title' => '🔒 Subscription Required',
+                        'message' => 'You need an active subscription to perform this action. Choose a plan that fits your needs.',
                         'benefits' => [
                             'Connect unlimited networks',
-                            'Manage campaigns',
-                            'Export data',
-                            'Priority support'
-                        ]
+                            'Manage campaigns and data',
+                            'Export your data',
+                            'Get priority support',
+                            'Access advanced features'
+                        ],
+                        'action_text' => 'View Plans',
+                        'icon' => 'ti ti-crown'
                     ]
                 ], 402);
             }
             
             return redirect()->route('subscription.plans')
-                ->with('error', 'Active subscription required for this action. Subscribe now to unlock all features!')
-                ->with('upgrade_prompt', 'Subscribe to start managing your networks, campaigns, and data.');
+                ->with('error', '🚫 Active subscription required for this action. Subscribe now to unlock all features!')
+                ->with('upgrade_prompt', 'You need an active subscription to perform this action. Choose a plan that fits your needs.');
         }
         
         // Check feature-specific limits if specified
         if ($feature && !$this->hasFeatureAccess($user, $feature)) {
             if ($request->expectsJson()) {
+                $featureName = $this->getFeatureDisplayName($feature);
+                $currentPlan = $subscription->plan->name ?? 'Free';
+                
                 return response()->json([
                     'success' => false,
-                    'message' => "Your current plan doesn't support this feature. Upgrade to unlock more capabilities!",
+                    'message' => "🚫 {$featureName} is not available in your current plan ({$currentPlan}). Upgrade now to unlock this feature!",
                     'upgrade_required' => true,
                     'redirect_url' => route('subscription.plans'),
                     'feature' => $feature,
                     'upgrade_prompt' => [
-                        'title' => 'Upgrade Required',
-                        'message' => "This feature requires a higher plan. Upgrade now to unlock {$feature}.",
-                        'current_plan' => $subscription->plan->name ?? 'Free',
-                        'benefits' => $this->getFeatureBenefits($feature)
+                        'title' => '🔒 Feature Not Available',
+                        'message' => "To access {$featureName}, you need to upgrade from your current {$currentPlan} plan to a higher tier.",
+                        'current_plan' => $currentPlan,
+                        'benefits' => $this->getFeatureBenefits($feature),
+                        'action_text' => 'Upgrade Now',
+                        'icon' => 'ti ti-lock'
                     ]
                 ], 403);
             }
             
+            $featureName = $this->getFeatureDisplayName($feature);
+            $currentPlan = $subscription->plan->name ?? 'Free';
+            
             return redirect()->route('subscription.plans')
-                ->with('error', "Your current plan doesn't support this feature. Upgrade to unlock more capabilities!")
-                ->with('upgrade_prompt', "This feature requires a higher plan. Upgrade now to unlock {$feature}.");
+                ->with('error', "🚫 {$featureName} is not available in your current plan ({$currentPlan}). Upgrade now to unlock this feature!")
+                ->with('upgrade_prompt', "To access {$featureName}, you need to upgrade from your current {$currentPlan} plan to a higher tier.");
         }
         
         // Mark as full access for active subscribers
@@ -191,6 +202,23 @@ class EnforceSubscriptionLimits
     }
     
     /**
+     * Get display name for a specific feature.
+     */
+    private function getFeatureDisplayName(string $feature): string
+    {
+        return match ($feature) {
+            'add-network' => 'Add New Networks',
+            'add-campaign' => 'Add New Campaigns',
+            'sync-data' => 'Data Synchronization',
+            'export-data' => 'Data Export',
+            'api-access' => 'API Access',
+            'advanced-analytics' => 'Advanced Analytics',
+            'priority-support' => 'Priority Support',
+            default => 'This Feature'
+        };
+    }
+    
+    /**
      * Get benefits for a specific feature.
      */
     private function getFeatureBenefits(string $feature): array
@@ -199,37 +227,44 @@ class EnforceSubscriptionLimits
             'add-network' => [
                 'Connect unlimited networks',
                 'Sync data from all sources',
-                'Advanced network management'
+                'Advanced network management',
+                'Real-time network monitoring'
             ],
             'add-campaign' => [
                 'Create unlimited campaigns',
                 'Advanced campaign analytics',
-                'Automated campaign optimization'
+                'Automated campaign optimization',
+                'Multi-channel campaign management'
             ],
             'sync-data' => [
-                'Unlimited data sync',
-                'Real-time updates',
-                'Custom sync schedules'
+                'Unlimited data synchronization',
+                'Real-time data updates',
+                'Custom sync schedules',
+                'Automated data processing'
             ],
             'export-data' => [
                 'Export all your data',
-                'Multiple export formats',
-                'Scheduled exports'
+                'Multiple export formats (CSV, Excel, JSON)',
+                'Scheduled exports',
+                'Custom data filtering'
             ],
             'api-access' => [
                 'Full API access',
                 'Webhook integrations',
-                'Custom integrations'
+                'Custom integrations',
+                'Rate limit increases'
             ],
             'advanced-analytics' => [
-                'Advanced reporting',
-                'Custom dashboards',
-                'Data insights'
+                'Advanced reporting dashboard',
+                'Custom analytics views',
+                'Data insights and trends',
+                'Performance optimization tools'
             ],
             default => [
                 'Unlock premium features',
                 'Get priority support',
-                'Access to all tools'
+                'Access to all tools',
+                'Enhanced user experience'
             ]
         };
     }

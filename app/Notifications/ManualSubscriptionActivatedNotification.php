@@ -50,6 +50,7 @@ class ManualSubscriptionActivatedNotification extends Notification implements Sh
             ->line('Note: This subscription was activated without payment gateway.')
             ->action('View Subscription', route('admin.subscriptions.show', $this->subscription->id))
             ->line('Thank you for using our application!');
+        return 0;
     }
 
     /**

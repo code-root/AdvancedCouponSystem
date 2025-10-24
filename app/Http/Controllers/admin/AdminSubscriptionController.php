@@ -286,7 +286,7 @@ class AdminSubscriptionController extends Controller
             ]);
 
             $subscription = Subscription::findOrFail($id);
-            $newEndDate = $subscription->ends_at->addDays($request->days);
+            $newEndDate = $subscription->ends_at->addDays((int) $request->days);
 
             $subscription->update([
                 'ends_at' => $newEndDate,

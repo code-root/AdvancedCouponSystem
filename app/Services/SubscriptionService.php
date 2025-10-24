@@ -34,7 +34,7 @@ class SubscriptionService
             // Calculate dates
             $startsAt = now();
             $endsAt = $this->calculateEndDate($startsAt, $plan->billing_cycle);
-            $trialEndsAt = $plan->trial_days > 0 ? $startsAt->copy()->addDays($plan->trial_days) : null;
+            $trialEndsAt = $plan->trial_days > 0 ? $startsAt->copy()->addDays((int) $plan->trial_days) : null;
 
             // Create subscription
             $subscription = Subscription::create([
@@ -278,7 +278,7 @@ class SubscriptionService
         $admins = \App\Models\Admin::all();
         
         foreach ($admins as $admin) {
-            $admin->notify($notification);
+            // $admin->notify($notification);
         }
     }
 

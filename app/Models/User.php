@@ -28,6 +28,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'parent_user_id',
     ];
 
+    protected $casts = [
+        'created_by' => 'integer',
+        'parent_user_id' => 'integer',
+    ];
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -233,11 +238,11 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get user's networks
+     * Get user's networks (connected networks)
      */
     public function networks()
     {
-        return $this->hasMany(\App\Models\Network::class);
+        return $this->connectedNetworks();
     }
 
     /**

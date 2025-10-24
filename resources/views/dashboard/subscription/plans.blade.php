@@ -72,18 +72,78 @@
                         <!-- Plan Features -->
                         @if($plan->features)
                             <ul class="list-unstyled mb-4">
-                                @foreach($plan->features as $feature => $value)
+                                <li class="mb-2">
+                                    <i class="ti ti-check text-success me-2"></i>
+                                    <span class="text-muted">
+                                        <strong>{{ $plan->features['networks_limit'] === -1 ? 'Unlimited' : $plan->features['networks_limit'] }}</strong> Networks
+                                    </span>
+                                </li>
+                                <li class="mb-2">
+                                    <i class="ti ti-check text-success me-2"></i>
+                                    <span class="text-muted">
+                                        <strong>{{ $plan->features['campaigns_limit'] === -1 ? 'Unlimited' : $plan->features['campaigns_limit'] }}</strong> Campaigns
+                                    </span>
+                                </li>
+                                <li class="mb-2">
+                                    <i class="ti ti-check text-success me-2"></i>
+                                    <span class="text-muted">
+                                        Sync every <strong>{{ $plan->features['sync_frequency'] ?? '1 day' }}</strong>
+                                    </span>
+                                </li>
+                                @if($plan->features['syncs_per_day'] && $plan->features['syncs_per_day'] !== -1)
                                     <li class="mb-2">
                                         <i class="ti ti-check text-success me-2"></i>
                                         <span class="text-muted">
-                                            @if(is_bool($value))
-                                                {{ $value ? 'Unlimited ' . ucfirst(str_replace('_', ' ', $feature)) : 'No ' . ucfirst(str_replace('_', ' ', $feature)) }}
-                                            @else
-                                                {{ $value }} {{ ucfirst(str_replace('_', ' ', $feature)) }}
-                                            @endif
+                                            <strong>{{ number_format($plan->features['syncs_per_day']) }}</strong> daily syncs
                                         </span>
                                     </li>
-                                @endforeach
+                                @endif
+                                @if($plan->features['syncs_per_month'] && $plan->features['syncs_per_month'] !== -1)
+                                    <li class="mb-2">
+                                        <i class="ti ti-check text-success me-2"></i>
+                                        <span class="text-muted">
+                                            <strong>{{ number_format($plan->features['syncs_per_month']) }}</strong> monthly syncs
+                                        </span>
+                                    </li>
+                                @endif
+                                @if($plan->features['orders_limit'] && $plan->features['orders_limit'] !== -1)
+                                    <li class="mb-2">
+                                        <i class="ti ti-check text-success me-2"></i>
+                                        <span class="text-muted">
+                                            <strong>{{ number_format($plan->features['orders_limit']) }}</strong> monthly orders
+                                        </span>
+                                    </li>
+                                @endif
+                                @if($plan->features['revenue_limit'] && $plan->features['revenue_limit'] !== -1)
+                                    <li class="mb-2">
+                                        <i class="ti ti-check text-success me-2"></i>
+                                        <span class="text-muted">
+                                            Revenue cap: <strong>${{ number_format($plan->features['revenue_limit']) }}</strong>
+                                        </span>
+                                    </li>
+                                @endif
+                                <li class="mb-2">
+                                    <i class="ti ti-check text-success me-2"></i>
+                                    <span class="text-muted">Data export</span>
+                                </li>
+                                @if($plan->features['api_access'])
+                                    <li class="mb-2">
+                                        <i class="ti ti-check text-success me-2"></i>
+                                        <span class="text-muted">API access</span>
+                                    </li>
+                                @endif
+                                @if($plan->features['priority_support'])
+                                    <li class="mb-2">
+                                        <i class="ti ti-check text-success me-2"></i>
+                                        <span class="text-muted">Priority support</span>
+                                    </li>
+                                @endif
+                                @if($plan->features['advanced_analytics'])
+                                    <li class="mb-2">
+                                        <i class="ti ti-check text-success me-2"></i>
+                                        <span class="text-muted">Advanced analytics</span>
+                                    </li>
+                                @endif
                             </ul>
                         @endif
                     </div>
@@ -94,11 +154,11 @@
                                 <i class="ti ti-check me-1"></i>Current Plan
                             </button>
                         @elseif($currentSubscription && $currentSubscription->status == 'active')
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#changePlanModal" data-plan-id="{{ $plan->id }}" data-plan-name="{{ $plan->name }}">
+                            <button type="button" class="btn btn-primary change-plan-btn" data-bs-toggle="modal" data-bs-target="#changePlanModal" data-plan-id="{{ $plan->id }}" data-plan-name="{{ $plan->name }}">
                                 <i class="ti ti-refresh me-1"></i>Change Plan
                             </button>
                         @else
-                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#subscribeModal" data-plan-id="{{ $plan->id }}" data-plan-name="{{ $plan->name }}" data-plan-price="{{ $plan->price }}">
+                            <button type="button" class="btn btn-primary subscribe-btn" data-bs-toggle="modal" data-bs-target="#subscribeModal" data-plan-id="{{ $plan->id }}" data-plan-name="{{ $plan->name }}" data-plan-price="{{ $plan->price }}">
                                 <i class="ti ti-crown me-1"></i>Subscribe Now
                             </button>
                         @endif
@@ -251,80 +311,150 @@
         </div>
     </div>
 </div>
-@endsection
 
-@push('scripts')
 <script>
-    // Subscribe Modal
-    $('#subscribeModal').on('show.bs.modal', function (event) {
-        var button = $(event.relatedTarget);
-        var planId = button.data('plan-id');
-        var planName = button.data('plan-name');
-        var planPrice = button.data('plan-price');
-        
-        $('#selectedPlanId').val(planId);
-        $('#selectedPlanName').val(planName);
-        $('#subscribeModalLabel').text('Subscribe to ' + planName);
-    });
+console.log('Subscription plans page loaded');
 
-    // Change Plan Modal
-    $('#changePlanModal').on('show.bs.modal', function (event) {
-        var button = $(event.relatedTarget);
-        var planId = button.data('plan-id');
-        var planName = button.data('plan-name');
+    // Subscription Context for JavaScript
+    @if(isset($subscriptionContext))
+    window.subscriptionContext = @json($subscriptionContext);
+    @endif
+    
+    // Wait for DOM to be ready
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Subscription plans page loaded');
         
-        $('#newPlanId').val(planId);
-        $('#newPlanName').val(planName);
-        $('#changePlanModalLabel').text('Change to ' + planName);
-    });
+        // Subscribe Modal
+        const subscribeModal = document.getElementById('subscribeModal');
+        if (subscribeModal) {
+            subscribeModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const planId = button.getAttribute('data-plan-id');
+                const planName = button.getAttribute('data-plan-name');
+                
+                console.log('Opening modal for plan:', planId, planName);
+                
+                document.getElementById('selectedPlanId').value = planId;
+                document.getElementById('selectedPlanName').value = planName;
+                document.getElementById('subscribeModalLabel').textContent = 'Subscribe to: ' + planName;
+            });
+        }
 
-    // Subscribe Form
-    $('#subscribeForm').on('submit', function (e) {
-        e.preventDefault();
-        const formData = new FormData(this);
+        // Change Plan Modal
+        const changePlanModal = document.getElementById('changePlanModal');
+        if (changePlanModal) {
+            changePlanModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const planId = button.getAttribute('data-plan-id');
+                const planName = button.getAttribute('data-plan-name');
+                
+                console.log('Opening change plan modal for:', planId, planName);
+                
+                document.getElementById('newPlanId').value = planId;
+                document.getElementById('newPlanName').value = planName;
+                document.getElementById('changePlanModalLabel').textContent = 'Change to: ' + planName;
+            });
+        }
         
-        window.ajaxHelper.post('{{ route("subscription.subscribe") }}', formData, {
-            loadingElement: this
-        })
-        .then(response => {
-            if (response.success) {
-                Swal.fire('Success!', response.message, 'success');
-                $('#subscribeModal').modal('hide');
-                location.reload();
-            } else {
-                Swal.fire('Error!', response.message, 'error');
-            }
-        })
-        .catch(error => {
-            Swal.fire('Error!', error.message || 'An error occurred.', 'error');
-        });
-    });
-
-    // Change Plan Form
-    $('#changePlanForm').on('submit', function (e) {
-        e.preventDefault();
-        const formData = new FormData(this);
+        // Subscribe Form Handler
+        const subscribeForm = document.getElementById('subscribeForm');
+        if (subscribeForm) {
+            subscribeForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                console.log('Form submitted');
+                
+                const planId = document.getElementById('selectedPlanId').value;
+                const paymentMethod = document.getElementById('paymentMethod').value;
+                
+                if (!planId || !paymentMethod) {
+                    alert('Please fill all required fields');
+                    return;
+                }
+                
+                const submitBtn = subscribeForm.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="ti ti-loader me-1"></i>Processing...';
+                
+                const formData = new FormData(subscribeForm);
+                
+                fetch('{{ route("subscription.subscribe") }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Success: ' + data.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Subscribe Now';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Subscribe Now';
+                });
+            });
+        }
         
-        window.ajaxHelper.post('{{ route("subscription.change-plan") }}', formData, {
-            loadingElement: this
-        })
-        .then(response => {
-            if (response.success) {
-                Swal.fire('Success!', response.message, 'success');
-                $('#changePlanModal').modal('hide');
-                location.reload();
-            } else {
-                Swal.fire('Error!', response.message, 'error');
-            }
-        })
-        .catch(error => {
-            Swal.fire('Error!', error.message || 'An error occurred.', 'error');
-        });
+        // Change Plan Form Handler
+        const changePlanForm = document.getElementById('changePlanForm');
+        if (changePlanForm) {
+            changePlanForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                console.log('Change plan form submitted');
+                
+                const planId = document.getElementById('newPlanId').value;
+                
+                if (!planId) {
+                    alert('Please select a plan');
+                    return;
+                }
+                
+                const submitBtn = changePlanForm.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="ti ti-loader me-1"></i>Processing...';
+                
+                const formData = new FormData(changePlanForm);
+                
+                fetch('{{ route("subscription.change-plan") }}', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Success: ' + data.message);
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = 'Change Plan';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Change Plan';
+                });
+            });
+        }
     });
 </script>
-@endpush
 
-@push('styles')
 <style>
     .pricing-card {
         transition: transform 0.3s ease;
@@ -342,13 +472,65 @@
         font-size: 2.5rem;
         font-weight: 700;
     }
+    
+    /* Modal improvements */
+    .modal {
+        z-index: 1055;
+    }
+    
+    .modal-backdrop {
+        z-index: 1050;
+    }
+    
+    /* Button improvements */
+    .subscribe-btn, .change-plan-btn {
+        transition: all 0.3s ease;
+    }
+    
+    .subscribe-btn:hover, .change-plan-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* Loading state */
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    /* Form validation */
+    .form-control.is-invalid {
+        border-color: #dc3545;
+    }
+    
+    .invalid-feedback {
+        display: block;
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    
+    /* Ensure modal is visible */
+    .modal.show {
+        display: block !important;
+    }
+    
+    /* Modal content styling */
+    .modal-content {
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid #e9ecef;
+        border-radius: 10px 10px 0 0;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid #e9ecef;
+        border-radius: 0 0 10px 10px;
+    }
 </style>
-@endpush
-
-<script>
-// Subscription Context for JavaScript
-@if(isset($subscriptionContext))
-window.subscriptionContext = @json($subscriptionContext);
-@endif
-</script>
+@endsection
 

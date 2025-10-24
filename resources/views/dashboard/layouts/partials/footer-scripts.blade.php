@@ -1,4 +1,7 @@
 @vite('resources/js/app.js')
+@vite('resources/js/ajax-helper.js')
+@vite('resources/js/dashboard-utils.js')
+@vite('resources/js/subscription-helper.js')
 
 @yield('scripts')
 
@@ -167,6 +170,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 @endauth
 
-<!-- Subscription Helper Script -->
-<script src="{{ asset('assets/js/subscription-helper.js') }}"></script>
 

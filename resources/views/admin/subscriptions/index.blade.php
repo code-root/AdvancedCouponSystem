@@ -147,7 +147,7 @@
         <h5 class="card-title mb-0">Subscriptions</h5>
     </div>
     <div class="card-body">
-        <div class="table-responsive">
+        {{-- <div class="table-responsive"> --}}
             <table class="table table-hover align-middle mb-0" id="subscriptionsTable">
                 <thead>
                     <tr>
@@ -293,7 +293,7 @@
                     @endforelse
                 </tbody>
             </table>
-        </div>
+        {{-- </div> --}}
         
         @if(($subscriptions ?? null) && $subscriptions->hasPages())
             <div class="d-flex justify-content-between align-items-center mt-3">
@@ -306,34 +306,6 @@
         @endif
     </div>
 </div>
-
+@vite(['resources/js/admin-subscriptions.js'])
 @include('admin.subscriptions.partials.modals')
 @endsection
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof $ === 'undefined') {
-        console.error('jQuery is not loaded');
-        return;
-    }
-
-    // Initialize DataTable
-    $('#subscriptionsTable').DataTable({
-        responsive: true,
-        pageLength: 25,
-        order: [[0, 'desc']],
-        columnDefs: [
-            { orderable: false, targets: [8] }
-        ],
-        language: {
-            search: "",
-            searchPlaceholder: "Search subscriptions...",
-            infoFiltered: ""
-        }
-    });
-});
-
-@include('admin.subscriptions.partials.scripts')
-</script>
-@endpush

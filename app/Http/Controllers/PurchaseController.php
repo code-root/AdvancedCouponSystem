@@ -858,7 +858,36 @@ class PurchaseController extends Controller
      */
     public function statisticsPage()
     {
-        return view('dashboard.orders.statistics');
+        $targetUserId = UserHelper::getTargetUserId();
+        
+        // Get initial data for the page
+        $networks = Network::where('is_active', true)->get();
+        $campaigns = Campaign::where('user_id', $targetUserId)->get();
+        
+        // Get initial statistics
+        $initialStats = $this->getInitialStatistics($targetUserId);
+        
+        return view('dashboard.orders.statistics', compact('networks', 'campaigns', 'initialStats'));
+    }
+    
+    /**
+     * Get initial statistics for the page
+     */
+    private function getInitialStatistics($userId)
+    {
+        $query = Purchase::where('user_id', $userId);
+        
+        return [
+            'total_orders' => $query->sum('quantity'),
+            'approved_orders' => (clone $query)->where('status', 'approved')->sum('quantity'),
+            'pending_orders' => (clone $query)->where('status', 'pending')->sum('quantity'),
+            'rejected_orders' => (clone $query)->where('status', 'rejected')->sum('quantity'),
+            'paid_orders' => (clone $query)->where('status', 'paid')->sum('quantity'),
+            'total_revenue' => number_format((clone $query)->where('status', 'approved')->sum('revenue'), 2, '.', ','),
+            'total_sales_amount' => number_format((clone $query)->where('status', 'approved')->sum('sales_amount'), 2, '.', ','),
+            'average_purchase' => number_format((clone $query)->where('status', 'approved')->avg('sales_amount') ?: 0, 2, '.', ','),
+            'average_revenue' => number_format((clone $query)->where('status', 'approved')->avg('revenue') ?: 0, 2, '.', ','),
+        ];
     }
 
     /**

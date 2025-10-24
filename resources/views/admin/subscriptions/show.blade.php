@@ -302,12 +302,7 @@
 
 <!-- Modals (same as index.blade.php) -->
 @include('admin.subscriptions.partials.modals')
-@endsection
+@vite(['resources/js/admin-subscriptions.js'])
 
-@push('scripts')
-<script>
-// Include the same JavaScript functions from index.blade.php
-@include('admin.subscriptions.partials.scripts')
-</script>
-@endpush
+@endsection
 

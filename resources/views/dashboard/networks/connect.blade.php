@@ -53,7 +53,7 @@
 
             <div class="row">
                 <!-- Network Selection -->
-                @foreach(['boostiny', 'digizag', 'platformance', 'optimize', 'marketeers', 'admitad'] as $network)
+                @foreach(['boostiny', 'digizag', 'platformance', 'optimize', 'marketeers', 'admitad', 'icw'] as $network)
                 <div class="col-xl-4 col-md-6 mb-4">
                     <div class="card border-0 shadow-sm h-100 network-card" data-network="{{ $network }}">
                         <div class="card-body">
@@ -92,6 +92,10 @@
                                         <li><i class="ti ti-check text-success me-1"></i> Marketing Analytics</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Campaign Optimization</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Data Insights</li>
+                                    @elseif($network === 'icw')
+                                        <li><i class="ti ti-check text-success me-1"></i> ICubesWire Integration</li>
+                                        <li><i class="ti ti-check text-success me-1"></i> API Data Sync</li>
+                                        <li><i class="ti ti-check text-success me-1"></i> Real-time Analytics</li>
                                     @else
                                         <li><i class="ti ti-check text-success me-1"></i> Global Network</li>
                                         <li><i class="ti ti-check text-success me-1"></i> Multiple Verticals</li>
@@ -222,6 +226,11 @@ const networkInfo = {
         name: 'Admitad',
         icon: 'ti-world',
         description: 'Affiliate Network'
+    },
+    icw: {
+        name: 'ICW',
+        icon: 'ti-device-desktop',
+        description: 'ICubesWire Network'
     }
 };
 
@@ -246,7 +255,8 @@ $(document).ready(function() {
         const formData = new FormData(this);
         formData.append('network', selectedNetwork);
         
-        dashboardUtils.showLoading('button[type="submit"]');
+        // Show network connection progress
+        dashboardUtils.showNetworkProgress(selectedNetwork, 'Connecting to network...');
         
         fetch('{{ route("networks.store") }}', {
             method: 'POST',
@@ -258,20 +268,31 @@ $(document).ready(function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                // Show success and redirect
+                dashboardUtils.hideProgress();
                 dashboardUtils.showSuccess(data.message);
+                
+                // Close modal
                 bootstrap.Modal.getInstance(document.getElementById('connectionModal')).hide();
+                
+                // Redirect after delay
                 setTimeout(() => {
                     window.location.href = `{{ route('networks.index') }}/${selectedNetwork}`;
                 }, 1500);
             } else {
-                dashboardUtils.showError(data.message);
+                // Handle upgrade required
+                if (data.upgrade_required) {
+                    dashboardUtils.hideProgress();
+                    dashboardUtils.showUpgradePrompt(data);
+                } else {
+                    dashboardUtils.hideProgress();
+                    dashboardUtils.showError(data.message);
+                }
             }
         })
         .catch(error => {
+            dashboardUtils.hideProgress();
             dashboardUtils.showError('Connection failed. Please try again.');
-        })
-        .finally(() => {
-            dashboardUtils.hideLoading('button[type="submit"]', '<i class="ti ti-plug me-1"></i> Connect Network');
         });
     });
     
