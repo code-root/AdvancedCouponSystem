@@ -63,9 +63,9 @@
                         <label for="network_id" class="form-label">Network</label>
                         <select class="form-select" id="network_id" name="network_id">
                             <option value="">All Networks</option>
-                            @foreach($networks as $network)
+                            @foreach(($networks ?? collect([])) as $network)
                                 <option value="{{ $network->id }}" {{ request('network_id') == $network->id ? 'selected' : '' }}>
-                                    {{ $network->display_name }}
+                                    {{ $network->display_name ?? $network->name ?? 'Unknown' }}
                                 </option>
                             @endforeach
                         </select>

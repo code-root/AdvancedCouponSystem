@@ -26,10 +26,15 @@ class NetworkSessionReportController extends Controller
         // Get statistics with optimized queries
         $stats = $this->getNetworkSessionStatistics();
 
-        // Get networks for filter dropdown
-        $networks = Network::where('is_active', true)
-            ->orderBy('display_name')
-            ->get(['id', 'display_name', 'name']);
+        // Get networks for filter dropdown with error handling
+        try {
+            $networks = Network::where('is_active', true)
+                ->orderBy('display_name')
+                ->get(['id', 'display_name', 'name']);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to load networks for network-sessions report: ' . $e->getMessage());
+            $networks = collect([]); // Empty collection as fallback
+        }
 
         return view('admin.reports.network-sessions', compact('sessions', 'stats', 'networks'));
     }

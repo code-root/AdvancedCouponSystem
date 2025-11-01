@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AdminSubscriptionController extends Controller
 {
@@ -90,18 +91,71 @@ class AdminSubscriptionController extends Controller
 
     public function activateTrial($userId, $planId)
     {
-        $user = User::findOrFail($userId);
-        $plan = Plan::findOrFail($planId);
-        $this->subs->startTrial($user, $plan);
-        return redirect()->back()->with('success', 'Trial started');
+        try {
+            Log::info('AdminSubscriptionController: Attempting to activate trial', [
+                'user_id' => $userId,
+                'plan_id' => $planId,
+                'admin_id' => Auth::guard('admin')->id()
+            ]);
+
+            $user = User::findOrFail($userId);
+            $plan = Plan::findOrFail($planId);
+            
+            $subscription = $this->subs->activateTrial($user, $plan);
+            
+            Log::info('AdminSubscriptionController: Trial activated successfully', [
+                'subscription_id' => $subscription->id,
+                'user_id' => $userId,
+                'plan_id' => $planId
+            ]);
+
+            return redirect()->back()->with('success', 'Trial started successfully');
+        } catch (\Exception $e) {
+            Log::error('AdminSubscriptionController: Failed to activate trial', [
+                'user_id' => $userId,
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()->with('error', 'Failed to start trial: ' . $e->getMessage());
+        }
     }
 
     public function activatePlan($userId, $planId)
     {
-        $user = User::findOrFail($userId);
-        $plan = Plan::findOrFail($planId);
-        $this->subs->activate($user, $plan);
-        return redirect()->back()->with('success', 'Plan activated');
+        try {
+            Log::info('AdminSubscriptionController: Attempting to activate plan', [
+                'user_id' => $userId,
+                'plan_id' => $planId,
+                'admin_id' => Auth::guard('admin')->id()
+            ]);
+
+            $user = User::findOrFail($userId);
+            $plan = Plan::findOrFail($planId);
+            
+            $subscription = $this->subs->createSubscription($user, $plan, [
+                'gateway' => 'manual',
+                'created_by_admin' => true,
+            ]);
+            
+            Log::info('AdminSubscriptionController: Plan activated successfully', [
+                'subscription_id' => $subscription->id,
+                'user_id' => $userId,
+                'plan_id' => $planId
+            ]);
+
+            return redirect()->back()->with('success', 'Plan activated successfully');
+        } catch (\Exception $e) {
+            Log::error('AdminSubscriptionController: Failed to activate plan', [
+                'user_id' => $userId,
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()->with('error', 'Failed to activate plan: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -150,6 +204,12 @@ class AdminSubscriptionController extends Controller
     public function cancel(Request $request, $id)
     {
         try {
+            Log::info('AdminSubscriptionController: Attempting to cancel subscription', [
+                'subscription_id' => $id,
+                'admin_id' => Auth::guard('admin')->id(),
+                'reason' => $request->input('reason')
+            ]);
+
             $request->validate([
                 'reason' => 'nullable|string|max:500',
             ]);
@@ -157,32 +217,95 @@ class AdminSubscriptionController extends Controller
             $subscription = Subscription::with(['user', 'plan'])->findOrFail($id);
             $oldStatus = $subscription->status;
 
-            $subscription->update([
-                'status' => 'canceled',
-                'cancelled_at' => now(),
-                'meta' => array_merge($subscription->meta ?? [], [
-                    'cancellation_reason' => $request->reason,
-                    'cancelled_by' => Auth::guard('admin')->id(),
-                ]),
-            ]);
+            DB::beginTransaction();
+            try {
+                $subscription->update([
+                    'status' => 'canceled',
+                    'cancelled_at' => now(),
+                    'meta' => array_merge($subscription->meta ?? [], [
+                        'cancellation_reason' => $request->reason,
+                        'cancelled_by' => Auth::guard('admin')->id(),
+                    ]),
+                ]);
 
-            // Notify all admins
-            $admins = Admin::all();
-            foreach ($admins as $admin) {
-                $admin->notify(new SubscriptionCancelledNotification($subscription, $request->reason));
+                // Notify all admins with error handling
+                try {
+                    $admins = Admin::all();
+                    foreach ($admins as $admin) {
+                        try {
+                            $admin->notify(new SubscriptionCancelledNotification($subscription, $request->reason));
+                            Log::debug('AdminSubscriptionController: Cancellation notification sent to admin', [
+                                'admin_id' => $admin->id
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::warning('AdminSubscriptionController: Failed to notify admin about cancellation', [
+                                'admin_id' => $admin->id,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('AdminSubscriptionController: Failed to send cancellation notifications', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                // Fire event with error handling
+                try {
+                    event(new SubscriptionCancelled($subscription, $request->reason));
+                } catch (\Exception $e) {
+                    Log::warning('AdminSubscriptionController: Failed to dispatch cancellation event', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                DB::commit();
+
+                // Clear cache
+                Cache::forget('subscription_statistics');
+
+                Log::info('AdminSubscriptionController: Subscription cancelled successfully', [
+                    'subscription_id' => $id,
+                    'user_id' => $subscription->user_id,
+                    'plan_id' => $subscription->plan_id,
+                    'old_status' => $oldStatus
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Subscription cancelled successfully'
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
             }
-
-            // Fire event
-            event(new SubscriptionCancelled($subscription, $request->reason));
-
-            // Clear cache
-            Cache::forget('subscription_statistics');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Subscription cancelled successfully'
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('AdminSubscriptionController: Validation failed for subscription cancellation', [
+                'subscription_id' => $id,
+                'errors' => $e->errors()
             ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::warning('AdminSubscriptionController: Subscription not found for cancellation', [
+                'subscription_id' => $id
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Subscription not found'
+            ], 404);
         } catch (\Exception $e) {
+            Log::error('AdminSubscriptionController: Failed to cancel subscription', [
+                'subscription_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to cancel subscription: ' . $e->getMessage()
@@ -196,6 +319,12 @@ class AdminSubscriptionController extends Controller
     public function upgrade(Request $request, $id)
     {
         try {
+            Log::info('AdminSubscriptionController: Attempting to upgrade subscription', [
+                'subscription_id' => $id,
+                'new_plan_id' => $request->plan_id,
+                'admin_id' => Auth::guard('admin')->id()
+            ]);
+
             $request->validate([
                 'plan_id' => 'required|exists:plans,id',
             ]);
@@ -204,31 +333,94 @@ class AdminSubscriptionController extends Controller
             $oldPlan = $subscription->plan;
             $newPlan = Plan::findOrFail($request->plan_id);
 
-            $subscription->update([
-                'plan_id' => $newPlan->id,
-                'meta' => array_merge($subscription->meta ?? [], [
-                    'upgraded_by' => Auth::guard('admin')->id(),
-                    'upgrade_date' => now(),
-                ]),
-            ]);
+            DB::beginTransaction();
+            try {
+                $subscription->update([
+                    'plan_id' => $newPlan->id,
+                    'meta' => array_merge($subscription->meta ?? [], [
+                        'upgraded_by' => Auth::guard('admin')->id(),
+                        'upgrade_date' => now(),
+                    ]),
+                ]);
 
-            // Notify all admins
-            $admins = Admin::all();
-            foreach ($admins as $admin) {
-                $admin->notify(new SubscriptionUpgradedNotification($subscription, $oldPlan, $newPlan));
+                // Notify all admins with error handling
+                try {
+                    $admins = Admin::all();
+                    foreach ($admins as $admin) {
+                        try {
+                            $admin->notify(new SubscriptionUpgradedNotification($subscription, $oldPlan, $newPlan));
+                            Log::debug('AdminSubscriptionController: Upgrade notification sent to admin', [
+                                'admin_id' => $admin->id
+                            ]);
+                        } catch (\Exception $e) {
+                            Log::warning('AdminSubscriptionController: Failed to notify admin about upgrade', [
+                                'admin_id' => $admin->id,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('AdminSubscriptionController: Failed to send upgrade notifications', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                // Fire event with error handling
+                try {
+                    event(new SubscriptionUpgraded($subscription, $oldPlan, $newPlan));
+                } catch (\Exception $e) {
+                    Log::warning('AdminSubscriptionController: Failed to dispatch upgrade event', [
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                DB::commit();
+
+                // Clear cache
+                Cache::forget('subscription_statistics');
+
+                Log::info('AdminSubscriptionController: Subscription upgraded successfully', [
+                    'subscription_id' => $id,
+                    'old_plan_id' => $oldPlan->id,
+                    'new_plan_id' => $newPlan->id
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Subscription upgraded successfully'
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
             }
-
-            // Fire event
-            event(new SubscriptionUpgraded($subscription, $oldPlan, $newPlan));
-
-            // Clear cache
-            Cache::forget('subscription_statistics');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Subscription upgraded successfully'
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('AdminSubscriptionController: Validation failed for subscription upgrade', [
+                'subscription_id' => $id,
+                'errors' => $e->errors()
             ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::warning('AdminSubscriptionController: Subscription or plan not found for upgrade', [
+                'subscription_id' => $id,
+                'plan_id' => $request->plan_id ?? null
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Subscription or plan not found'
+            ], 404);
         } catch (\Exception $e) {
+            Log::error('AdminSubscriptionController: Failed to upgrade subscription', [
+                'subscription_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upgrade subscription: ' . $e->getMessage()

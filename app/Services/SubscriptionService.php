@@ -13,6 +13,7 @@ use App\Events\SubscriptionCancelled;
 use App\Events\SubscriptionUpgraded;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class SubscriptionService
@@ -56,7 +57,20 @@ class SubscriptionService
             ]);
 
             // Notify admins
-            $this->notifyAdmins(new NewSubscriptionNotification($subscription));
+            try {
+                $this->notifyAdmins(new NewSubscriptionNotification($subscription));
+                Log::info('SubscriptionService: New subscription notification sent', [
+                    'subscription_id' => $subscription->id,
+                    'user_id' => $user->id,
+                    'plan_id' => $plan->id
+                ]);
+            } catch (\Exception $e) {
+                Log::error('SubscriptionService: Failed to send new subscription notification', [
+                    'subscription_id' => $subscription->id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+            }
 
             return $subscription;
         });
@@ -79,10 +93,28 @@ class SubscriptionService
             ]);
 
             // Notify admins
-            $this->notifyAdmins(new SubscriptionCancelledNotification($subscription, $reason));
+            try {
+                $this->notifyAdmins(new SubscriptionCancelledNotification($subscription, $reason));
+                Log::info('SubscriptionService: Subscription cancelled notification sent', [
+                    'subscription_id' => $subscription->id,
+                    'reason' => $reason
+                ]);
+            } catch (\Exception $e) {
+                Log::error('SubscriptionService: Failed to send cancellation notification', [
+                    'subscription_id' => $subscription->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             // Dispatch event
-            event(new SubscriptionCancelled($subscription, $reason));
+            try {
+                event(new SubscriptionCancelled($subscription, $reason));
+            } catch (\Exception $e) {
+                Log::error('SubscriptionService: Failed to dispatch SubscriptionCancelled event', [
+                    'subscription_id' => $subscription->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
         });
     }
 
@@ -147,10 +179,29 @@ class SubscriptionService
             }
 
             // Notify admins
-            $this->notifyAdmins(new SubscriptionUpgradedNotification($subscription, $oldPlan, $newPlan));
+            try {
+                $this->notifyAdmins(new SubscriptionUpgradedNotification($subscription, $oldPlan, $newPlan));
+                Log::info('SubscriptionService: Subscription upgraded notification sent', [
+                    'subscription_id' => $subscription->id,
+                    'old_plan_id' => $oldPlan->id,
+                    'new_plan_id' => $newPlan->id
+                ]);
+            } catch (\Exception $e) {
+                Log::error('SubscriptionService: Failed to send upgrade notification', [
+                    'subscription_id' => $subscription->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
 
             // Dispatch event
-            event(new SubscriptionUpgraded($subscription, $oldPlan, $newPlan));
+            try {
+                event(new SubscriptionUpgraded($subscription, $oldPlan, $newPlan));
+            } catch (\Exception $e) {
+                Log::error('SubscriptionService: Failed to dispatch SubscriptionUpgraded event', [
+                    'subscription_id' => $subscription->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
         });
     }
 
@@ -271,14 +322,38 @@ class SubscriptionService
     }
 
     /**
-     * Notify all admins.
+     * Notify all admins with error handling.
      */
     private function notifyAdmins($notification): void
     {
-        $admins = \App\Models\Admin::all();
-        
-        foreach ($admins as $admin) {
-            // $admin->notify($notification);
+        try {
+            $admins = \App\Models\Admin::all();
+            
+            Log::info('SubscriptionService: Notifying admins', [
+                'admin_count' => $admins->count(),
+                'notification_type' => get_class($notification)
+            ]);
+            
+            foreach ($admins as $admin) {
+                try {
+                    $admin->notify($notification);
+                    Log::debug('SubscriptionService: Notification sent to admin', [
+                        'admin_id' => $admin->id,
+                        'admin_email' => $admin->email
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('SubscriptionService: Failed to notify admin', [
+                        'admin_id' => $admin->id,
+                        'error' => $e->getMessage()
+                    ]);
+                    // Continue with other admins even if one fails
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('SubscriptionService: Failed to load admins for notification', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
         }
     }
 

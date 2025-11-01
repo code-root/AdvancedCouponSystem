@@ -19,7 +19,7 @@
     </div>
 
     <!-- Current Subscription Alert -->
-    @if($currentSubscription)
+    @if(isset($currentSubscription) && $currentSubscription)
         <div class="row">
             <div class="col-12">
                 <div class="alert alert-info">
@@ -47,7 +47,7 @@
 
     <!-- Plans Grid -->
     <div class="row">
-        @foreach($plans as $plan)
+        @foreach(($plans ?? collect([])) as $plan)
             <div class="col-lg-4 col-md-6 mb-4">
                 <div class="card h-100 pricing-card {{ $plan->is_popular ? 'border-primary shadow-lg' : '' }}">
                     @if($plan->is_popular)
@@ -149,11 +149,11 @@
                     </div>
                     
                     <div class="card-footer text-center">
-                        @if($currentSubscription && $currentSubscription->plan_id == $plan->id)
+                        @if(isset($currentSubscription) && $currentSubscription && $currentSubscription->plan_id == $plan->id)
                             <button class="btn btn-success" disabled>
                                 <i class="ti ti-check me-1"></i>Current Plan
                             </button>
-                        @elseif($currentSubscription && $currentSubscription->status == 'active')
+                        @elseif(isset($currentSubscription) && $currentSubscription && $currentSubscription->status == 'active')
                             <button type="button" class="btn btn-primary change-plan-btn" data-bs-toggle="modal" data-bs-target="#changePlanModal" data-plan-id="{{ $plan->id }}" data-plan-name="{{ $plan->name }}">
                                 <i class="ti ti-refresh me-1"></i>Change Plan
                             </button>
@@ -189,15 +189,15 @@
                             <tbody>
                                 <tr>
                                     <td><strong>Price</strong></td>
-                                    @foreach($plans as $plan)
+                                    @foreach(($plans ?? collect([])) as $plan)
                                         <td class="text-center">${{ number_format($plan->price, 2) }}/{{ $plan->billing_cycle }}</td>
                                     @endforeach
                                 </tr>
-                                @if($plans->first() && $plans->first()->features)
-                                    @foreach($plans->first()->features as $feature => $value)
+                                @if(($plans ?? collect([]))->first() && ($plans ?? collect([]))->first()->features)
+                                    @foreach(($plans ?? collect([]))->first()->features as $feature => $value)
                                         <tr>
                                             <td><strong>{{ ucfirst(str_replace('_', ' ', $feature)) }}</strong></td>
-                                            @foreach($plans as $plan)
+                                            @foreach(($plans ?? collect([])) as $plan)
                                                 <td class="text-center">
                                                     @if(isset($plan->features[$feature]))
                                                         @if(is_bool($plan->features[$feature]))
@@ -279,7 +279,7 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Current Plan</label>
-                        <input type="text" class="form-control" value="{{ $currentSubscription->plan->name ?? 'N/A' }}" readonly>
+                        <input type="text" class="form-control" value="{{ isset($currentSubscription) && $currentSubscription ? ($currentSubscription->plan->name ?? 'N/A') : 'N/A' }}" readonly>
                     </div>
                     
                     <div class="mb-3">

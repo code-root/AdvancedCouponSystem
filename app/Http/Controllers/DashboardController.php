@@ -477,7 +477,13 @@ class DashboardController extends Controller
      */
     public function settings()
     {
-        return view('dashboard.settings.index');
+        try {
+            return view('dashboard.settings.index');
+        } catch (\InvalidArgumentException $e) {
+            \Illuminate\Support\Facades\Log::error('Settings view not found: ' . $e->getMessage());
+            // Fallback to a basic settings view or redirect
+            abort(404, 'Settings page not available');
+        }
     }
 
     /**
