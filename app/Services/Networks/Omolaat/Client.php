@@ -11,6 +11,17 @@ final class Client
     private string $baseUrl = 'https://my.omolaat.com';
     private array $cookies = [];
     private array $defaultHeaders = [];
+    
+    /**
+     * Dynamic state extracted from HTML responses (matching Python DynamicState)
+     */
+    private array $dynamicState = [
+        'bubble_page_load_id' => null,
+        'bubble_plp_token' => null,
+        'bubble_client_version' => null,
+        'app_last_change' => null,
+        'user_id' => null,
+    ];
 
     public function __construct()
     {
@@ -99,8 +110,66 @@ final class Client
 
     private static function makeFiberId(): string
     {
-        $t = self::nowMs();
-        return $t . 'x' . (int) (microtime(true) * 1000000);
+        $nowMs = self::nowMs();
+        // Match Python format: f"{now_ms}x{now_ms % 10**18}"
+        return $nowMs . 'x' . ($nowMs % (10 ** 18));
+    }
+    
+    /**
+     * Extract dynamic values from HTML (matching Python _update_state_from_html)
+     */
+    private function extractDynamicValues(string $html): void
+    {
+        // Extract bubble_page_load_id: window.bubble_page_load_id = "..."
+        if (preg_match('/window\.bubble_page_load_id\s*=\s*"([^"]+)"/i', $html, $matches)) {
+            $this->dynamicState['bubble_page_load_id'] = $matches[1];
+        }
+        
+        // Extract bubble_plp_token: window.bubble_plp_token = "..."
+        if (preg_match('/window\.bubble_plp_token\s*=\s*"([^"]+)"/i', $html, $matches)) {
+            $this->dynamicState['bubble_plp_token'] = $matches[1];
+        }
+        
+        // Extract bubble_client_version: /package/run_js/([a-f0-9]{30,64})/
+        if (preg_match('/\/package\/run_js\/([a-f0-9]{30,64})\//', $html, $matches)) {
+            $this->dynamicState['bubble_client_version'] = $matches[1];
+        }
+        
+        // Extract app_last_change: last_change: function() { return "..."; }
+        if (preg_match('/last_change:\s*function\(\)\s*\{\s*return\s*"([0-9]+)";\s*\}\s*,?/', $html, $matches)) {
+            $this->dynamicState['app_last_change'] = $matches[1];
+        }
+    }
+    
+    /**
+     * Build dynamic Bubble headers (matching Python _bubble_headers)
+     */
+    private function buildBubbleHeaders(): array
+    {
+        $timestamp = self::nowMs();
+        $headers = [
+            'X-Bubble-Fiber-ID' => self::makeFiberId(),
+            'X-Bubble-Platform' => 'web',
+            'X-Requested-With' => 'XMLHttpRequest',
+            'Accept' => 'application/json, text/javascript, */*; q=0.01',
+            'Content-Type' => 'application/json',
+            'X-Bubble-Client-Version' => $this->dynamicState['bubble_client_version'] 
+                ?: '3f36ae259f05a47b51ec986159b4b9e4a852b2e6',
+            'cache-control' => 'no-cache',
+            'X-Bubble-PL' => $this->dynamicState['bubble_page_load_id'] 
+                ?: ($timestamp - 3000) . 'x727',
+            'X-Bubble-Client-Commit-Timestamp' => '1760740885000',
+            'X-Bubble-R' => 'https://my.omolaat.com/',
+            'X-Bubble-Breaking-Revision' => '5',
+            'X-Bubble-newautorun' => 'false',
+            'Origin' => 'https://my.omolaat.com',
+            'Referer' => 'https://my.omolaat.com/',
+            'sec-ch-ua' => '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
+            'sec-ch-ua-mobile' => '?0',
+            'sec-ch-ua-platform' => '"Windows"',
+        ];
+        
+        return $headers;
     }
 
     public function initializeSession(): void
@@ -111,39 +180,38 @@ final class Client
             'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         ]);
 
-        // Step 2: main page
-        $this->request('GET', '/', [
+        // Step 2: main page - extract dynamic values from HTML
+        $resp2 = $this->request('GET', '/', [
             'Upgrade-Insecure-Requests' => '1',
             'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
         ]);
+        
+        // Extract dynamic values from HTML (matching Python behavior)
+        $this->extractDynamicValues($resp2['body']);
 
-        // Step 3: init data
-        $this->request('GET', '/api/1.1/init/data?location=https%3A%2F%2Fmy.omolaat.com%2F', [
+        // Step 3: init data - extract user_id from response
+        $resp3 = $this->request('GET', '/api/1.1/init/data?location=https%3A%2F%2Fmy.omolaat.com%2F', [
             'Accept' => '*/*',
             'Referer' => 'https://my.omolaat.com/',
         ]);
+        
+        // Extract user_id from init data (matching Python behavior)
+        $initData = json_decode($resp3['body'], true);
+        if (is_array($initData)) {
+            foreach ($initData as $item) {
+                if (isset($item['type']) && $item['type'] === 'user' && isset($item['id'])) {
+                    $this->dynamicState['user_id'] = $item['id'];
+                    break;
+                }
+            }
+        }
 
-        // Step 4: user hi
+        // Step 4: user hi - use dynamic headers
         $timestamp = self::nowMs();
-        $fiber = self::makeFiberId();
         $epoch = self::makeFiberId();
-        $headers = [
-            'X-Bubble-Fiber-ID' => $fiber,
-            'X-Bubble-Platform' => 'web',
-            'X-Requested-With' => 'XMLHttpRequest',
-            'Accept' => 'application/json, text/javascript, */*; q=0.01',
-            'Content-Type' => 'application/json',
-            'X-Bubble-Client-Version' => 'f3e74823084defdfa3362e8cf532a37cc32be5ed',
-            'cache-control' => 'no-cache',
-            'X-Bubble-PL' => ($timestamp - 3000) . 'x727',
-            'X-Bubble-Epoch-Name' => 'Epoch: Runmode page fully loaded',
-            'X-Bubble-Client-Commit-Timestamp' => '1760361376000',
-            'X-Bubble-R' => 'https://my.omolaat.com/',
-            'X-Bubble-Epoch-ID' => $epoch,
-            'X-Bubble-Breaking-Revision' => '5',
-            'Origin' => 'https://my.omolaat.com',
-            'Referer' => 'https://my.omolaat.com/',
-        ];
+        $headers = $this->buildBubbleHeaders();
+        $headers['X-Bubble-Epoch-Name'] = 'Epoch: Runmode page fully loaded';
+        $headers['X-Bubble-Epoch-ID'] = $epoch;
         $this->request('POST', '/user/hi', $headers, '{}', true);
     }
 
@@ -152,41 +220,27 @@ final class Client
         $this->initializeSession();
 
         $timestamp = self::nowMs();
-        $fiber = self::makeFiberId();
-        $runId = $timestamp . 'x400580689282938100';
-        $serverCallId = $timestamp . 'x558775507381657900';
+        $runId = $timestamp . 'x' . ($timestamp % (10 ** 12));
+        $serverCallId = $timestamp . 'x' . (($timestamp * 7) % (10 ** 12));
 
-        // Extract user_id from cookie omolaat_live_u2main
-        $userId = null;
-        if (isset($this->cookies['omolaat_live_u2main'])) {
+        // Use user_id from dynamic state (extracted from init data) or fallback to cookie
+        $userId = $this->dynamicState['user_id'];
+        if ($userId === null && isset($this->cookies['omolaat_live_u2main'])) {
             $parts = explode('|', $this->cookies['omolaat_live_u2main']);
             if (count($parts) > 1) {
                 $userId = $parts[1];
             }
         }
         if ($userId === null) {
-            throw new \RuntimeException('Could not get user_id from cookies');
+            throw new \RuntimeException('Could not get user_id from init data or cookies');
         }
 
-        $headers = [
-            'X-Bubble-Fiber-ID' => $fiber,
-            'X-Bubble-Platform' => 'web',
-            'X-Requested-With' => 'XMLHttpRequest',
-            'Accept' => 'application/json, text/javascript, */*; q=0.01',
-            'Content-Type' => 'application/json',
-            'X-Bubble-Client-Version' => 'f3e74823084defdfa3362e8cf532a37cc32be5ed',
-            'cache-control' => 'no-cache',
-            'X-Bubble-PL' => ($timestamp - 5000) . 'x727',
-            'X-Bubble-Client-Commit-Timestamp' => '1760361376000',
-            'X-Bubble-R' => 'https://my.omolaat.com/',
-            'X-Bubble-Breaking-Revision' => '5',
-            'Origin' => 'https://my.omolaat.com',
-            'Referer' => 'https://my.omolaat.com/',
-        ];
+        // Use dynamic headers (matching Python behavior)
+        $headers = $this->buildBubbleHeaders();
 
         $payload = [
             'wait_for' => [],
-            'app_last_change' => '36087641123',
+            'app_last_change' => $this->dynamicState['app_last_change'] ?: '37155285232',
             'client_breaking_revision' => 5,
             'calls' => [[
                 'client_state' => [
@@ -240,7 +294,7 @@ final class Client
                     ],
                     'other_data' => [
                         'Current Page Scroll Position' => 0,
-                        'Current Page Width' => 1536,
+                        'Current Page Width' => 1521, // Match Python value
                         'secure_list' => array_fill(0, 6, $password),
                     ],
                     'cache' => new \stdClass(),
@@ -253,9 +307,9 @@ final class Client
                 'page_id' => 'bTGYf',
                 'uid_generator' => [
                     'timestamp' => $timestamp,
-                    'seed' => 382723601125662140,
+                    'seed' => 300710616359107460, // Match Python value
                 ],
-                'random_seed' => 0.3458067383425456,
+                'random_seed' => 0.8659861322531154, // Match Python value
                 'current_date_time' => $timestamp,
                 'current_wf_params' => new \stdClass(),
             ]],
@@ -270,6 +324,22 @@ final class Client
             throw new \RuntimeException('Login failed: ' . $resp['status'] . "\n" . $resp['body']);
         }
 
+        // Validate login success (matching Python behavior)
+        $data = json_decode($resp['body'], true);
+        $success = false;
+        if (is_array($data)) {
+            foreach ($data as $value) {
+                if (is_array($value) && isset($value['outcome']) && $value['outcome'] === 'success') {
+                    $success = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!$success) {
+            throw new \RuntimeException('Login failed: Invalid credentials or session expired');
+        }
+
         return [
             'cookies' => $this->cookies,
             'headers' => $headers,
@@ -279,12 +349,11 @@ final class Client
 
     public function search(string $appname, array $encrypted, ?string $fiberId = null): array
     {
-        $headers = [
-            'X-Bubble-R' => 'https://my.omolaat.com/affiliate/My%2520Performance',
-            'X-Bubble-Fiber-ID' => $fiberId ?: self::makeFiberId(),
-            'Accept' => 'application/json, text/javascript, */*; q=0.01',
-            'Content-Type' => 'application/json',
-        ];
+        // Use dynamic headers and update for search
+        $headers = $this->buildBubbleHeaders();
+        $headers['X-Bubble-R'] = 'https://my.omolaat.com/affiliate/My%2520Performance';
+        $headers['X-Bubble-Fiber-ID'] = $fiberId ?: self::makeFiberId();
+        
         $resp = $this->request('POST', '/elasticsearch/msearch', $headers, json_encode($encrypted), true);
         return [
             'status' => $resp['status'],
@@ -533,7 +602,7 @@ final class Client
             
             // Stop conditions for this day
             if ($currentPageHits === 0) {
-                \Log::info("Stopping day pagination: No hits in current page", [
+                Log::info("Stopping day pagination: No hits in current page", [
                     'page' => $page,
                     'day_start_ms' => $dayStartMs,
                     'day_end_ms' => $dayEndMs
@@ -542,7 +611,7 @@ final class Client
             }
             
             if ($totalExpected !== null && $totalHits >= $totalExpected) {
-                \Log::info("Stopping day pagination: Reached total expected hits", [
+                Log::info("Stopping day pagination: Reached total expected hits", [
                     'total_hits' => $totalHits,
                     'total_expected' => $totalExpected,
                     'day_start_ms' => $dayStartMs,
@@ -552,7 +621,7 @@ final class Client
             }
             
             if ($currentPageHits < $pageSize) {
-                \Log::info("Stopping day pagination: Last page detected", [
+                Log::info("Stopping day pagination: Last page detected", [
                     'current_page_hits' => $currentPageHits,
                     'page_size' => $pageSize,
                     'day_start_ms' => $dayStartMs,

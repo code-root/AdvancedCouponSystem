@@ -200,8 +200,9 @@ class OmolaatService extends BaseNetworkService
             $payload = $this->buildSearchPayload($from, $to);
             
             // Encrypt payload
-            $timestamp = '1760377533394';
-            $ivHex = '302e36373832353033343936303138313938';
+            $timestamp = (string) (int) (microtime(true) * 1000);
+            $ivHex = '302e3233313133323930393539313738';
+            
             $ivBytes = hex2bin($ivHex);
             $encrypted = OmCrypto::encryptBubblePayload('omolaat', $payload, $timestamp, $ivBytes);
 
